@@ -220,6 +220,7 @@ NPDists <- nrow(Surveys$perp_distance) %>% as.vector()
 
 # get perpendicular distances
 PDists <- Surveys$perp_distance$Perp_Dist %>% as.vector()
+PDists[is.na(PDists)] <- 10 #EDIT OUT WHEN FIXED
 
 # join grid fractions data to grid fractions data for line transects
 LineNestedGroupFrac <- GridFrac %>% filter(transect == "line_transect") %>% as_tibble() %>% group_by(TransectID) %>% nest()
@@ -348,9 +349,9 @@ NimbleCode <- nimbleCode({
 			# linear predictor for density including time-dependent variables and unstructured (at the small grid scale) stochasticity
 			# note the "- ((sigma_r ^ 2) / 2)" adjustment to ensure E(d) = d for all sigma_r
 			# also includes spatially structured (at the large grid scale) stochasticity through lp_int[i]
-			mu_l[i, t] <- exp(l_int + inprod(beta_l[1:NY], Y[i, FirstDateID - 1 + t - 1 - Lag, 1:NY]))
+			mu_l[i, t - 1] <- exp(l_int + inprod(beta_l[1:NY], Y[i, FirstDateID - 1 + t - 1 - Lag, 1:NY]))
 
-			lambda[i, t - 1] ~ dgamma(mean = mu_l[i, t], sd = sigma_l)
+			lambda[i, t - 1] ~ dgamma(mean = mu_l[i, t - 1], sd = sigma_l)
 
 			d[i, t] <- d[i, t - 1] * lambda[i, t - 1]
 		}
@@ -489,7 +490,7 @@ NimbleData <- list(X = X, Y = Y, CntStrip = CntStrip, CntAoA = CntAoA, PDists = 
 
 #NimbleInits <- list(pStrip = 0.5, pAoA = 0.5, mudstr = 1, sddstr = 1, mudaoa = 1, sddaoa = 1, mudlin = 1, sddlin = 1, mud = 1, sdd = 1, sigma_hn = 1, dStrip = get.dens.inits(AreaStrip, CntStrip), dAoA = get.dens.inits(AreaAoA, CntAoA), dLine = rep(0.5, NLines), d = matrix(1, nrow = NSGrids, ncol = LastDateID - FirstDateID + 1))
 
-NimbleInits <- list(di_int = 0, l_int = 0, beta_di = rep(0, NX), beta_l = rep(0, NY), sigma_di = 0.5, sigma_r = 0.5, di = rep(10, NSGrids), pStrip = 0.5, pAoA = 0.5, sigma_hn = 1)
+NimbleInits <- list(di_int = 0, l_int = 0, beta_di = rep(0, NX), beta_l = rep(0, NY), sigma_di = 0.5, sigma_l = 0.5, di = rep(10, NSGrids), lambda = matrix(1, nrow = NSGrids, ncol = (LastDateID - FirstDateID)), pStrip = 0.5, pAoA = 0.5, sigma_hn = 1)
 
 #NimbleDims <- list(dFracStrip = c(NStrips, NMaxSGridsStrip), dFracAoA = c(NAoAs, NMaxSGridsAoA), dFracLine = c(NLines, NMaxSGridsLine))
 
@@ -497,7 +498,7 @@ N.iter <- 10000
 N.burnin <- 0
 N.chains <- 1
 
-NimbleModel <- nimbleModel(code = NimbleCode, constants = NimbleConsts, data = NimbleData, inits = NimbleInits, calculate = FALSE)
+NimbleModel <- nimbleModel(code = NimbleCode, constants = NimbleConsts, data = NimbleData, inits = NimbleInits, calculate = TRUE)
 
 CNimbleModel <- compileNimble(NimbleModel)
 
@@ -526,19 +527,6 @@ MCMCtrace(object = Samples, pdf = FALSE, ind = TRUE, params = c("i_int", "r_int"
 
 
 
-
-
-
-
-
-pumpConsts <- list(N = 10,
-                   t = c(94.3, 15.7, 62.9, 126, 5.24,
-                       31.4, 1.05, 1.05, 2.1, 10.5))
-
-pumpData <- list(x = c(5, 1, 5, 14, 3, 19, 1, 1, 4, 22))
-
-pumpInits <- list(alpha = 1, beta = 1,
-                  theta = rep(0.1, pumpConsts$N))
 
 
 
