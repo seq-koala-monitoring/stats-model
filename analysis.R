@@ -27,27 +27,33 @@ DateIntervals <- read_csv("input/survey_data/date_interval_lookup.csv") %>% muta
 # adjust code here to set the range for the entire data set or define specific date ranges
 
 # get date of first survey
-FirstDate <- date("2013-01-01")
+FirstDate <- date("2015-01-01")
+#FirstDate <- date("2013-01-01")
 #FirstDate <- min(c(min(Surveys$line_transect$Date), min(Surveys$strip_transect$Date), min(Surveys$uaoa$Date)))
 # get date of last survey
+LastDate <- date("2020-12-31")
 #LastDate <- date("2013-01-01")
-LastDate <- max(c(max(Surveys$line_transect$Date), max(Surveys$strip_transect$Date), max(Surveys$uaoa$Date)))
+#LastDate <- max(c(max(Surveys$line_transect$Date), max(Surveys$strip_transect$Date), max(Surveys$uaoa$Date)))
 # first and last date index values
 FirstDateID <- filter(DateIntervals, start_date <= FirstDate & end_date >= FirstDate) %>% pull(TimePeriodID)
 LastDateID <- filter(DateIntervals, start_date <= LastDate & end_date >= LastDate) %>% pull(TimePeriodID)
 
 # Subset data for the specified date range
 
-# survey data
+# set the Lag for the effect of predictors on growth rate in terms of number of 6-monthly time steps
+Lag <- 0
+
+# survey data - selecting only the transects for the time period selected
 Surveys$line_transect <- Surveys$line_transect %>% filter(Date >= FirstDate & Date <= LastDate)
 Surveys$strip_transect <- Surveys$strip_transect %>% filter(Date >= FirstDate & Date <= LastDate)
 Surveys$uaoa <- Surveys$uaoa %>% filter(Date >= FirstDate & Date <= LastDate)
 #Surveys$perp_distance <- Surveys$perp_distance %>% filter(Date >= FirstDate & Date <= LastDate)
 # grid fractions
 GridFrac <- GridFrac[which((GridFrac$TransectID %in% Surveys$line_transect$TransectID) | (GridFrac$TransectID %in% Surveys$strip_transect$TransectID) | (GridFrac$TransectID %in% Surveys$uaoa$TransectID)),]
-# covariates
+# covariates  - selecting only the grids in transects for the time period selected
+# and selecting only the time periods needed for the temporally variable covariates
 CovConsSurv <- CovConsSurv[which((CovConsSurv$GridID %in% GridFrac$GridID)),]
-CovTempSurv <- CovTempSurv[which((CovTempSurv[,"GridID", 1] %in% GridFrac$GridID)),,]
+CovTempSurv <- CovTempSurv[which((CovTempSurv[,"GridID", 1] %in% GridFrac$GridID)),, (FirstDateID - Lag):LastDateID]
 
 # set up data for large grids for spatial autocorrelation
 NLGrids <- length(Adj2km_Queen$adjacencyList$num)
@@ -63,9 +69,9 @@ LGridID <- left_join(as.data.frame(CovConsSurv$GridID), Adj2km_Queen$grid_lookup
 # predictors for initial density
 
 # persistent green
-X_hhpgr <- as.vector(CovTempSurv[,"hhpgr", FirstDateID]) %>% scale() %>% as.vector()
+X_hhpgr <- as.vector(CovTempSurv[,"hhpgr", Lag + 1]) %>% scale() %>% as.vector()
 # koala habitat
-X_hhkha <- as.vector(CovTempSurv[,"hhkha", FirstDateID]) %>% as.factor()
+X_hhkha <- as.vector(CovTempSurv[,"hhkha", Lag + 1]) %>% as.factor()
 
 # collate predictor variables
 
@@ -74,8 +80,8 @@ X <- tibble(hhpgr = X_hhpgr, hhkha = X_hhkha)
 # remove data where there are NA values for any covariate
 #X <- X %>% filter(!(is.na(hhpgr) | is.na(hhkha)))
 # get the design matrix
-X <- model.matrix(~ hhpgr, model.frame(~ hhpgr, as.data.frame(X), na.action = "na.pass"))
-#X <- model.matrix(~ hhpgr + hhkha, model.frame(~ hhpgr + hhkha, as.data.frame(X), na.action = "na.pass"))
+#X <- model.matrix(~ hhpgr, model.frame(~ hhpgr, as.data.frame(X), na.action = "na.pass"))
+X <- model.matrix(~ hhpgr + hhkha, model.frame(~ hhpgr + hhkha, as.data.frame(X), na.action = "na.pass"))
 # remove the intercept term
 X <- X[, 2:ncol(X)] %>% as.data.frame()
 
@@ -83,9 +89,6 @@ X <- X[, 2:ncol(X)] %>% as.data.frame()
 NX <- ncol(X)
 
 # predictors for growth rate (these are all time varying predictors related to habitat, threats, and climate)
-
-# set the Lag for the effect of predictors on growth rate in terms of number of 6-monthly time steps
-Lag <- 0
 
 # persistent green
 Y_hhpgr <- as.vector(CovTempSurv[,"hhpgr",]) %>% scale() %>% as.vector()
@@ -99,8 +102,8 @@ Y_temp <- tibble(hhpgr = Y_hhpgr, hhkha = Y_hhkha)
 # remove data where there are NA values for any covariate
 #Y_temp <- Y_temp %>% filter(!(is.na(hhpgr) | is.na(hhkha)))
 # get the design matrix
-Y_temp <- model.matrix(~ hhpgr, model.frame(~ hhpgr, as.data.frame(Y_temp), na.action = "na.pass"))
-#Y_temp <- model.matrix(~ hhpgr + hhkha, model.frame(~ hhpgr + hhkha, as.data.frame(Y_temp), na.action = "na.pass"))
+#Y_temp <- model.matrix(~ hhpgr, model.frame(~ hhpgr, as.data.frame(Y_temp), na.action = "na.pass"))
+Y_temp <- model.matrix(~ hhpgr + hhkha, model.frame(~ hhpgr + hhkha, as.data.frame(Y_temp), na.action = "na.pass"))
 # remove the intercept term
 Y_temp <- Y_temp[, 2:ncol(Y_temp)] %>% as.data.frame()
 
@@ -161,6 +164,7 @@ AreaStrip[which(AreaStrip == 0)] <- 4 #EDIT OUT WHEN FIXED
 
 # get the time step ID for each strip transect
 TimeIDStrip <- StripJoinGroupFrac$TimePeriodID %>% as.vector()
+TimeIDStrip <- TimeIDStrip - FirstDateID + 1 + Lag
 
 # get the koala count for each strip transect
 CntStrip <- StripJoinGroupFrac$Number_Sightings %>% as.vector()
@@ -209,6 +213,7 @@ AreaAoA <- AoAJoinGroupFrac$TArea %>% as.vector()
 
 # get the time step ID for each all of area search
 TimeIDAoA <- AoAJoinGroupFrac$TimePeriodID %>% as.vector()
+TimeIDAoA <- TimeIDAoA - FirstDateID + 1 + Lag
 
 # get the koala count for each all of areas search
 CntAoA <- AoAJoinGroupFrac$Number_Sightings %>% as.vector()
@@ -261,9 +266,14 @@ LengthLine <- LineJoinGroupFrac$Tlength %>% as.vector()
 
 # get the time step ID for each line transect
 TimeIDLine <- LineJoinGroupFrac$TimePeriodID %>% as.vector()
+TimeIDLine <- TimeIDLine - FirstDateID + 1 + Lag
 
 # get the koala count for each line transect
 CntLine <- LineJoinGroupFrac$Number_Sightings %>% as.vector()
+
+# reset first and last date IDs
+LastDateID <- LastDateID - FirstDateID + 1 + Lag
+FirstDateID <- Lag + 1
 
 # nimble code
 
@@ -335,7 +345,7 @@ NimbleCode <- nimbleCode({
 		# linear predictor for initial density incorporating spatially structured (at the large grid scale) and unstructured (at the small grid scale) stochasticity
 		#log(d[i, 1]) ~ dnorm(inprod(beta_i[1:NX], X[i, 1:NX]) #+ si[LGridID[i]], sd = sigma_i)
 
-		mu_di[i] <- exp(di_int + inprod(beta_di[1:NX], X[i, 1:NX]))
+		mu_di[i] <- exp(int_di + inprod(beta_di[1:NX], X[i, 1:NX]))
 
 		di[i] ~ dgamma(mean = mu_di[i] , sd = sigma_di)
 
@@ -349,7 +359,7 @@ NimbleCode <- nimbleCode({
 			# linear predictor for density including time-dependent variables and unstructured (at the small grid scale) stochasticity
 			# note the "- ((sigma_r ^ 2) / 2)" adjustment to ensure E(d) = d for all sigma_r
 			# also includes spatially structured (at the large grid scale) stochasticity through lp_int[i]
-			mu_l[i, t - 1] <- exp(l_int + inprod(beta_l[1:NY], Y[i, FirstDateID - 1 + t - 1 - Lag, 1:NY]))
+			mu_l[i, t - 1] <- exp(int_l + inprod(beta_l[1:NY], Y[i, FirstDateID - 1 + t - 1 - Lag, 1:NY]))
 
 			lambda[i, t - 1] ~ dgamma(mean = mu_l[i, t - 1], sd = sigma_l)
 
@@ -469,16 +479,16 @@ NimbleCode <- nimbleCode({
 	#tau_sr <- sigma_sr ^ -2
 	#sigma_sr ~ dunif(0, 10)
 	#sigma_r ~ dunif(0, 10)
-	di_int ~ dnorm(0, sd = 100)
-	l_int ~ dnorm(0, sd = 100)
+	int_di ~ dnorm(0, sd = 100)
+	int_l ~ dnorm(0, sd = 100)
 	for (i in 1:NX) {
 		beta_di[i] ~ dnorm(0, sd = 100)
 	}
 	for (i in 1:NY) {
 		beta_l[i] ~ dnorm(0, sd = 100)
 	}
-	sigma_i ~ dunif(0, 10)
-	sigma_l ~ dunif(0, 1)
+	sigma_di ~ dunif(0, 10)
+	sigma_l ~ dunif(0, 10)
 	pStrip ~ dunif(0,1)
 	pAoA ~ dunif(0,1)
 	sigma_hn ~ dunif(0, 100)
@@ -490,11 +500,11 @@ NimbleData <- list(X = X, Y = Y, CntStrip = CntStrip, CntAoA = CntAoA, PDists = 
 
 #NimbleInits <- list(pStrip = 0.5, pAoA = 0.5, mudstr = 1, sddstr = 1, mudaoa = 1, sddaoa = 1, mudlin = 1, sddlin = 1, mud = 1, sdd = 1, sigma_hn = 1, dStrip = get.dens.inits(AreaStrip, CntStrip), dAoA = get.dens.inits(AreaAoA, CntAoA), dLine = rep(0.5, NLines), d = matrix(1, nrow = NSGrids, ncol = LastDateID - FirstDateID + 1))
 
-NimbleInits <- list(di_int = 0, l_int = 0, beta_di = rep(0, NX), beta_l = rep(0, NY), sigma_di = 0.5, sigma_l = 0.5, di = rep(10, NSGrids), lambda = matrix(1, nrow = NSGrids, ncol = (LastDateID - FirstDateID)), pStrip = 0.5, pAoA = 0.5, sigma_hn = 1)
+NimbleInits <- list(int_di = 0, int_l = 0, beta_di = rep(0, NX), beta_l = rep(0, NY), sigma_di = 0.5, sigma_l = 0.5, di = rep(10, NSGrids), lambda = matrix(1, nrow = NSGrids, ncol = (LastDateID - FirstDateID)), pStrip = 0.5, pAoA = 0.5, sigma_hn = 1)
 
 #NimbleDims <- list(dFracStrip = c(NStrips, NMaxSGridsStrip), dFracAoA = c(NAoAs, NMaxSGridsAoA), dFracLine = c(NLines, NMaxSGridsLine))
 
-N.iter <- 10000
+N.iter <- 50000
 N.burnin <- 0
 N.chains <- 1
 
@@ -512,9 +522,9 @@ Samples <- runMCMC(mcmc = CNimbleModelMCMC, niter = N.iter, nburnin = N.burnin, 
 
 MCMCsummary(object = Samples, round = 2)
 
-MCMCplot(object = Samples, params = c("mudstr", "mudaoa", "mudlin"))
+MCMCplot(object = Samples, params = c("beta_di", "beta_l"))
 
-MCMCtrace(object = Samples, pdf = FALSE, ind = TRUE, params = c("i_int", "r_int", "beta_i", "beta_r"))
+MCMCtrace(object = Samples, pdf = FALSE, ind = TRUE, params = c("beta_l"), iter = 50000)
 
 
 
