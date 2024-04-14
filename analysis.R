@@ -310,20 +310,44 @@ NTimeAdjs <- length(AdjT)
 AdjT2 <- c()
 WeightsAdjT2 <- c()
 NumAdjT2 <- c()
-WeightsAdjT2[1] <- 1
+WeightsAdjT2[1] <- 2
+WeightsAdjT2[2] <- -1
 AdjT2[1] <- 2
-NumAdjT2[1] <- 1
-for(i in 2:(floor(((LastDateID - FirstDateID + 1) / 2) - 0.01))) {
-  	WeightsAdjT2[2 + (i - 2) * 2] <- 1
-	Adj2T[2 + (i - 2) * 2] <- i - 1
-  	WeightsAdjT2[3 + (i - 2) * 2] <- 1
-	AdjT2[3 + (i - 2) * 2] <- i + 1
-	NumAdjT2[i] <- 2
+AdjT2[2] <- 3
+NumAdjT2[1] <- 2
+WeightsAdjT2[3] <- 2
+WeightsAdjT2[4] <- 4
+WeightsAdjT2[5] <- -1
+AdjT2[3] <- 1
+AdjT2[4] <- 3
+AdjT2[5] <- 4
+NumAdjT2[2] <- 3
+for(i in 3:(floor(((LastDateID - FirstDateID + 1) / 2) - 0.01) - 1)) {
+  	WeightsAdjT2[6 + (i - 3) * 4] <- -1
+	WeightsAdjT2[7 + (i - 3) * 4] <- 4
+	WeightsAdjT2[8 + (i - 3) * 4] <- 4
+	WeightsAdjT2[9 + (i - 3) * 4] <- -1
+	AdjT2[6 + (i - 3) * 4] <- i - 2
+	AdjT2[7 + (i - 3) * 4] <- i - 1
+	AdjT2[8 + (i - 3) * 4] <- i + 1
+	AdjT2[9 + (i - 3) * 4] <- i + 2
+	NumAdjT2[i] <- 4
+}
+for(i in (floor(((LastDateID - FirstDateID + 1) / 2) - 0.01)):(floor(((LastDateID - FirstDateID + 1) / 2) - 0.01))) {
+  	WeightsAdjT2[6 + (i - 3) * 4] <- -1
+	WeightsAdjT2[7 + (i - 3) * 4] <- 4
+	WeightsAdjT2[8 + (i - 3) * 4] <- 2
+	AdjT2[6 + (i - 3) * 4] <- i - 2
+	AdjT2[7 + (i - 3) * 4] <- i - 1
+	AdjT2[8 + (i - 3) * 4] <- i + 1
+	NumAdjT2[i] <- 3
 }
 for(i in (floor(((LastDateID - FirstDateID + 1) / 2) - 0.01) + 1):(floor(((LastDateID - FirstDateID + 1) / 2) - 0.01) + 1)) {
-  	WeightsAdjT2[(i - 2) * 2 + 2] <- 1
-	AdjT2[(i - 2) * 2 + 2] <- i - 1
-	NumAdjT2[i] <- 1
+  	WeightsAdjT2[6 + (i - 3 - 1) * 4 + 3] <- -1
+	WeightsAdjT2[7 + (i - 3 - 1) * 4 + 3] <- 2
+	AdjT2[6 + (i - 3 - 1) * 4 + 3] <- i - 2
+	AdjT2[7 + (i - 3 - 1) * 4 + 3] <- i - 1
+	NumAdjT2[i] <- 2
 }
 NTime2 <- length(NumAdjT2)
 NTimeAdjs2 <- length(AdjT2)
@@ -333,7 +357,10 @@ source("nimble_spt.R")
 
 # spatio-temporal regression model fitting
 
-NimbleConstsSPT <- list(NLGrids = NLGrids, NLGridAdjs = NLGridAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, LGridID = LGridID, FirstDateID = FirstDateID, LastDateID = LastDateID, Lag = Lag, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, NumObsStrip = NumObsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, NumObsAoA = NumObsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NPDists = NPDists, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine)
+# set order of temporal CAR process
+Order <- 2
+
+NimbleConstsSPT <- list(NLGrids = NLGrids, NLGridAdjs = NLGridAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, LGridID = LGridID, FirstDateID = FirstDateID, LastDateID = LastDateID, Lag = Lag, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, NumObsStrip = NumObsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, NumObsAoA = NumObsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NPDists = NPDists, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine, Order = Order)
 
 NimbleDataSPT <- list(Y = Y, CntStrip = CntStrip, CntAoA = CntAoA, PDists = PDists, CntLine = CntLine)
 
@@ -359,7 +386,7 @@ MCMCsummary(object = Samples, round = 2)
 
 MCMCplot(object = Samples, params = c("beta_di", "beta_l"))
 
-MCMCtrace(object = Samples, pdf = FALSE, ind = TRUE, params = c("mean_d"))
+MCMCtrace(object = Samples, pdf = FALSE, ind = TRUE, params = c("pStrip"))
 
 # get nimble code for exponential population growth model
 source("nimble_exp.R")

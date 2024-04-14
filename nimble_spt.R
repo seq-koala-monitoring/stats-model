@@ -61,9 +61,16 @@ NimbleCodeSPT <- nimbleCode({
 	# note here weights are taken to be 1
 	sd[1:NLGrids] ~ dcar_normal(adj = AdjS[1:NLGridAdjs], weights = WeightsAdjS[1:NLGridAdjs], num = NumAdjS[1:NLGrids], tau = tau_sd)
 
-	# time-step temporally structured random-effect for densities (based on first order intrisic CAR model)
-	# note here weights are taken to be 1 and mean is constrained to be zero
-	td[1:NTime] ~ dcar_normal(adj = AdjT[1:NTimeAdjs], weights = WeightsAdjT[1:NTimeAdjs], num = NumAdjT[1:NTime], tau = tau_td, zero_mean = 1)
+	# determine order of temporal CAR process
+	if (Order == 1) {
+		# time-step temporally structured random-effect for densities (based on first order intrisic CAR model)
+		# note here weights are taken to be 1 and mean is constrained to be zero
+		td[1:NTime] ~ dcar_normal(adj = AdjT[1:NTimeAdjs], weights = WeightsAdjT[1:NTimeAdjs], num = NumAdjT[1:NTime], tau = tau_td, zero_mean = 1)
+	} else {
+		# time-step temporally structured random-effect for densities (based on second order intrisic CAR model)
+		# note here weights are taken from .... and mean is constrained to be zero
+		td[1:NTime2] ~ dcar_normal(adj = AdjT2[1:NTimeAdjs2], weights = WeightsAdjT2[1:NTimeAdjs2], num = NumAdjT2[1:NTime2], tau = tau_td, c = 2, zero_mean = 1)
+	}
 
 	# loop through small grids
 	for (i in 1:NSGrids) {
@@ -107,7 +114,7 @@ NimbleCodeSPT <- nimbleCode({
 		aStrip[i] <- round(dStrip[i] * AreaStrip[i])
 
 		# likelihood for counts
-		CntStrip[i] ~ dbin(1 - ((1 - pStrip) ^ NumObsStrip[i]), aStrip[i])
+		CntStrip[i] ~ dbin(pStrip, aStrip[i])
 	}
 
 	# all of area searches
@@ -126,7 +133,7 @@ NimbleCodeSPT <- nimbleCode({
 		aAoA[i] <- round(dAoA[i] * AreaAoA[i])
 
 		# likelihood for counts
-		CntAoA[i] ~ dbin(1 - ((1 - pAoA) ^ NumObsAoA[i]), aAoA[i])
+		CntAoA[i] ~ dbin(pAoA, aAoA[i])
 	}
 
 	# line transects
