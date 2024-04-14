@@ -11,9 +11,6 @@ source("functions.R")
 
 # load input data
 Surveys <- readRDS("input/survey_data/master.rds")
-#GridFrac <- readRDS("input/survey_data/grid_fractions_complete_cov.rds")
-#CovConsSurv <- readRDS("input/survey_data/cov_constant_array_complete_cov_surveylocations.rds")
-#CovTempSurv <- readRDS("input/survey_data/cov_temporal_array_complete_cov_surveylocations.rds")
 GridFrac <- readRDS("input/survey_data/grid_fractions.rds")
 CovConsSurv <- readRDS("input/survey_data/cov_constant_array_surveylocations.rds")
 CovTempSurv <- readRDS("input/survey_data/cov_temporal_array_surveylocations.rds")
@@ -25,13 +22,13 @@ DateIntervals <- read_csv("input/survey_data/date_interval_lookup.csv") %>% muta
 
 # set the date range for analysis
 # get first date - either date of first survey or user specified date
-FirstDate <- date("2015-01-01")
-#FirstDate <- date("2013-01-01")
+#FirstDate <- date("2015-01-01")
+FirstDate <- date("2013-01-01")
 #FirstDate <- min(c(min(Surveys$line_transect$Date), min(Surveys$strip_transect$Date), min(Surveys$uaoa$Date)))
 # get last date - either date of last survey or user specified date
-LastDate <- date("2020-12-31")
+#LastDate <- date("2020-12-31")
 #LastDate <- date("2013-01-01")
-#LastDate <- max(c(max(Surveys$line_transect$Date), max(Surveys$strip_transect$Date), max(Surveys$uaoa$Date)))
+LastDate <- max(c(max(Surveys$line_transect$Date), max(Surveys$strip_transect$Date), max(Surveys$uaoa$Date)))
 # get first and last date index values
 FirstDateID <- filter(DateIntervals, start_date <= FirstDate & end_date >= FirstDate) %>% pull(TimePeriodID)
 LastDateID <- filter(DateIntervals, start_date <= LastDate & end_date >= LastDate) %>% pull(TimePeriodID)
@@ -65,18 +62,11 @@ GridFrac <- GridFrac[which((GridFrac$TransectID %in% Surveys$line_transect$Trans
 CovConsSurv <- CovConsSurv[which((CovConsSurv$GridID %in% GridFrac$GridID)),]
 CovTempSurv <- CovTempSurv[which((CovTempSurv[,"GridID", 1] %in% GridFrac$GridID)),, (FirstDateID - Lag):LastDateID]
 
-# set up data for large grids for spatial autocorrelation
-NLGrids <- length(Adj2km_Queen$adjacencyList$num)
-NLGridAdjs <- length(Adj2km_Queen$adjacencyList$adj)
-Adj <- Adj2km_Queen$adjacencyList$adj
-WeightsAdj <- Adj2km_Queen$adjacencyList$weights
-NumAdj <- Adj2km_Queen$adjacencyList$num
-
 # set up data for small grids (only for those within the surveyed areas)
 NSGrids <- length(CovConsSurv$GridID)
 LGridID <- left_join(as.data.frame(CovConsSurv$GridID), Adj2km_Queen$grid_lookup, by = c("CovConsSurv$GridID" = "GridID"))$SpGridID
 
-# predictors for initial density
+# predictors for initial density for exponential population growth model
 
 # persistent green
 X_hhpgr <- as.vector(CovTempSurv[,"hhpgr", Lag + 1]) %>% scale() %>% as.vector()
@@ -95,7 +85,8 @@ X <- X[, 2:ncol(X)] %>% as.data.frame()
 # get number of variables in X
 NX <- ncol(X)
 
-# predictors for growth rate (to the next time step ie., from t-1 to t)
+# predictors for growth rate (to the next time step ie., from t-1 to t) for the exponential population growth model
+# or density for the spatio-temporal regression model
 
 # time
 Y_htime <- as.vector(CovTempSurv[,"htime",]) %>% scale() %>% as.vector()
@@ -107,11 +98,12 @@ Y_hhpgr <- as.vector(CovTempSurv[,"hhpgr",]) %>% scale() %>% as.vector()
 Y_hhkha <- as.vector(CovTempSurv[,"hhkha",]) %>% as.factor()
 
 # collate predictor variables
+# NOTE - time must be the first variable in the design matrix
 
 # compile into a tibble
 Y_temp <- tibble(htime = Y_htime, hseas = Y_hseas, hhpgr = Y_hhpgr, hhkha = Y_hhkha)
 # get the design matrix
-Y_temp <- model.matrix(~ htime + hseas + hhpgr, model.frame(~ htime + hseas + hhpgr, as.data.frame(Y_temp), na.action = "na.pass"))
+Y_temp <- model.matrix(~ hseas + hhpgr, model.frame(~ hseas + hhpgr, as.data.frame(Y_temp), na.action = "na.pass"))
 # remove the intercept term
 Y_temp <- Y_temp[, 2:ncol(Y_temp)] %>% as.data.frame()
 
@@ -283,185 +275,102 @@ CntLine <- LineJoinGroupFrac$Number_Sightings %>% as.vector()
 LastDateID <- LastDateID - FirstDateID + 1 + Lag
 FirstDateID <- Lag + 1
 
-# nimble code
+# set up data for spatial CAR process
+AdjS <- Adj2km_Queen$adjacencyList$adj
+WeightsAdjS <- Adj2km_Queen$adjacencyList$weights
+NumAdjS <- Adj2km_Queen$adjacencyList$num
+NLGrids <- length(Adj2km_Queen$adjacencyList$num)
+NLGridAdjs <- length(Adj2km_Queen$adjacencyList$adj)
 
-NimbleCode <- nimbleCode({
-	# NLGrids = number of large grids
-	# NLGridAdjs = number of large grid adjacent pairs
-	# Adj = adjacency matrix for large grids of length NLGridAdjs
-	# WeightsAdj = weights for the adjacency matrix for large grids (2km) of length NLGridAdjs
-	# NumAdj = number of neigbouring locations for each large grid (2km) of length NLGrids
-	# NSGrids = number of small grids
-	# LGridID = the larget grid ID for each small grid
-	# FirstDateID = ID for the time step of the first survey
-	# LastDateID = ID for the time step of the last survey
-	# Lag = number of time steps lag for the predictors of growth rate
-	# X = static predictors for initial koala density
-	# Y = time-varying predictors for growth rate
-	# NX = number of predictors for initial koala density
-	# NY = number of time-varying predictors for growth rate
-	# NStrips = number of strip transects
-	# SGridsStartStrip = start index for small grids for each strip transect
-    # SGridsEndStrip = end index for small grids for each strip transect
-    # SGridIDsStrip = small grid IDs for each strip transect
-	# SGridFracsStrip = small grid fractions for each strip transect
-	# IDStrip = small grid IDs for each strip transect
-	# FracStrip = small grid fractions for each strip transect
-	# NMaxSGridsStrip = maximum number of small grids in any strip transect
-	# NumObsStrip = number of observers for each strip transect
-	# AreaStrip = area of each strip transect (in hectares)
-	# TimeIDStrip = time step ID for each strip transect
-	# CntStrip = koala count for each strip transect
-	# NAoAs = number of all of area searches
-	# SGridsStartAoA = start index for small grids for each all of area search
-    # SGridsEndAoA = end index for small grids for each all of area search
-    # SGridIDsAoA = small grid IDs for each all of area search
-	# SGridFracsAoA = small grid fractions for each all of area search
-	# IDAoA = small grid IDs for each all of area search
-	# FracAoA = small grid fractions for each all of area search
-	# NMaxSGridsAoA = maximum number of small grids in any all of areas search
-	# NumObsAoA = number of observers for each all of area search
-	# AreaAoA = area of each all of area search (in hectares)
-	# TimeIDAoA = time step ID for each all of area search
-	# CntSAoA = koala count for each all of area search
-	# NPDists = number of perpendicular distances
-	# PDists = perpendicular distances
-	# NLines = number of line transects
-	# SGridsStartLine = start index for small grids for each line transect
-    # SGridsEndLine = end index for small grids for each line transect
-    # SGridIDsLine = small grid IDs for each line transect
-	# SGridFracsLine = small grid fractions for each line transect
-	# IDLine = small grid IDs for each line transect
-	# FracLine = small grid fractions for each line transect
-	# NMaxSGridsLine = maximum number of small grids in any line transect
-	# LengthLine = length of each line transect (in metres)
-	# TimeIDLine = time step ID for each line transect
-	# CntLine = koala count for each line transect
-	# PI = pi
+# set up data for temporal CAR process (1st order with equal weights)
+# annual time steps
+AdjT <- c()
+WeightsAdjT <- c()
+NumAdjT <- c()
+WeightsAdjT[1] <- 1
+AdjT[1] <- 2
+NumAdjT[1] <- 1
+for(i in 2:(floor(((LastDateID - FirstDateID + 1) / 2) - 0.01))) {
+  	WeightsAdjT[2 + (i - 2) * 2] <- 1
+	AdjT[2 + (i - 2) * 2] <- i - 1
+  	WeightsAdjT[3 + (i - 2) * 2] <- 1
+	AdjT[3 + (i - 2) * 2] <- i + 1
+	NumAdjT[i] <- 2
+}
+for(i in (floor(((LastDateID - FirstDateID + 1) / 2) - 0.01) + 1):(floor(((LastDateID - FirstDateID + 1) / 2) - 0.01) + 1)) {
+  	WeightsAdjT[(i - 2) * 2 + 2] <- 1
+	AdjT[(i - 2) * 2 + 2] <- i - 1
+	NumAdjT[i] <- 1
+}
+NTime <- length(NumAdjT)
+NTimeAdjs <- length(AdjT)
 
-	# process model
+# set up data for temporal CAR process (2nd order with weights acording)
+# annual time steps
+AdjT2 <- c()
+WeightsAdjT2 <- c()
+NumAdjT2 <- c()
+WeightsAdjT2[1] <- 1
+AdjT2[1] <- 2
+NumAdjT2[1] <- 1
+for(i in 2:(floor(((LastDateID - FirstDateID + 1) / 2) - 0.01))) {
+  	WeightsAdjT2[2 + (i - 2) * 2] <- 1
+	Adj2T[2 + (i - 2) * 2] <- i - 1
+  	WeightsAdjT2[3 + (i - 2) * 2] <- 1
+	AdjT2[3 + (i - 2) * 2] <- i + 1
+	NumAdjT2[i] <- 2
+}
+for(i in (floor(((LastDateID - FirstDateID + 1) / 2) - 0.01) + 1):(floor(((LastDateID - FirstDateID + 1) / 2) - 0.01) + 1)) {
+  	WeightsAdjT2[(i - 2) * 2 + 2] <- 1
+	AdjT2[(i - 2) * 2 + 2] <- i - 1
+	NumAdjT2[i] <- 1
+}
+NTime2 <- length(NumAdjT2)
+NTimeAdjs2 <- length(AdjT2)
 
-	# large grid spatially correlated random-effect for initial densities (based on intrisic CAR model)
-	# note here weights are taken to be 1
-	sdi[1:NLGrids] ~ dcar_normal(adj = Adj[1:NLGridAdjs], weights = WeightsAdj[1:NLGridAdjs], num = NumAdj[1:NLGrids], tau_sdi)
+# get nimble code for spatio-temporal regression model
+source("nimble_spt.R")
 
-	# large grid spatially correlated random-effect for growth rate (based on intrisic CAR model)
-	# note here weights are taken to be 1
-	sl[1:NLGrids] ~ dcar_normal(adj = Adj[1:NLGridAdjs], weights = WeightsAdj[1:NLGridAdjs], num = NumAdj[1:NLGrids], tau_sl)
+# spatio-temporal regression model fitting
 
-	# loop through small grids
-	for (i in 1:NSGrids) {
-		# predictors for initial density incorporating spatially structured (at the large grid scale) and unstructured (at the small grid scale) stochasticity
-		mu_di[i] <- exp(sdi[LGridID[i]] + inprod(beta_di[1:NX], X[i, 1:NX]))
-		di[i] ~ dgamma(mean = mu_di[i] , sd = sigma_di)
+NimbleConstsSPT <- list(NLGrids = NLGrids, NLGridAdjs = NLGridAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, LGridID = LGridID, FirstDateID = FirstDateID, LastDateID = LastDateID, Lag = Lag, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, NumObsStrip = NumObsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, NumObsAoA = NumObsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NPDists = NPDists, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine)
 
-		d[i, 1] <- di[i]
+NimbleDataSPT <- list(Y = Y, CntStrip = CntStrip, CntAoA = CntAoA, PDists = PDists, CntLine = CntLine)
 
-		# loop through remaining time steps
-		for (t in 2:(LastDateID - FirstDateID + 1)) {
-			# predictor for density including time-dependent variables, unstructured (at the small grid scale) stochasticity
-			# and spatially structured (at the large grid scale) stochasticity
-			mu_l[i, t - 1] <- exp(sl[LGridID[i]] + inprod(beta_l[1:NY], Y[i, FirstDateID - 1 + t - 1 - Lag, 1:NY]))
+NimbleInitsSPT <- list(sigma_sd = 0.5, sd = rep(0, NLGrids), sigma_td = 0.5, td = rep(0, NTime), beta_d = rep(0, NY), sigma_d = 0.5, d = matrix(10, nrow = NSGrids, ncol = (LastDateID - FirstDateID + 1)), pStrip = 0.5, pAoA = 0.5, sigma_hn = 1)
 
-			lambda[i, t - 1] ~ dgamma(mean = mu_l[i, t - 1], sd = sigma_l)
+N.iter <- 5000
+N.burnin <- 0
+N.chains <- 1
 
-			d[i, t] <- d[i, t - 1] * lambda[i, t - 1]
-		}
-	}
+NimbleModel <- nimbleModel(code = NimbleCodeSPT, constants = NimbleConstsSPT, data = NimbleDataSPT, inits = NimbleInitsSPT, calculate = TRUE)
 
-	# observation models
+CNimbleModel <- compileNimble(NimbleModel)
 
-	# likelihoods
+NimbleModelConf <- configureMCMC(NimbleModel, monitors = c("beta_d", "pStrip", "pAoA", "sigma_hn", "mean_sd", "mean_d", "td"))
 
-	# strip transects
-	for (i in 1:NStrips) {
+NimbleModelMCMC <- buildMCMC(NimbleModelConf)
 
-		# get true density estimate for the strip transect
-		for (j in SGridsStartStrip[i]:SGridsEndStrip[i]) {
-			dFracStrip[i, j - SGridsStartStrip[i] + 1] <- d[SGridIDsStrip[j], TimeIDStrip[i] - FirstDateID + 1] * SGridFracsStrip[j]
-		}
-		for (j in ((SGridsEndStrip[i] - SGridsStartStrip[i] + 2):(NMaxSGridsStrip + 1))) {
-			dFracStrip[i, j] <- 0
-		}
-		dStrip[i] <- sum(dFracStrip[i, 1:NMaxSGridsStrip])
+CNimbleModelMCMC <- compileNimble(NimbleModelMCMC, project = NimbleModel)
 
-		# get true abundance estimate for the strip transect
-		aStrip[i] <- round(dStrip[i] * AreaStrip[i])
+Samples <- runMCMC(mcmc = CNimbleModelMCMC, niter = N.iter, nburnin = N.burnin, nchains = N.chains)
 
-		# likelihood for counts
-		CntStrip[i] ~ dbin(1 - ((1 - pStrip) ^ NumObsStrip[i]), aStrip[i])
-	}
+MCMCsummary(object = Samples, round = 2)
 
-	# all of area searches
-	for (i in 1:NAoAs) {
+MCMCplot(object = Samples, params = c("beta_di", "beta_l"))
 
-		# get true density estimate for the all of area search
-		for (j in SGridsStartAoA[i]:SGridsEndAoA[i]) {
-			dFracAoA[i, j - SGridsStartAoA[i] + 1] <- d[SGridIDsAoA[j], TimeIDAoA[i] - FirstDateID + 1] * SGridFracsAoA[j]
-		}
-		for (j in ((SGridsEndAoA[i] - SGridsStartAoA[i] + 2):(NMaxSGridsAoA + 1))) {
-			dFracAoA[i, j] <- 0
-		}
-		dAoA[i] <- sum(dFracAoA[i, 1:NMaxSGridsAoA])
+MCMCtrace(object = Samples, pdf = FALSE, ind = TRUE, params = c("mean_d"))
 
-		# get true abundance estimate for the strip transect
-		aAoA[i] <- round(dAoA[i] * AreaAoA[i])
+# get nimble code for exponential population growth model
+source("nimble_exp.R")
 
-		# likelihood for counts
-		CntAoA[i] ~ dbin(1 - ((1 - pAoA) ^ NumObsAoA[i]), aAoA[i])
-	}
+# exponential population growth model fitting
 
-	# line transects
-
-	# perpendicular distances
-	for (i in 1:NPDists) {
-		# likelihood function for half-normal detection function
-		PDists[i] ~ T(dnorm(0, sd = sigma_hn), 0, )
-	}
-
-	# get the closed form solution for f0
-	# valid when detection function is half-normal, detection on the line is certain, distances are not truncated, and detections are not grouped
-	f0 <- sqrt(2 / (PI * (sigma_hn ^ 2)))
-
-	# loop through line transects
-	for (i in 1:NLines) {
-		# get true density estimate for the line transect
-		for (j in SGridsStartLine[i]:SGridsEndLine[i]) {
-			dFracLine[i, j - SGridsStartLine[i] + 1] <- d[SGridIDsLine[j], TimeIDLine[i] - FirstDateID + 1] * SGridFracsLine[j]
-		}
-		for (j in ((SGridsEndLine[i] - SGridsStartLine[i] + 2):(NMaxSGridsLine + 1))) {
-			dFracLine[i, j] <- 0
-		}
-		dLine[i] <- sum(dFracLine[i, 1:NMaxSGridsLine])
-
-		# likelihood for counts
-		# density divided by 10,000 to ensure desities are per hectare rather than per square metre
-		CntLine[i] ~ dpois((dLine[i] * 2 * LengthLine[i]) / (f0 * 10000))
-	}
-
-	# priors
-	tau_sdi <- sigma_sdi ^ -2
-	sigma_sdi ~ dunif(0, 10)
-	tau_sl <- sigma_sl ^ -2
-	sigma_sl ~ dunif(0, 10)
-	for (i in 1:NX) {
-		beta_di[i] ~ dnorm(0, sd = 100)
-	}
-	for (i in 1:NY) {
-		beta_l[i] ~ dnorm(0, sd = 100)
-	}
-	sigma_di ~ dunif(0, 10)
-	sigma_l ~ dunif(0, 10)
-	pStrip ~ dunif(0,1)
-	pAoA ~ dunif(0,1)
-	sigma_hn ~ dunif(0, 100)
-})
-
-NimbleConsts <- list(NLGrids = NLGrids, NLGridAdjs = NLGridAdjs, Adj = Adj, WeightsAdj = WeightsAdj, NumAdj = NumAdj, NSGrids = NSGrids, LGridID = LGridID, FirstDateID = FirstDateID, LastDateID = LastDateID, Lag = Lag, NX = NX, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, NumObsStrip = NumObsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, NumObsAoA = NumObsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NPDists = NPDists, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine)
+NimbleConsts <- list(NLGrids = NLGrids, NLGridAdjs = NLGridAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NSGrids = NSGrids, LGridID = LGridID, FirstDateID = FirstDateID, LastDateID = LastDateID, Lag = Lag, NX = NX, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, NumObsStrip = NumObsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, NumObsAoA = NumObsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NPDists = NPDists, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine)
 
 NimbleData <- list(X = X, Y = Y, CntStrip = CntStrip, CntAoA = CntAoA, PDists = PDists, CntLine = CntLine)
 
-NimbleInits <- list(sigma_sdi = 0.5, sdi = rep(0, NLGrids), sigma_sl = 0.5, sl = rep(0, NLGrids), beta_di = rep(0, NX), beta_l = rep(0, NY), sigma_di = 0.5, sigma_l = 0.5, di = rep(10, NSGrids), lambda = matrix(1, nrow = NSGrids, ncol = (LastDateID - FirstDateID)), pStrip = 0.5, pAoA = 0.5, sigma_hn = 1)
+NimbleInits <- list(sigma_sdi = 0.5, sdi = rep(0, NLGrids), sigma_sl = 0.5, sl = rep(0, NLGrids), sigma_tl = 0.5, tl = rep(0, LastDateID - FirstDateID), beta_di = rep(0, NX), beta_l = rep(0, NY), sigma_di = 0.5, sigma_l = 0.5, di = rep(10, NSGrids), lambda = matrix(1, nrow = NSGrids, ncol = (LastDateID - FirstDateID)), pStrip = 0.5, pAoA = 0.5, sigma_hn = 1)
 
 N.iter <- 1000
 N.burnin <- 0
@@ -483,7 +392,7 @@ MCMCsummary(object = Samples, round = 2)
 
 MCMCplot(object = Samples, params = c("beta_di", "beta_l"))
 
-MCMCtrace(object = Samples, pdf = FALSE, ind = TRUE, params = c("beta_di"))
+MCMCtrace(object = Samples, pdf = FALSE, ind = TRUE, params = c("beta_l"))
 
 
 
