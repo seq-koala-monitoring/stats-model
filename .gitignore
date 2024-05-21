@@ -52,8 +52,8 @@ rsconnect/
 .idea/
 
 # input, output, and other files
-input/
 output/
+input/
 code_help/
 figures/
 
