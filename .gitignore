@@ -51,5 +51,8 @@ rsconnect/
 # PyCharm configuration files
 .idea/
 
-# input files
+# input, output, and other files
 input/
+output/
+code_help/
+
