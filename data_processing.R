@@ -14,22 +14,25 @@ GridFrac <- readRDS("input/survey_data_500/grid_fractions.rds")
 CovConsSurv <- readRDS("input/survey_data_500/cov_constant_array_surveylocations.rds")
 CovTempSurv <- readRDS("input/survey_data_500/cov_temporal_array_surveylocations.rds")
 AdjL_Queen <- readRDS("input/survey_data_500/adj_data_queen.rds")
-AdjL_Rook <- readRDS("input/survey_data_500/adj_data_rook.rds")
 DateIntervals <- read_csv("input/survey_data_500/date_interval_lookup.csv") %>% mutate(end_date = as.Date(end_date))
 GenPopLookup <- readRDS("input/survey_data_500/gen_pop_lookup.rds")
 
 # set up data for nimble models
 
+# set order for temporal CAR process
+Order <- 1
 # set the Lag for the effect of predictors on density in terms of number of 6-monthly time steps (can be maximum of 2 currently)
-Lag <- 2
+Lag <- 0
+# set whether to include CAR spatial model at 5 km grid scale, if not then assumed indepedent random effect based on management unit (0 = no, 1 = yes)
+SpCAR <- 0
+# set whether ot assume different trend in each management unit (0 = no, 1 = yes)
+VarTrend <- 1
 
 # set the date range for analysis
 # get first date - either date of first survey or user specified date
 #FirstDate <- date("2015-01-01")
-#FirstDate <- date("2013-01-01")
 FirstDate <- min(c(min(Surveys$line_transect$Date), min(Surveys$strip_transect$Date), min(Surveys$uaoa$Date)))
 # get last date - either date of last survey or user specified date
-#LastDate <- date("2016-01-01")
 #LastDate <- date("2013-01-01")
 LastDate <- max(c(max(Surveys$line_transect$Date), max(Surveys$strip_transect$Date), max(Surveys$uaoa$Date)))
 # get first and last date index values
@@ -71,23 +74,33 @@ NGPops <- length(unique(GenPopID))
 
 # static predictors
 
+# set up list for scale parameters
+ScaleParamsX <- list()
+
 # ground water dependent ecosystems
-X_hhgde <- as.vector(CovConsSurv[,"hhgde"]) %>% as.factor()
+# reclassify so that: 1 = intermittent and freshwater, 2 = near-permanent and freshwater, 3 = exclusion and recharge zones, 4 = other
+X_hhgde <- as.vector(CovConsSurv[,"hhgde"]) %>% as.character() %>% case_match("1"~4,"2"~1,"3"~2,"4"~4, "5"~4, "6"~3) %>% as.numeric() %>% as.factor()
 
 # elevation
-X_htele <- as.vector(CovConsSurv[,"htele"]) %>% scale() %>% as.vector()
+X_htele <- as.vector(CovConsSurv[,"htele"]) %>% scale()
+ScaleParamsX$htele <- c(X_htele %>% attr("scaled:center"), X_htele %>% attr("scaled:scale"))
+X_htele <- X_htele %>% as.vector()
 
 # slope
-X_htslo <- as.vector(CovConsSurv[,"htslo"]) %>% scale() %>% as.vector()
+X_htslo <- as.vector(CovConsSurv[,"htslo"]) %>% scale()
+ScaleParamsX$htslo <- c(X_htslo %>% attr("scaled:center"), X_htslo %>% attr("scaled:scale"))
+X_htslo <- X_htslo %>% as.vector()
 
 # terrain ruggedness index
-X_htrug <- as.vector(CovConsSurv[,"htrug"]) %>% scale() %>% as.vector()
+X_htrug <- as.vector(CovConsSurv[,"htrug"]) %>% scale()
+ScaleParamsX$htrug <- c(X_htrug %>% attr("scaled:center"), X_htrug %>% attr("scaled:scale"))
+X_htrug <- X_htrug %>% as.vector()
 
 # soil - do a PCA and use first two components to reduce domensions
-X_hscec <- as.vector(CovConsSurv[,"hscec"]) %>% scale() %>% as.vector() # cation exchange
-X_hspho <- as.vector(CovConsSurv[,"hspho"]) %>% scale() %>% as.vector() # phosphorous
-X_hsnit <- as.vector(CovConsSurv[,"hsnit"]) %>% scale() %>% as.vector() # nitrogen
-X_hswat <- as.vector(CovConsSurv[,"hswat"]) %>% scale() %>% as.vector() # available water capacity
+X_hscec <- as.vector(CovConsSurv[,"hscec"]) # cation exchange
+X_hspho <- as.vector(CovConsSurv[,"hspho"]) # phosphorous
+X_hsnit <- as.vector(CovConsSurv[,"hsnit"]) # nitrogen
+X_hswat <- as.vector(CovConsSurv[,"hswat"]) # available water capacity
 Soil <- tibble(hscec = X_hscec, hspho = X_hspho, hsnit = X_hsnit, hswat = X_hswat)
 # run PCA
 Soil_PCA <- prcomp(~hscec + hspho + hsnit + hswat, data = Soil, scale = TRUE)
@@ -100,14 +113,22 @@ fviz_pca_var(Soil_PCA, axes = c(1, 2), col.var = "contrib", gradient.cols = c("#
 IndScores <- as_tibble(1:nrow(Soil)) %>% left_join(bind_cols(as_tibble(as.numeric(rownames(get_pca_ind(Soil_PCA)$coord))), as_tibble(get_pca_ind(Soil_PCA)$coord[,1:2])))
 
 # create PC component values for each small grid
-X_hspc1 <- IndScores$Dim.1 %>% scale() %>% as.vector() # PC1
-X_hspc2 <- IndScores$Dim.2 %>% scale() %>% as.vector() # PC2
+X_hspc1 <- IndScores$Dim.1 %>% scale() # PC1
+ScaleParamsX$hspc1 <- c(X_hspc1 %>% attr("scaled:center"), X_hspc1 %>% attr("scaled:scale"))
+X_hspc1 <- X_hspc1 %>% as.vector()
+X_hspc2 <- IndScores$Dim.2 %>% scale() # PC2
+ScaleParamsX$hspc2 <- c(X_hspc2 %>% attr("scaled:center"), X_hspc2 %>% attr("scaled:scale"))
+X_hspc2 <- X_hspc2 %>% as.vector()
 
 # long-term precipitation
-X_hcltp <- as.vector(CovConsSurv[,"hcltp"]) %>% scale() %>% as.vector()
+X_hcltp <- as.vector(CovConsSurv[,"hcltp"]) %>% scale()
+ScaleParamsX$hcltp <- c(X_hcltp %>% attr("scaled:center"), X_hcltp %>% attr("scaled:scale"))
+X_hcltp <- X_hcltp %>% as.vector()
 
 # long-term temperature
-X_hcltt <- as.vector(CovConsSurv[,"hcltt"]) %>% scale() %>% as.vector()
+X_hcltt <- as.vector(CovConsSurv[,"hcltt"]) %>% scale()
+ScaleParamsX$hcltt <- c(X_hcltt %>% attr("scaled:center"), X_hcltt %>% attr("scaled:scale"))
+X_hcltt <- X_hcltt %>% as.vector()
 
 # compile into a tibble
 X <- tibble(hhgde = X_hhgde, htele = X_htele, htslo = X_htslo, htrug = X_htrug, hspc1 = X_hspc1, hspc2 = X_hspc2, hcltp = X_hcltp, hcltt = X_hcltt)
@@ -118,41 +139,77 @@ if (any(is.na(X))) {
 
 # dynamic predictors
 
+# set up list for scale parameters
+ScaleParamsY <- list()
+
 # time
-Y_htime <- as.vector(CovTempSurv[,"htime",]) %>% as.vector()
+Y_htime <- as.vector(CovTempSurv[,"htime",])
 
 # season
-Y_hseas <- as.vector(CovTempSurv[,"hseas",]) %>% as.vector()
+Y_hseas <- as.vector(CovTempSurv[,"hseas",])
 
 # persistent green
-Y_hhpgr <- as.vector(CovTempSurv[,"hhpgr",]) %>% scale() %>% as.vector()
+Y_hhpgr <- as.vector(CovTempSurv[,"hhpgr",]) %>% scale()
+ScaleParamsY$hhpgr <- c(Y_hhpgr %>% attr("scaled:center"), Y_hhpgr %>% attr("scaled:scale"))
+Y_hhpgr <- Y_hhpgr %>% as.vector()
 
 # persistent green buffer (2km)
-Y_hhpgr2km <- as.vector(CovTempSurv[,"hhpgr2km",]) %>% scale() %>% as.vector()
+Y_hhpgr2km <- as.vector(CovTempSurv[,"hhpgr2km",]) %>% scale()
+ScaleParamsY$hhpgr2km <- c(Y_hhpgr2km %>% attr("scaled:center"), Y_hhpgr2km %>% attr("scaled:scale"))
+Y_hhpgr2km <- Y_hhpgr2km %>% as.vector()
 
 # koala habitat
-Y_hhkha <- as.vector(CovTempSurv[,"hhkha",]) %>% as.factor()
+# reclassfy so that: 1 = remnant high suitability core, 2 = remnant medium suitability core, 3 = non-remnant high suitability core, 4 = other
+Y_hhkha <- as.vector(CovTempSurv[,"hhkha",]) %>% as.character() %>% case_match("1"~1,"2"~2,"3"~4,"4"~4, "5"~3, "6"~4, "7"~4, "8"~4) %>% as.numeric() %>% as.factor()
 
 # woody cover - using proportion of each cell that is woody + sparse woody
-Y_hhfwc <- as.vector(CovTempSurv[,"hhfwc_1",] + CovTempSurv[,"hhfwc_2",]) %>% scale() %>% as.vector()
+Y_hhfwc <- as.vector(CovTempSurv[,"hhfwc_1",] + CovTempSurv[,"hhfwc_2",]) %>% scale()
+ScaleParamsY$hhfwc <- c(Y_hhfwc %>% attr("scaled:center"), Y_hhfwc %>% attr("scaled:scale"))
+Y_hhfwc <- Y_hhfwc %>% as.vector()
 
-# precipitation
-Y_hcpre <- as.vector(CovTempSurv[,"hcpre",]) %>% scale() %>% as.vector()
+# precipitation - centre on mean long term precipitation
+Y_hcpre <- as.vector(CovTempSurv[,"hcpre",]) - (rep(as.vector(CovConsSurv[,"hcltp"]), length(as.vector(CovTempSurv[,"hcpre",]))/length(as.vector(CovConsSurv[,"hcltp"]))) / 2)
+# remove season effects
+Y_hcpre[which(as.vector(CovTempSurv[,"hseas",]) == 1)] <- Y_hcpre[which(as.vector(CovTempSurv[,"hseas",]) == 1)] - mean(Y_hcpre[which(as.vector(CovTempSurv[,"hseas",]) == 1)])
+Y_hcpre[which(as.vector(CovTempSurv[,"hseas",]) == 0)] <- Y_hcpre[which(as.vector(CovTempSurv[,"hseas",]) == 0)] - mean(Y_hcpre[which(as.vector(CovTempSurv[,"hseas",]) == 0)])
+# centre and scale
+Y_hcpre <- Y_hcpre %>% scale()
+ScaleParamsY$hcpre <- c(Y_hcpre %>% attr("scaled:center"), Y_hcpre %>% attr("scaled:scale"))
+Y_hcpre <- Y_hcpre %>% as.vector()
 
-# mean temperature
-Y_hctmn <- as.vector(CovTempSurv[,"hctmn",]) %>% scale() %>% as.vector()
+# mean temperature - centre on long-term mean mean temperature
+Y_hctmn <- as.vector(CovTempSurv[,"hctmn",]) - (rep(as.vector(CovConsSurv[,"hcltt"]), length(as.vector(CovTempSurv[,"hctmn",]))/length(as.vector(CovConsSurv[,"hcltt"]))))
+# remove season effects
+Y_hctmn[which(as.vector(CovTempSurv[,"hseas",]) == 1)] <- Y_hctmn[which(as.vector(CovTempSurv[,"hseas",]) == 1)] - mean(Y_hctmn[which(as.vector(CovTempSurv[,"hseas",]) == 1)])
+Y_hctmn[which(as.vector(CovTempSurv[,"hseas",]) == 0)] <- Y_hctmn[which(as.vector(CovTempSurv[,"hseas",]) == 0)] - mean(Y_hctmn[which(as.vector(CovTempSurv[,"hseas",]) == 0)])
+# centre and scale
+Y_hctmn <- Y_hctmn %>% scale()
+ScaleParamsY$hctmn <- c(Y_hctmn %>% attr("scaled:center"), Y_hctmn %>% attr("scaled:scale"))
+Y_hctmn <- Y_hctmn %>% as.vector()
 
 # max temperature
-Y_hctma <- as.vector(CovTempSurv[,"hctma",]) %>% scale() %>% as.vector()
+Y_hctma <- as.vector(CovTempSurv[,"hctma",]) - (rep(as.vector(CovConsSurv[,"hcltt"]), length(as.vector(CovTempSurv[,"hctma",]))/length(as.vector(CovConsSurv[,"hcltt"]))))
+# remove season effects
+Y_hctma[which(as.vector(CovTempSurv[,"hseas",]) == 1)] <- Y_hctma[which(as.vector(CovTempSurv[,"hseas",]) == 1)] - mean(Y_hctma[which(as.vector(CovTempSurv[,"hseas",]) == 1)])
+Y_hctma[which(as.vector(CovTempSurv[,"hseas",]) == 0)] <- Y_hctma[which(as.vector(CovTempSurv[,"hseas",]) == 0)] - mean(Y_hctma[which(as.vector(CovTempSurv[,"hseas",]) == 0)])
+# centre and scale
+Y_hctma <- Y_hctma %>% scale()
+ScaleParamsY$hctma <- c(Y_hctma %>% attr("scaled:center"), Y_hctma %>% attr("scaled:scale"))
+Y_hctma <- Y_hctma %>% as.vector()
 
 # land-use
-Y_htlus <- as.vector(CovTempSurv[,"htlus",]) %>% as.factor()
+# reclassfy so that: 1 = natural, 2 = production from natural, 3 = intensive, 4 = other
+Y_htlus <- as.vector(CovTempSurv[,"htlus",]) %>% as.character() %>% case_match("1"~1,"2"~2,"3"~4,"4"~4, "5"~3, "6"~4, "7"~4) %>% as.numeric() %>% as.factor()
 
 # intensive land-use buffer (2km)
-Y_htilu2km <- as.vector(CovTempSurv[,"htilu2km",]) %>% scale() %>% as.vector()
+Y_htilu2km <- as.vector(CovTempSurv[,"htilu2km",]) %>% scale()
+ScaleParamsY$htilu2km <- c(Y_htilu2km %>% attr("scaled:center"), Y_htilu2km %>% attr("scaled:scale"))
+Y_htilu2km <- Y_htilu2km %>% as.vector()
 
 # lot size buffer (2km)
-Y_htpls2km <- as.vector(CovTempSurv[,"htpls2km",]) %>% scale() %>% as.vector()
+Y_htpls2km <- as.vector(CovTempSurv[,"htpls2km",]) %>% scale()
+ScaleParamsY$htpls2km <- c(Y_htpls2km %>% attr("scaled:center"), Y_htpls2km %>% attr("scaled:scale"))
+Y_htpls2km <- Y_htpls2km %>% as.vector()
 
 # compile into a tibble
 Y_temp <- tibble(htime = Y_htime, hseas = Y_hseas, hhpgr = Y_hhpgr, hhpgr2km = Y_hhpgr2km, hhkha = Y_hhkha, hhfwc = Y_hhfwc, hcpre = Y_hcpre, hctmn = Y_hctmn, hctma = Y_hctma, htlus = Y_htlus, htilu2km = Y_htilu2km, htpls2km = Y_htpls2km)
@@ -181,8 +238,9 @@ write.csv(Corr_Y, file="output/collinearity/cor_y.csv")
 # remove elevation and terrain ruggedness index (based on correlations > 0.7)
 # ruggedness correlated with slope (r = 0.97)
 # elevation correlated with temperature (r = -0.79)
-# also removed ground water dependent ecosystems here to reduce number of variables
-X <- model.matrix(~ htslo + hspc1 + hspc2 + hcltp + hcltt, model.frame(~ htslo + hspc1 + hspc2 + hcltp + hcltt, as.data.frame(X), na.action = "na.pass"))
+# also removed ground water dependent ecosystems here as this results in very poor mixing in the MCMC runs
+# due to poor representation of the categories in the survey data
+X <- model.matrix(~ htslo + hspc1 + hspc2 + hcltp + hcltt + hhgde, model.frame(~ htslo + hspc1 + hspc2 + hcltp + hcltt + hhgde, as.data.frame(X), na.action = "na.pass"))
 
 # remove the intercept term
 X <- X[, 2:ncol(X)] %>% as.data.frame()
@@ -195,7 +253,7 @@ NX <- ncol(X)
 # persistent green correlated with persistent green buffer (r = 0.72)
 # max temperature correlated with mean temperature (r = 0.91)
 # intensive land-use buffer correlated with lot size (r = -0.73)
-Y_temp <- model.matrix(~ hseas + hhpgr2km + hhkha + hhfwc + hcpre + hctmn + htlus + htpls2km, model.frame(~ hseas + hhpgr2km + hhkha + hhfwc + hcpre + hctmn + htlus + htpls2km, as.data.frame(Y_temp), na.action = "na.pass"))
+Y_temp <- model.matrix(~ hhfwc + hhpgr2km + htpls2km + hcpre + hctmn + hseas + hhkha + htlus, model.frame(~ hseas + hhfwc + hhpgr2km + htpls2km + hcpre + hctmn + hseas + hhkha + htlus, as.data.frame(Y_temp), na.action = "na.pass"))
 
 # remove the intercept term
 Y_temp <- Y_temp[, 2:ncol(Y_temp)] %>% as.data.frame()
@@ -300,8 +358,6 @@ if (any(is.na(Z_Strip))) {
 
 # get the design matrix
 Z_Strip <- model.matrix(~ hhcht + hhunf + hhchtunf, model.frame(~ hhcht + hhunf + hhchtunf, as.data.frame(Z_Strip), na.action = "na.pass"))
-# remove the intercept term
-Z_Strip <- Z_Strip[, 2:ncol(Z_Strip)] %>% as.data.frame()
 
 # all of area search data
 
@@ -379,8 +435,6 @@ if (any(is.na(Z_AoA))) {
 
 # get the design matrix
 Z_AoA <- model.matrix(~ hhcht + hhunf + hhchtunf, model.frame(~ hhcht + hhunf + hhchtunf, as.data.frame(Z_AoA), na.action = "na.pass"))
-# remove the intercept term
-Z_AoA <- Z_AoA[, 2:ncol(Z_AoA)] %>% as.data.frame()
 
 # line transect data
 
@@ -455,8 +509,6 @@ if (any(is.na(Z_Line))) {
 
 # get the design matrix
 Z_Line <- model.matrix(~ hhcht + hhunf + hhchtunf, model.frame(~ hhcht + hhunf + hhchtunf, as.data.frame(Z_Line), na.action = "na.pass"))
-# remove the intercept term
-Z_Line <- Z_Line[, 2:ncol(Z_Line)] %>% as.data.frame()
 
 # get number of variables in Z
 NZ <- ncol(Z_Line)
@@ -474,6 +526,8 @@ PDists <- Surveys$perp_distance$Perp_Dist[which(!is.na(PDLineIDs))] %>% as.vecto
 PDLineIDs <- PDLineIDs[which(!is.na(PDLineIDs))]
 
 # reset first and last date IDs
+FirstDateID_Orig <- FirstDateID
+LastDateID_Orig <- LastDateID
 LastDateID <- LastDateID - FirstDateID + 1 + Lag
 FirstDateID <- Lag + 1
 
@@ -506,7 +560,7 @@ for(i in (floor(((LastDateID - FirstDateID + 1 - 1) / 2)) + 1):(floor(((LastDate
 NTime <- length(NumAdjT)
 NTimeAdjs <- length(AdjT)
 
-# set up data for temporal CAR process (2nd order with weights acording)
+# set up data for temporal CAR process (2nd order with weights acording to ....)
 # annual time steps
 AdjT2 <- c()
 WeightsAdjT2 <- c()
@@ -553,13 +607,8 @@ NTime2 <- length(NumAdjT2)
 NTimeAdjs2 <- length(AdjT2)
 
 # set up nimble constants and data inputs for model with temporal CAR process order = 1
-NimbleConsts <- list(NLGrids = NLGrids, NLGridAdjs = NLGridAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NGPops = NGPops, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, LGridID = LGridID, GenPopID = GenPopID, FirstDateID = FirstDateID, LastDateID = LastDateID, Lag = Lag, NX = NX, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine, Order = 1, NZ = NZ, NPDists = NPDists, PDLineIDs = PDLineIDs)
+NimbleConsts <- list(NLGrids = NLGrids, NLGridAdjs = NLGridAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NGPops = NGPops, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, LGridID = LGridID, GenPopID = GenPopID, FirstDateID = FirstDateID, LastDateID = LastDateID, NX = NX, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine, NZ = NZ, NPDists = NPDists, PDLineIDs = PDLineIDs, Order = Order, Lag = Lag, SpCAR = SpCAR, VarTrend = VarTrend)
 NimbleData <- list(X = X, Y = Y, Z_Strip = Z_Strip, Z_AoA = Z_AoA, Z_Line = Z_Line, CntStrip = CntStrip, CntAoA = CntAoA, PDists = PDists, CntLine = CntLine)
-# save inputs
-if (Lag == 0) {
-	saveRDS(list(Constants = NimbleConsts, Data = NimbleData), "output/nimble_data/data_order1_lag0.rds")
-} else if (Lag == 1) {
-	saveRDS(list(Constants = NimbleConsts, Data = NimbleData), "output/nimble_data/data_order1_lag1.rds")
-} else if (Lag == 2) {
-	saveRDS(list(Constants = NimbleConsts, Data = NimbleData), "output/nimble_data/data_order1_lag2.rds")
-}
+
+# save nimble inputs
+saveRDS(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, SoilPCA = Soil_PCA), paste0("output/nimble_data/data_order", Order, "_lag", Lag, "_spcar", SpCAR, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
