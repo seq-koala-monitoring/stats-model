@@ -64,16 +64,18 @@ nimble_sat_model <- nimbleCode({
 	# process model
 	if (Order == 2) {
 		# time-step temporally structured random-effect for densities (based on second order intrisic CAR model) and the same among genetic populations
-		# note here weights are taken from Breslow & Clayton (1993) and mean is constrained to be zero
+		# note here weights are taken from Breslow & Clayton (1993)
 		# annual time step
 
 		# if spatially variable trend
 		if (VarTrend == 1) {
 			for (i in 1:NGPops) {
-				std[i, 1:NTime2] ~ dcar_normal(adj = AdjT2[1:NTimeAdjs2], weights = WeightsAdjT2[1:NTimeAdjs2], num = NumAdjT2[1:NTime2], tau = tau_td, c = 2, zero_mean = 1)
+				#std[i, 1:NTime2] ~ dcar_normal(adj = AdjT2[1:NTimeAdjs2], weights = WeightsAdjT2[1:NTimeAdjs2], num = NumAdjT2[1:NTime2], tau = tau_td, c = 2, zero_mean = 1)
+				std[i, 1:NTime2] ~ dcar_normal(adj = AdjT2[1:NTimeAdjs2], weights = WeightsAdjT2[1:NTimeAdjs2], num = NumAdjT2[1:NTime2], tau = tau_td, c = 2)
 			}
 		} else {
-			td[1:NTime2] ~ dcar_normal(adj = AdjT2[1:NTimeAdjs2], weights = WeightsAdjT2[1:NTimeAdjs2], num = NumAdjT2[1:NTime2], tau = tau_td, c = 2, zero_mean = 1)
+			#td[1:NTime2] ~ dcar_normal(adj = AdjT2[1:NTimeAdjs2], weights = WeightsAdjT2[1:NTimeAdjs2], num = NumAdjT2[1:NTime2], tau = tau_td, c = 2, zero_mean = 1)
+			td[1:NTime2] ~ dcar_normal(adj = AdjT2[1:NTimeAdjs2], weights = WeightsAdjT2[1:NTimeAdjs2], num = NumAdjT2[1:NTime2], tau = tau_td, c = 2)
 		}
 	} else {
 		# time-step temporally structured random-effect for densities (based on first order intrisic CAR model) and the same among genetic populations
@@ -83,10 +85,13 @@ nimble_sat_model <- nimbleCode({
 		# if spatially variable trend
 		if (VarTrend == 1) {
 			for (i in 1:NGPops) {
-				std[i, 1:NTime] ~ dcar_normal(adj = AdjT[1:NTimeAdjs], weights = WeightsAdjT[1:NTimeAdjs], num = NumAdjT[1:NTime], tau = tau_std, zero_mean = 1)
+				#std[i, 1:NTime] ~ dcar_normal(adj = AdjT[1:NTimeAdjs], weights = WeightsAdjT[1:NTimeAdjs], num = NumAdjT[1:NTime], tau = tau_std, zero_mean = 1)
+				std[i, 1:NTime] ~ dcar_normal(adj = AdjT[1:NTimeAdjs], weights = WeightsAdjT[1:NTimeAdjs], num = NumAdjT[1:NTime], tau = tau_std)
+
 			}
 		} else {
-			td[1:NTime] ~ dcar_normal(adj = AdjT[1:NTimeAdjs], weights = WeightsAdjT[1:NTimeAdjs], num = NumAdjT[1:NTime], tau = tau_td, zero_mean = 1)
+			#td[1:NTime] ~ dcar_normal(adj = AdjT[1:NTimeAdjs], weights = WeightsAdjT[1:NTimeAdjs], num = NumAdjT[1:NTime], tau = tau_td, zero_mean = 1)
+			td[1:NTime] ~ dcar_normal(adj = AdjT[1:NTimeAdjs], weights = WeightsAdjT[1:NTimeAdjs], num = NumAdjT[1:NTime], tau = tau_td)
 		}
 	}
 

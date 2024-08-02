@@ -79,7 +79,7 @@ fit_sel_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FA
   #NimbleModelConf$addMonitors("z_shn")
   #configureRJ(NimbleModelConf, targetNodes = c("beta_d"), indicatorNodes = c("z_d"))
   #configureRJ(NimbleModelConf, targetNodes = c("beta_shn"), indicatorNodes = c("z_shn"))
-  configureRJ(NimbleModelConf, targetNodes = c(paste0("beta_d[2:", (Data$Constants$NX + Data$Constants$NY), "]" )), priorProb = 0.5)
+  configureRJ(NimbleModelConf, targetNodes = c(paste0("beta_d[1:", (Data$Constants$NX + Data$Constants$NY), "]" )), priorProb = 0.5)
   configureRJ(NimbleModelConf, targetNodes = c(paste0("beta_shn[2:", Data$Constants$NZ, "]")), priorProb = 0.5)
   NimbleModelMCMC <- buildMCMC(NimbleModelConf)
   CNimbleModelMCMC <- compileNimble(NimbleModelMCMC, project = NimbleModel, resetFunctions = TRUE)
@@ -277,6 +277,9 @@ get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterv
 
   # get the design matrix and remove collinear variables for X
   X <- model.matrix(as.formula(paste0("~ ", paste(StaticVars, collapse= " + "))), model.frame(as.formula(paste0("~ ", paste(StaticVars, collapse= " + "))), as.data.frame(X), na.action = "na.pass")) %>% as.data.frame()
+
+  # remove the intercept term
+  X <- X[, 2:ncol(X)] %>% as.data.frame()
 
   # get number of variables in X
   NX <- ncol(X)
@@ -633,7 +636,7 @@ get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterv
   NTime <- length(NumAdjT)
   NTimeAdjs <- length(AdjT)
 
-  # set up data for temporal CAR process (2nd order with weights acording to ....)
+  # set up data for temporal CAR process (2nd order with weights acording to Breslow & Clayton (1993) - thin plate spline)
   # annual time steps
   AdjT2 <- c()
   WeightsAdjT2 <- c()
@@ -690,8 +693,18 @@ get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterv
 get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRUE) {
 
   # get first and last date IDs
-  FirstDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-04-01"))) %>% pull(TimePeriodID)
-  LastDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-10-01"))) %>% pull(TimePeriodID)
+  # check if the first date is in the data, use it, otherwise use the second date - to avoid issues at the start or end
+  if (date(paste0(Year, "-04-01")) %in% PredData$DateIntervals$start_date) {
+    FirstDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-04-01"))) %>% pull(TimePeriodID)
+  } else {
+    FirstDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-10-01"))) %>% pull(TimePeriodID)
+  }
+  # check if the second date is in the data, use it, otherwise use the first date - to avoid issues at the start or end
+  if (date(paste0(Year, "-10-01")) %in% PredData$DateIntervals$start_date) {
+    LastDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-10-01"))) %>% pull(TimePeriodID)
+  } else {
+    LastDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-04-01"))) %>% pull(TimePeriodID)
+  }
 
   # add a season variable to the temporally variable covariates
   # 1 = breeding season (summer - October to March) and 0 = non-breeding season (winter - April to September)
@@ -845,6 +858,9 @@ get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRU
   # get the design matrix and remove collinear variables for X
   X <- model.matrix(as.formula(paste0("~ ", paste(NimbleData$StaticVars, collapse = " + "))), model.frame(as.formula(paste0("~ ", paste(NimbleData$StaticVars, collapse = " + "))), as.data.frame(X), na.action = "na.pass")) %>% as.data.frame()
 
+  # remove the intercept term
+  X <- X[, 2:ncol(X)] %>% as.data.frame()
+
   # get the design matrix and remove collinear variables for X
   Y_temp <- model.matrix(as.formula(paste0("~ ", paste(c(NimbleData$DynamicVars, "prophabitat"), collapse = " + "))), model.frame(as.formula(paste0("~ ", paste(c(NimbleData$DynamicVars, "prophabitat"), collapse = " + "))), as.data.frame(Y_temp), na.action = "na.pass"))
 
@@ -864,19 +880,19 @@ get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRU
   FirstDateID <- FirstDateID - (NimbleData$FirstDateID_Orig - NimbleData$Constants$FirstDateID)
   LastDateID <- LastDateID - (NimbleData$FirstDateID_Orig - NimbleData$Constants$FirstDateID)
 
-  return(list(Year = Year, SGridID =  SGridID, GenPopID = GenPopID, X = X, Y = Y, FirstDateID = FirstDateID, LastDateID = LastDateID, Order = NimbleData$Constants$Order, Lag = NimbleData$Constants$Lag, VarTrend = NimbleData$Constants$VarTrend, StaticVars = NimbleData$StaticVars, DynamicVars = NimbleData$DynamicVars, NamesX = NimbleData$NamesX, NamesY = NimbleData$NamesY))
+  return(list(Year = Year, SGridID =  SGridID, GenPopID = GenPopID, X = X, Y = Y, FirstDateID_Orig = NimbleData$FirstDateID_Orig, LastDateID_Orig = NimbleData$LastDateID_Orig, FirstDateID = FirstDateID, LastDateID = LastDateID, Order = NimbleData$Constants$Order, Lag = NimbleData$Constants$Lag, VarTrend = NimbleData$Constants$VarTrend, StaticVars = NimbleData$StaticVars, DynamicVars = NimbleData$DynamicVars, NamesX = NimbleData$NamesX, NamesY = NimbleData$NamesY))
 }
 
 # function to get predictions from a model
 # Data and output generated from get_prediction_data()
 get_predictions <- function(MCMC, Data) {
 
-  # get temporal random effects
-  Tre <- select(as_tibble(MCMC),contains("td["))
-
   # get the spatio-temporal random effects if needed
   if (Data$VarTrend == 1) {
     STre <- select(as_tibble(MCMC),contains("std["))
+  } else {
+    # get temporal random effects
+    Tre <- select(as_tibble(MCMC),contains("td["))
   }
 
   # get regression coefficients
@@ -896,12 +912,12 @@ get_predictions <- function(MCMC, Data) {
 
     # get time variable linear predictors
     if (Data$VarTrend == 1) {
-      LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data$Y[, (i - Data$FirstDateID + 1), 1:(dim(Data$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i - 1) / 2) + 1])})) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(STre[, (8 * (floor((i - 1) / 2) + 1 - 1) + x)])}))
+      LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data$Y[, (i - Data$FirstDateID + 1), 1:(dim(Data$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(STre[, (8 * (floor((i - Data$FirstDateID_Orig) / 2) + 1 - 1) + x)])}))
     } else {
-      LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data$Y[, (i - Data$FirstDateID + 1), 1:(dim(Data$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i - 1) / 2) + 1])}))
+      LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data$Y[, (i - Data$FirstDateID + 1), 1:(dim(Data$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i - Data$FirstDateID_Orig) / 2) + 1])}))
     }
 
-    # multiply density estimates by the habitat availability accounting for habitat masked out (last covariate in Y)
+    # multiply density estimates by the habitat availability to account for habitat masked out (last covariate in Y)
     if (i == Data$FirstDateID) {
       Density <- sweep(exp(LPTime), MARGIN = 1, as.matrix(Data$Y[ , (i - Data$FirstDateID + 1 + Data$Lag), dim(Data$Y)[3]]), `*`)
     } else {
