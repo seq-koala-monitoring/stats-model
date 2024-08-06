@@ -4,6 +4,7 @@ library(nimble)
 library(abind)
 library(mice)
 library(factoextra)
+library(terra)
 
 # read utility functions
 source("functions.R")
@@ -38,6 +39,78 @@ LastDate <- max(c(max(Surveys$line_transect$Date), max(Surveys$strip_transect$Da
 # get first and last date index values
 FirstDateID <- filter(DateIntervals, start_date <= FirstDate & end_date >= FirstDate) %>% pull(TimePeriodID)
 LastDateID <- filter(DateIntervals, start_date <= LastDate & end_date >= LastDate) %>% pull(TimePeriodID)
+
+# generate array for masks
+# load grids
+grid.rast <- rast("input/survey_data_500/grid_raster.tif")
+grid.vect <- vect("input/survey_data_500/grid_vec.shp")
+# load and resample land uses
+lu1999.res <- resample(rast("covariates/output/mask/lu1999_mask.tif"), grid.rast, method = "near")
+lu2017.res <- resample(rast("covariates/output/mask/lu2017_mask.tif"), grid.rast, method = "near")
+# load lot sizes and created a named list
+files <- list.files("covariates/output/mask", pattern = "htpls", full.names = T)
+names <- list.files("covariates/output/mask", pattern = "htpls", full.names = F)
+names <- as.character(parse_number(names))
+htpls <- lapply(files, rast)
+names(htpls) <- names
+# summarize raster values over grid polygons (it takes some minutes to run)
+htpls.grid <- lapply(htpls, function(r) {
+  # mean lot size per grid cell
+  g <- exactextractr::exact_resample(r, grid.rast, "mean") 
+  # rename it
+  names(g) <- "mean_lot_size"
+  # extract mean lot size per GridID
+  gid <- g %>% 
+    extract(grid.vect, bind = T)})
+# add raster date to the previous list
+for(i in 1:length(htpls.grid)){
+  htpls.grid[[i]]$date <- names(htpls.grid)[i]}
+# Load look up tables to mask cells by land use only
+lookup1999 <- read_csv("covariates/output/mask/land_use_lookup1999_mask.csv")
+lookup2017 <- read_csv("covariates/output/mask/land_use_lookup2017_mask.csv")
+# use the median lot size (ha) in Brisbane CBD and inner suburbs (2021) as threshold 
+# this value represents highly urbanized areas where koalas are unlikely to occur
+median.lot.size.brisbane <- 0.63 
+# create temporal mask dataframes (it takes some minutes to run)
+htpmask <- lapply(htpls.grid, function(r){
+  # set reference dates
+  date.1999 <- as.Date("1999-06-01")
+  date.2017 <- as.Date("2017-06-01")
+  # set lot size date
+  date.vect <- as.Date(paste0(str_sub(unique(r$date), end = -3), "-", str_sub(unique(r$date), start = 5), "-", "01"))
+  # Use either land use raster from 1999 or 2017 based on the closest date
+  if(date.vect <= date.1999 | 
+     abs(as.numeric(date.1999 - date.vect)) <= abs(as.numeric(date.2017 - date.vect))){
+    j <- extract(lu1999.res, r, bind = T) %>% as.data.frame() %>% left_join(lookup1999, join_by("Tertiary" == "code")) %>% mutate(Mask = case_when(Tertiary.y %in% c("Urban residential", "Public services", "Recreation and culture") & mean_lot_size <= median.lot.size.brisbane ~ 1, mask == 1 ~ 1, .default = 0)) %>% select(GridID, Mask, date)
+  } else {
+    j <- extract(lu2017.res, r, bind = T) %>% as.data.frame() %>% left_join(lookup2017, join_by("Tertiary" == "code")) %>% mutate(Mask = case_when(Tertiary.y %in% c("Urban residential", "Public services", "Recreation and culture") & mean_lot_size <= median.lot.size.brisbane ~ 1, mask == 1 ~ 1, .default = 0)) %>% select(GridID, Mask, date)
+  }})
+# assign a TimePeriodID to each temporal dataframe
+# store TimePeriodIds
+TimePeriod <- vector()
+for(i in 1:length(htpmask)){
+  name <- names(htpmask)[i]
+  name <- as.Date(paste0(str_sub(parse_number(name), end = -3), "-", str_sub(parse_number(name), start = 5), "-", "01"))
+  sub <- DateIntervals[which(DateIntervals$start_date <= name & DateIntervals$end_date >= name),]
+  htpmask[[i]]$TimePeriodID <- sub$TimePeriodID
+  TimePeriod[i] <- as.character(sub$TimePeriodID)}
+# name the previous list
+names(htpmask) <- TimePeriod
+# create an empty list to store a mask dataframe per TimePeriodID
+lu.mask.list <- vector(mode = "list", length = length(unique(DateIntervals$TimePeriodID)))
+names(lu.mask.list) <- as.character(unique(DateIntervals$TimePeriodID))
+# create a vector to represent each TimePeriodID (from 1 to 60) 
+index <- as.numeric(names(htpmask))
+# append each temporal mask dataframe to the corresponding slot in the empty list
+# slots where the TimePeriodID does not have an exact match are filled with data from the closest matching TimePeriodID in the mask dataframe
+for(i in 1:length(luMask.list)) {
+  n <- which.min(abs(index - i))
+  lu.mask.list[[i]] <- htpmask[[n]] %>% select(-TimePeriodID, -date)}
+# create an array
+lu.mask.array <- abind::abind(lu.mask.list, along = 3)
+# remove temporary objects and free up memory
+rm(i, n, index, files, names,lookup1999, lookup2017, htpls, lu1999.res, lu2017.res, htpls.grid, sub)
+gc()
 
 # add a season variable to the temporally variable covariates
 # 1 = breading season (summer - October to March) and 0 = non-breeding season (winter - April to September)
