@@ -103,13 +103,14 @@ names(lu.mask.list) <- as.character(unique(DateIntervals$TimePeriodID))
 index <- as.numeric(names(htpmask))
 # append each temporal mask dataframe to the corresponding slot in the empty list
 # slots where the TimePeriodID does not have an exact match are filled with data from the closest matching TimePeriodID in the mask dataframe
-for(i in 1:length(luMask.list)) {
+for(i in 1:length(lu.mask.list)) {
   n <- which.min(abs(index - i))
-  lu.mask.list[[i]] <- htpmask[[n]] %>% select(-TimePeriodID, -date)}
-# create an array
-lu.mask.array <- abind::abind(lu.mask.list, along = 3)
+  lu.mask.list[[i]] <- htpmask[[n]] %>% select(-date) %>% mutate(TimePeriodID = as.character(i))}
+# create a matrix with GridID as rows, TimePeriodID as columns, and values as 0 (do not mask out) or 1 (mask out)
+lu.mask.matrix <- lapply(lu.mask.list, function(df){
+  df <- df %>% pivot_wider(values_from = Mask, names_from = TimePeriodID)}) %>% reduce(left_join, by = "GridID") %>% column_to_rownames("GridID") %>% as.matrix()
 # remove temporary objects and free up memory
-rm(i, n, index, files, names,lookup1999, lookup2017, htpls, lu1999.res, lu2017.res, htpls.grid, sub)
+rm(i, n, index, files, names,lookup1999, lookup2017, htpls, lu1999.res, lu2017.res, htpls.grid, sub, lu.mask.list, TimePeriod, name, median.lot.size.brisbane, grid.rast, grid.vect)
 gc()
 
 # add a season variable to the temporally variable covariates
