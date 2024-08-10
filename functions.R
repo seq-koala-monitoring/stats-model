@@ -91,6 +91,17 @@ fit_sel_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FA
 
 get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateIntervals, GenPopLookup, Order, Lag, VarTrend, FirstDate, LastDate, StaticVars, DynamicVars) {
 
+  # reclassify genetic population IDs to three "populations"
+  # 1 (Noosa) -> 1
+  # 2 (North Coast) -> 1
+  # 3 (North West) -> 2
+  # 4 (Toowoomba)-> 2
+  # 5 (South West) -> 2
+  # 6 (Koala Coast) -> 3
+  # 7 (Minjerribah) -> 3
+  # 8 (Gold Coast) -> 3
+  GenPopLookup <- GenPopLookup %>% as_tibble() %>% mutate(GENPOP_ID = case_match(GENPOP_ID, 1~1, 2~1, 3~2, 4~2, 5~2, 6~3, 7~3, 8~3) %>% as.integer())
+
   # get first and last date index values
   FirstDateID <- filter(DateIntervals, start_date <= FirstDate & end_date >= FirstDate) %>% pull(TimePeriodID)
   LastDateID <- filter(DateIntervals, start_date <= LastDate & end_date >= LastDate) %>% pull(TimePeriodID)
@@ -692,6 +703,17 @@ get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterv
 # function to get data for a particular year for a model to make predictions
 get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRUE) {
 
+  # reclassify genetic population IDs to three "populations"
+  # 1 (Noosa) -> 1
+  # 2 (North Coast) -> 1
+  # 3 (North West) -> 2
+  # 4 (Toowoomba)-> 2
+  # 5 (South West) -> 2
+  # 6 (Koala Coast) -> 3
+  # 7 (Minjerribah) -> 3
+  # 8 (Gold Coast) -> 3
+  PredData$GenPopLookup <- PredData$GenPopLookup %>% as_tibble() %>% mutate(GENPOP_ID = case_match(GENPOP_ID, 1~1, 2~1, 3~2, 4~2, 5~2, 6~3, 7~3, 8~3) %>% as.integer())
+
   # get first and last date IDs
   # check if the first date is in the data, use it, otherwise use the second date - to avoid issues at the start or end
   if (date(paste0(Year, "-04-01")) %in% PredData$DateIntervals$start_date) {
@@ -912,7 +934,7 @@ get_predictions <- function(MCMC, Data) {
 
     # get time variable linear predictors
     if (Data$VarTrend == 1) {
-      LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data$Y[, (i - Data$FirstDateID + 1), 1:(dim(Data$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(STre[, (8 * (floor((i - Data$FirstDateID_Orig) / 2) + 1 - 1) + x)])}))
+      LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data$Y[, (i - Data$FirstDateID + 1), 1:(dim(Data$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(STre[, (3 * (floor((i - Data$FirstDateID_Orig) / 2) + 1 - 1) + x)])}))
     } else {
       LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data$Y[, (i - Data$FirstDateID + 1), 1:(dim(Data$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i - Data$FirstDateID_Orig) / 2) + 1])}))
     }

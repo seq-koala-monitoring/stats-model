@@ -47,11 +47,13 @@ BestModelSel <- readRDS(paste0("output/mcmc/sel_order1_lag", ModelWAICs$Lag[Best
 
 # check for convergence
 MCMCsummary(BestModelSat$MCMC)
-MCMCtrace(BestModelSat$MCMC)
+MCMCtrace(BestModelSat$MCMC, filenane = "output/mcmc/figures/best_sat_trace.jpg")
 MCMCsummary(BestModelSel$MCMC)
-MCMCtrace(BestModelSel$MCMC)
+MCMCtrace(BestModelSel$MCMC, filenane = "output/mcmc/figures/best_sel_trace.jpg"))
 
-# do diagnostic checks
+# do posterior predictive checks
+
+
 
 
 
@@ -65,7 +67,7 @@ MCMCtrace(BestModelSel$MCMC)
 MCMC <- rbind(BestModelSel$MCMC[[1]], BestModelSat$MCMC[[2]], BestModelSat$MCMC[[3]])
 
 # sub sample MCMC chains if needed
-MCMC <- MCMC[sample(1:dim(MCMC)[1], 1000), ]
+MCMC <- MCMC[sample(1:dim(MCMC)[1], 10000), ]
 
 # load feature class of small grids
 Grid <- vect("input/survey_data_500/grid_vec.shp")
@@ -121,45 +123,3 @@ Abundances <- tibble(Year = Years, Expected = Expected, Lower = Lower, Upper = U
 Plot1 <- ggplot(Abundances, aes(x = Year, y = Expected)) + geom_line() + geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0.1, color = "red") + labs(x = "Year", y = "Abundance") + theme_minimal() + theme(legend.position = "none", axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma)
 
 ggsave(Plot1, file = "figures/trend.jpg", width = 20, height = 15, units = "cm", dpi = 300)
-
-
-
-
-PredsList[[1]]
-
-
-
-
-
-
-#stop cluster
-stopCluster(cl)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Test <- readRDS("output/mcmc/sat_order1_lag0_vartrend0_firstdate1996-02-13.rds")
-
-
-
-

@@ -10,6 +10,7 @@ library(terra)
 library(tidyterra)
 library(foreach)
 library(doParallel)
+library(exactextractr)
 
 # get functions
 source("functions.r")
