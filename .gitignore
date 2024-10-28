@@ -48,12 +48,7 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
-# PyCharm configuration files
-.idea/
-
 # input, output, and other files
 output/
 input/
-code_help/
-figures/
-
+keys/
