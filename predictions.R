@@ -84,4 +84,3 @@ Predictions <- foreach(i = 1996:2023) %do% {
 #stop cluster
 stopCluster(cl)
 
-

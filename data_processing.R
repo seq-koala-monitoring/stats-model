@@ -1,9 +1,226 @@
+# THIS SCRIPT DOES ANY PRE-PROCESSING OF THE DATA REQUIRED FOR THE ANALYSIS
+
+# get tokens needed
+source("keys/apis.R")
+
 # load libraries
 library(tidyverse)
 library(terra)
 library(exactextractr)
 library(sf)
 library(tidyterra)
+library(abind)
+library(mice)
+library(factoextra)
+library(nimble)
+library(devtools)
+if (!require("SEQKoalaDataPipeline")) devtools::install_github('seq-koala-monitoring/data-pipeline', auth_token = GITHUB_PAT)
+library(SEQKoalaDataPipeline)
+library(readr)
+library(rstudioapi)
+
+# read utility functions
+source("functions.R")
+
+# CAIOS CODE TO UPDATE DATA BASE HERE
+
+# prepare integration of survey data and covariate data
+working_data_dir <- paste0(getwd(), "/input")
+target_dir <- paste0(getwd(), "/input/survey_data")
+fcn_set_home_dir(working_data_dir) # Home directory
+
+## Set db path
+fcn_set_db_path(list(
+  `1996` = 'SEQkoalaData.accdb',
+  `2015` = '2015-2019 SEQKoalaDatabase DES_20231027.accdb',
+  `2020` = 'KoalaSurveyData2020_cur.accdb',
+  `integrated` = 'Integrated_SEQKoalaDatabase.accdb'
+))
+
+# Set gdb path
+fcn_set_gdb_path(list(
+  koala_survey_data="KoalaSurveyData.gdb",
+  total_db="Integrated_SEQKoalaDatabase_Spatial.shp",
+  koala_survey_sites="KoalaSurveySites_231108/KoalaSurveySites_231108.shp"
+))
+
+# Grid size (in meters) - default 500m
+primary_grid_size <- 500
+secondary_grid_size <- primary_grid_size*10
+
+fcn_set_grid_size(primary_grid_size)
+
+# Set line transect buffer width in meters (if generating transects using start and end coordinate information)
+fcn_set_line_transect_buffer(28.7)
+
+# Set covariate impute buffer distance (within the data pipeline)
+fcn_set_cov_impute_buffer(0)
+
+# Set study area buffer
+fcn_set_study_area_buffer(0)
+
+# If it is incorrect, specify the correct path
+use_imputation <- FALSE
+
+if (use_imputation) {
+  fcn_set_raster_path(list(covariates = 'covariates_impute/output'))
+} else {
+  fcn_set_raster_path(list(covariates = 'covariates/output'))
+}
+
+# Run in parallel (requires RStudio API if true)
+use_parallel <- TRUE
+
+# Output path
+state <- fcn_get_state()
+
+current_date <- format(Sys.Date(), format="%Y%m%d")
+
+out_dir <- target_dir     #paste0(target_dir, '/', paste0(current_date, "_", state$grid_size, ifelse(use_imputation, '_1500', '')))
+
+if (!dir.exists(out_dir)) dir.create(out_dir)
+if (!dir.exists(paste0(out_dir, '/cov_raster'))) dir.create(paste0(out_dir, '/cov_raster'))
+if (!dir.exists(paste0(out_dir, '/cov_csv'))) dir.create(paste0(out_dir, '/cov_csv'))
+
+# Run covariate extraction algorithm; if not, read from disc in the output folder (computationally intensive, 30 minute run)
+run_cov_extraction <- TRUE
+
+# Check whether the directory for where covariates are stored is correct
+print(fcn_get_raster_path()$covariates)
+
+# Set genetic population feature class file (relative to working directory)
+gen_pop_file_path <- "genetic_populations/Population_boundaries_v2.shp"
+
+# Write to grid
+grid_raster <- fcn_get_grid()
+terra::writeRaster(grid_raster, paste0(out_dir, "\\grid_raster.tif"), overwrite = T)
+grid_vector <- terra::as.polygons(grid_raster)
+terra::writeVector(grid_vector, paste0(out_dir, "\\grid_vec.shp"), overwrite = T)
+
+# Load the survey data as tables
+master <- fcn_all_tables()
+saveRDS(master, paste0(out_dir, '/master.rds'))
+master_sf <- fcn_all_tables_sf()
+lapply(seq_along(master_sf), \(i) sf::st_write(master_sf[[i]], paste0(out_dir, '/master_', names(master_sf)[i], '.shp'), append=F))
+
+# Load covariates from the directory
+
+# Extract covariates
+if (run_cov_extraction) {
+  source('cov_temporal_parallel.R')
+  source('cov_temporal_array.R')
+}
+
+# Extract and save only those in surveylocations as a separate file
+# Read results back from disk (output folder)
+cov_constant_array <- readr::read_rds(paste0(out_dir, "/cov_constant_array.rds"))
+cov_temporal_array <- readr::read_rds(paste0(out_dir, "/cov_temporal_array.rds"))
+if (use_imputation) cov_temporal_array <- fcn_impute_temporal_cov(cov_temporal_array)
+
+# Load grid fractions as tables
+grid_fractions <- fcn_all_transect_grid_fractions()
+grid_fractions_comb <- dplyr::bind_rows(grid_fractions, .id = 'transect')
+readr::write_rds(grid_fractions_comb, paste0(out_dir, '/grid_fractions.rds'))
+data.table::fwrite(grid_fractions_comb, paste0(out_dir, "/grid_fractions.csv"))
+
+# Save grid cells in survey locations separately
+cov_constant_array_surveylocations <- cov_constant_array[cov_constant_array[,1] %in% grid_fractions_comb$GridID,,]
+cov_temporal_array_surveylocations <- cov_temporal_array[cov_temporal_array[,1,1] %in% grid_fractions_comb$GridID,,]
+readr::write_rds(cov_constant_array_surveylocations, paste0(out_dir, "/cov_constant_array_surveylocations.rds"))
+readr::write_rds(cov_temporal_array_surveylocations, paste0(out_dir, '/cov_temporal_array_surveylocations.rds'))
+
+# Resave grid fractions for the subset with complete covariate information
+grid_id_non_na <- fcn_complete_grid_id(cov_constant_array, cov_temporal_array) # Get GridID index with non-NA covariates
+cov_constant_array$GridID[!(cov_constant_array$GridID %in% grid_id_non_na)]
+grid_fractions_complete_cov <- fcn_all_transect_grid_fractions(grid_id_vec = grid_id_non_na)
+grid_fractions_comb_complete_cov <- dplyr::bind_rows(grid_fractions_complete_cov, .id = 'transect')
+readr::write_rds(grid_fractions_comb_complete_cov, paste0(out_dir, '/grid_fractions_complete_cov.rds'))
+data.table::fwrite(grid_fractions_comb_complete_cov, paste0(out_dir, "/grid_fractions_complete_cov.csv"))
+transects_missing <- unique(grid_fractions_comb$TransectID)[(!(unique(grid_fractions_comb$TransectID) %in% unique(grid_fractions_comb_complete_cov$TransectID)))]
+print(transects_missing)
+GridID_missing <- grid_fractions_comb[grid_fractions_comb$TransectID %in% transects_missing,]$GridID
+
+# Save grid cells in survey locations separately with non-NA covariate information
+cov_constant_array_surveylocations <- cov_constant_array[cov_constant_array[,1] %in% grid_fractions_comb_complete_cov$GridID ,,]
+cov_temporal_array_surveylocations <- cov_temporal_array[cov_temporal_array[,1,1] %in% grid_fractions_comb_complete_cov$GridID,,]
+
+# Save full arrays
+cov_constant_array[cov_constant_array[,1] %in% grid_id_non_na,,] %>%
+  readr::write_rds(paste0(out_dir, '/cov_constant_array_complete_cov.rds'))
+cov_temporal_array[cov_temporal_array[,1,1] %in% grid_id_non_na,,] %>%
+  readr::write_rds(paste0(out_dir, '/cov_temporal_array_complete_cov.rds'))
+
+# Check for complete cases (any missing values)
+fcn_complete_cases_check(cov_constant_array_surveylocations)
+fcn_complete_cases_check(cov_temporal_array_surveylocations)
+readr::write_rds(cov_constant_array_surveylocations, paste0(out_dir, "/cov_constant_array_complete_cov_surveylocations.rds"))
+readr::write_rds(cov_temporal_array_surveylocations, paste0(out_dir, '/cov_temporal_array_complete_cov_surveylocations.rds'))
+
+# Produce date interval lookup table
+write.csv(fcn_date_interval_lookup(), paste0(out_dir, "/date_interval_lookup.csv"))
+cov_layer_df <- fcn_covariate_layer_df()
+write.csv(cov_layer_df[,1:5], paste0(out_dir, '/covariate_info.csv'))
+
+# Produce and save the adjacency matrix
+adj_data <- fcn_adj_matrix(secondary_grid_size = secondary_grid_size)
+saveRDS(adj_data, paste0(out_dir, "/adj_data_queen.rds"))
+terra::writeRaster(adj_data$grid_raster_sp, paste0(out_dir, "/grid_raster_secondary.tif"), overwrite = T)
+grid_vec_sp <- terra::as.polygons(adj_data$grid_raster_sp)
+terra::writeVector(grid_vec_sp, paste0(out_dir, "/grid_vec_sp.shp"), overwrite=T)
+adj_data <- fcn_adj_matrix(directions = 'rook')
+saveRDS(adj_data, paste0(out_dir, "/adj_data_rook.rds"))
+
+# Write lookup table of GridID to genetic populations
+gen_pop_file <- sf::st_read(paste0(working_data_dir, '/', gen_pop_file_path))
+gen_pop_lookup <- fcn_grid_intersect_feature(gen_pop_file, field = 'GENPOP_ID')
+saveRDS(gen_pop_lookup, paste0(out_dir, "/gen_pop_lookup.rds"))
+
+# End
+print("Data pipeline run complete.")
+
+# load input data
+Surveys <- readRDS("input/survey_data/master.rds")
+GridFrac <- readRDS("input/survey_data/grid_fractions.rds")
+CovConsSurv <- readRDS("input/survey_data/cov_constant_array_surveylocations.rds")
+CovTempSurv <- readRDS("input/survey_data/cov_temporal_array_surveylocations.rds")
+DateIntervals <- read_csv("input/survey_data/date_interval_lookup.csv") %>% mutate(end_date = as.Date(end_date))
+GenPopLookup <- readRDS("input/survey_data/gen_pop_lookup.rds")
+FirstDate <- min(c(min(Surveys$line_transect$Date), min(Surveys$strip_transect$Date), min(Surveys$uaoa$Date)))
+LastDate <- max(c(max(Surveys$line_transect$Date), max(Surveys$strip_transect$Date), max(Surveys$uaoa$Date)))
+
+# create data for model fitting
+
+# Variables removed due to high correlations (> 0.6 or < -0.6) were:
+# elevation
+# terrain ruggedness index
+# persistent green
+# intensive land-use in a 2 km buffer
+# maximum temperature
+
+# loop through order, lag, and vartrend values
+for (Order in 1:2) {
+  for(Lag in 0:2) {
+    for (VarTrend in 0:1) {
+      # set seed
+      set.seed(20)
+
+      # generate data to fit models
+      FitData <- get_fit_data(Surveys = Surveys, GridFrac = GridFrac, CovConsSurv = CovConsSurv, CovTempSurv = CovTempSurv, DateIntervals = DateIntervals, GenPopLookup = GenPopLookup, Order = Order, Lag = Lag, VarTrend = VarTrend, FirstDate = FirstDate, LastDate = LastDate, StaticVars = c("htslo", "hspc1", "hspc2", "hcltp", "hcltt", "hhgde"), DynamicVars = c("hhfwc", "hhpgr2km", "htpls2km", "hcpre", "hctmn", "hseas", "hhkha", "htlus"))
+
+      # save data
+      saveRDS(FitData, paste0("input/nimble_data/data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
+
+      # save continuous variable correlations
+      write.csv(FitData$CorrXY, paste0("input/nimble_data/correlations/cor_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
+
+      # save PCA plots and PCAs
+      saveRDS(FitData$SoilPCA, paste0("input/nimble_data/pca/pca_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
+      ggsave(FitData$SoilScree1, file = paste0("input/nimble_data/pca/soilscree1_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
+      ggsave(FitData$SoilScree2, file = paste0("input/nimble_data/pca/soilscree2_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
+      ggsave(FitData$SoilBiPlot, file = paste0("input/nimble_data/pca/soilbiplot_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
+    }
+  }
+}
 
 # create mask matrix
 
@@ -81,7 +298,7 @@ names(htpmask) <- TimePeriod
 # create an empty list to store a mask dataframe per TimePeriodID
 lu.mask.list <- vector(mode = "list", length = length(unique(DateIntervals$TimePeriodID)))
 names(lu.mask.list) <- as.character(unique(DateIntervals$TimePeriodID))
-# create a vector to represent each TimePeriodID (from 1 to 60)
+# create a vector to represent each TimePeriodID
 index <- as.numeric(names(htpmask))
 # append each temporal mask dataframe to the corresponding slot in the empty list
 # slots where the TimePeriodID does not have an exact match are filled with data from the closest matching TimePeriodID in the mask dataframe
@@ -97,3 +314,4 @@ gc()
 
 # save the mask matrix
 saveRDS(lu.mask.matrix, "input/mask/lu_mask_matrix.rds")
+
