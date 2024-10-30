@@ -6,7 +6,7 @@ cdfhnorm <- nimbleRcall(function(q = double(0), sigma = double(0)){}, Rfun = 'ph
 # fit saturated model
 
 # function to fit a saturated model for a single chain - set up to be used with parLapply
-fit_sat_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FALSE, EnableWAIC = TRUE, Data, Code) {
+fit_sat_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FALSE, EnableWAIC = FALSE, Data, Code) {
 
   # get Order
   Order <- Data$Order
@@ -20,15 +20,15 @@ fit_sat_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FA
   # set up initial values
   if (Order == 2) {
     if (VarTrend == 1) {
-      Inits <- list(sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5))
+      Inits <- list(sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
     } else {
-      Inits <- list(sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5))
+      Inits <- list(sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
     }
   } else {
     if (VarTrend == 1) {
-      Inits <- list(sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5))
+      Inits <- list(sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
     } else {
-      Inits <- list(sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5))
+      Inits <- list(sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
     }
   }
 
@@ -45,7 +45,7 @@ fit_sat_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FA
 }
 
 # function to fit a model wtih variable selection for a single chain - set up to be used with parLapply
-fit_sel_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FALSE, EnableWAIC = TRUE, Data, Code) {
+fit_sel_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FALSE, EnableWAIC = FALSE, Data, Code) {
 
   # get Order
   Order <- Data$Order
@@ -59,15 +59,15 @@ fit_sel_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FA
   # set up initial values
   if (Order == 2) {
     if (VarTrend == 1) {
-      Inits <- list(sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5))
+      Inits <- list(sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
     } else {
-      Inits <- list(sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5))
+      Inits <- list(sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
     }
   } else {
     if (VarTrend == 1) {
-      Inits <- list(sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5))
+      Inits <- list(sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
     } else {
-      Inits <- list(sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5))
+      Inits <- list(sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
     }
   }
 
@@ -87,52 +87,6 @@ fit_sel_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FA
 
   # return samples
   return(list(Samples = Samples, Data = Data, Code = Code))
-}
-
-# wrapper to fit mcmc models
-# Type = "sat" for saturated model, "sel" for model with variable selection, "sat_check" for saturated model witrh posterior predictive checks
-get_mcmc <- function(FitData, Type, Iter, Burnin, Thin) {
-  # make cluster
-  cl <- makeCluster(3)
-
-  # export packages and nimble functions to cluster
-  clusterEvalQ(cl,{
-    library(tidyverse)
-    library(nimble)
-    library(coda)
-    library(extraDistr)})
-  clusterExport(cl, {"cdfhnorm"})
-
-  # fit model
-  if (Type == "sat") {
-    if (FitData$VarTrend == 1) {
-      Samples <- parLapply(cl = cl, X = 1:3, fun = fit_sat_model, Seeds = sample.int(100, 3), Iter = Iter, Burnin = Burnin, Thin = Thin, Monitors = c("beta_d", "beta_shn", "sigma_std", "std", "nbrst", "nbraa", "nbrli"), Calculate = FALSE, EnableWAIC = TRUE, Data = FitData, Code = nimble_sat_model)
-    } else {
-      Samples <- parLapply(cl = cl, X = 1:3, fun = fit_sat_model, Seeds = sample.int(100, 3), Iter = Iter, Burnin = Burnin, Thin = Thin, Monitors = c("beta_d", "beta_shn", "sigma_td", "td", "nbrst", "nbraa", "nbrli"), Calculate = FALSE, EnableWAIC = TRUE, Data = FitData, Code = nimble_sat_model)
-    }
-  } else if (Type == "sel") {
-    if (FitData$VarTrend == 1) {
-      Samples <- parLapply(cl = cl, X = 1:3, fun = fit_sel_model, Seeds = sample.int(100, 3), Iter = Iter, Burnin = Burnin, Thin = Thin, Monitors = c("beta_d", "beta_shn", "sigma_std", "std", "nbrst", "nbraa", "nbrli"), Calculate = FALSE, EnableWAIC = TRUE, Data = FitData, Code = nimble_sat_model)
-    } else {
-      Samples <- parLapply(cl = cl, X = 1:3, fun = fit_sel_model, Seeds = sample.int(100, 3), Iter = Iter, Burnin = Burnin, Thin = Thin, Monitors = c("beta_d", "beta_shn", "sigma_td", "td", "nbrst", "nbraa", "nbrli"), Calculate = FALSE, EnableWAIC = TRUE, Data = FitData, Code = nimble_sat_model)
-    }
-  } else if (Type == "sat_check") {
-    if (FitData$VarTrend == 1) {
-      Samples <- parLapply(cl = cl, X = 1:3, fun = fit_sat_model, Seeds = sample.int(100, 3), Iter = Iter, Burnin = Burnin, Thin = Thin, Monitors = c("Strip_res_obs", "Strip_res_sim", "Strip_var", "AoA_res_obs", "AoA_res_sim", "AoA_var", "Line_res_obs", "Line_res_sim", "Line_var"), Calculate = FALSE, EnableWAIC = TRUE, Data = FitData, Code = nimble_sat_model_check)
-    } else {
-      Samples <- parLapply(cl = cl, X = 1:3, fun = fit_sat_model, Seeds = sample.int(100, 3), Iter = Iter, Burnin = Burnin, Thin = Thin, Monitors = c("Strip_res_obs", "Strip_res_sim", "Strip_var", "AoA_res_obs", "AoA_res_sim", "AoA_var", "Line_res_obs", "Line_res_sim", "Line_var"), Calculate = FALSE, EnableWAIC = TRUE, Data = FitData, Code = nimble_sat_model_check)
-    }
-  } else {
-    error("Type must be 'sat' or 'sel' or 'sat_check'")
-  }
-
-  #stop cluster
-  stopCluster(cl)
-
-  # combine samples and save
-  Samples_Combined <- list(MCMC = list(Samples[[1]]$Samples$samples, Samples[[2]]$Samples$samples, Samples[[3]]$Samples$samples), WAIC = list(Samples[[1]]$Samples$WAIC, Samples[[2]]$Samples$WAIC, Samples[[3]]$Samples$WAIC), Data = Samples[[1]]$Data, Code = Samples[[1]]$Code)
-
-  return(Samples_Combined)
 }
 
 get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateIntervals, GenPopLookup, Order, Lag, VarTrend, FirstDate, LastDate, StaticVars, DynamicVars) {
@@ -217,13 +171,6 @@ get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterv
   Soil <- tibble(hscec = X_hscec, hspho = X_hspho, hsnit = X_hsnit, hswat = X_hswat)
   # run PCA
   Soil_PCA <- prcomp(~hscec + hspho + hsnit + hswat, data = Soil, scale = TRUE)
-  
-  # get scree plots
-  SoilScree1 <- fviz_eig(Soil_PCA)
-  SoilScree2 <- fviz_eig(Soil_PCA, choice = "eigenvalue")
-  # get bi-plot of PCA components
-  SoilBiPlot <- fviz_pca_var(Soil_PCA, axes = c(1, 2), col.var = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
-    
   # individual PCA scores for first two components
   IndScores <- as_tibble(1:nrow(Soil)) %>% left_join(bind_cols(as_tibble(as.numeric(rownames(get_pca_ind(Soil_PCA)$coord))), as_tibble(get_pca_ind(Soil_PCA)$coord[,1:2])), by = c("value" = "value"))
 
@@ -337,7 +284,7 @@ get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterv
   XYData <- bind_cols(do.call(rbind, replicate(dim(CovTempSurv)[3], X, simplify = FALSE)), Y_temp)
 
   # check for collinearity among continuous predictors
-  CorrXY <- cor(XYData %>% dplyr::select(-hhgde, -htime, -hseas, -hhkha, -htlus), use = "complete.obs", method = "spearman") %>% as.data.frame()
+  CorrXY <- cor(XYData %>% dplyr::select(-hhgde, -htime, -hseas, -hhkha, -htlus), use = "complete.obs", method = "spearman")
 
   # get the design matrix and remove collinear variables for X
   X <- model.matrix(as.formula(paste0("~ ", paste(StaticVars, collapse= " + "))), model.frame(as.formula(paste0("~ ", paste(StaticVars, collapse= " + "))), as.data.frame(X), na.action = "na.pass")) %>% as.data.frame()
@@ -630,7 +577,53 @@ get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterv
   LastDateID_Orig <- LastDateID
   LastDateID <- LastDateID - FirstDateID + 1 + Lag
   FirstDateID <- Lag + 1
-  
+
+  # set up data for spatial CAR process (1st order with equal weights) for genetic populations
+  # assumes the following first-order spatial connections among genetic populations:
+  # 1 (Noosa) -> 2
+  # 2 (North Coast) -> 1, 3, 5, 6
+  # 3 (North West) -> 2, 5, 4
+  # 4 (Toowoomba)-> 3, 5
+  # 5 (South West) -> 2, 3, 4, 6, 8
+  # 6 (Koala Coast) -> 2, 5, 8
+  # 7 (Minjerribah) -> disconnected
+  # 8 (Gold Coast) -> 5, 6
+  AdjS <- c()
+  WeightsAdjS <- c()
+  NumAdjS <- c()
+  NumAdjS[1] <- 1
+  NumAdjS[2] <- 4
+  NumAdjS[3] <- 3
+  NumAdjS[4] <- 2
+  NumAdjS[5] <- 5
+  NumAdjS[6] <- 3
+  NumAdjS[7] <- 0
+  NumAdjS[8] <- 2
+  AdjS[1] <- 2
+  AdjS[2] <- 1
+  AdjS[3] <- 3
+  AdjS[4] <- 5
+  AdjS[5] <- 6
+  AdjS[6] <- 2
+  AdjS[7] <- 5
+  AdjS[8] <- 4
+  AdjS[9] <- 3
+  AdjS[10] <- 5
+  AdjS[11] <- 2
+  AdjS[12] <- 3
+  AdjS[13] <- 4
+  AdjS[14] <- 6
+  AdjS[15] <- 8
+  AdjS[16] <- 2
+  AdjS[17] <- 5
+  AdjS[18] <- 8
+  AdjS[19] <- 5
+  AdjS[20] <- 6
+  for (i in 1:20) {
+      WeightsAdjS[i] <- 1
+  }
+  NGPopsAdjs <- length(AdjS)
+
   # set up data for temporal CAR process (1st order with equal weights)
   # annual time steps
   AdjT <- c()
@@ -701,10 +694,10 @@ get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterv
   NTimeAdjs2 <- length(AdjT2)
 
   # set up nimble constants and data inputs for model with temporal CAR process order = 1
-  NimbleConsts <- list(NGPops = NGPops, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, GenPopID = GenPopID, FirstDateID = FirstDateID, LastDateID = LastDateID, NX = NX, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine, NZ = NZ, NPDists = NPDists, PDLineIDs = PDLineIDs, Order = Order, Lag = Lag, VarTrend = VarTrend)
+  NimbleConsts <- list(NGPops = NGPops, NGPopsAdjs = NGPopsAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, GenPopID = GenPopID, FirstDateID = FirstDateID, LastDateID = LastDateID, NX = NX, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine, NZ = NZ, NPDists = NPDists, PDLineIDs = PDLineIDs, Order = Order, Lag = Lag, VarTrend = VarTrend)
   NimbleData <- list(X = X, Y = Y, Z_Strip = Z_Strip, Z_AoA = Z_AoA, Z_Line = Z_Line, CntStrip = CntStrip, CntAoA = CntAoA, PDists = PDists, CntLine = CntLine)
 
-  return(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, SoilPCA = Soil_PCA, SoilScree1 = SoilScree1, SoilScree2 = SoilScree2, SoilBiPlot = SoilBiPlot, CorrXY = CorrXY, Order = Order, Lag = Lag, VarTrend = VarTrend, StaticVars = StaticVars, DynamicVars = DynamicVars))
+  return(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, SoilPCA = Soil_PCA, CorrXY = CorrXY, Order = Order, Lag = Lag, VarTrend = VarTrend, StaticVars = StaticVars, DynamicVars = DynamicVars))
 }
 
 # function to get data for a particular year for a model to make predictions
@@ -748,11 +741,8 @@ get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRU
   PredData$CovTemp <- abind(PredData$CovTemp, Time, along = 2)
   dimnames(PredData$CovTemp)[[2]][(dim(PredData$CovTemp)[[2]])] <- "htime"
 
-  # subset temporally variable data for the specified year
+  # Subset temporally variable data for the specified year
   PredData$CovTemp <- PredData$CovTemp[ , , (FirstDateID - NimbleData$Constants$Lag):LastDateID]
-
-  # subste mask for the specified year
-  PredData$Mask <- PredData$Mask[, (FirstDateID - NimbleData$Constants$Lag):LastDateID]
 
   # set up small grid IDs
   SGridID = PredData$CovCons[,"GridID"]
@@ -884,22 +874,17 @@ get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRU
       Y_prophabitat <- Y_propwoody
   }
 
-  # mask
-  # create a new variable to mask out other ereas specified in the Mask input
-  # swap 0s and 1s so that 1 = not masked and 0 = masked
-  Y_mask <- as.vector(PredData$Mask) %>% as.character() %>% case_match("1"~0,"0"~1) %>% as.numeric() 
-
   # compile into a tibble
-  Y_temp <- tibble(htime = Y_htime, hseas = Y_hseas, hhpgr = Y_hhpgr, hhpgr2km = Y_hhpgr2km, hhkha = Y_hhkha, hhfwc = Y_hhfwc, hcpre = Y_hcpre, hctmn = Y_hctmn, hctma = Y_hctma, htlus = Y_htlus, htilu2km = Y_htilu2km, htpls2km = Y_htpls2km, prophabitat = Y_prophabitat, mask = Y_mask)
+  Y_temp <- tibble(htime = Y_htime, hseas = Y_hseas, hhpgr = Y_hhpgr, hhpgr2km = Y_hhpgr2km, hhkha = Y_hhkha, hhfwc = Y_hhfwc, hcpre = Y_hcpre, hctmn = Y_hctmn, hctma = Y_hctma, htlus = Y_htlus, htilu2km = Y_htilu2km, htpls2km = Y_htpls2km, prophabitat = Y_prophabitat)
 
-  # get the design matrix and select only the variables needed for X
+  # get the design matrix and remove collinear variables for X
   X <- model.matrix(as.formula(paste0("~ ", paste(NimbleData$StaticVars, collapse = " + "))), model.frame(as.formula(paste0("~ ", paste(NimbleData$StaticVars, collapse = " + "))), as.data.frame(X), na.action = "na.pass")) %>% as.data.frame()
 
   # remove the intercept term
   X <- X[, 2:ncol(X)] %>% as.data.frame()
 
-  # get the design matrix and and select only the variables needed for Y
-  Y_temp <- model.matrix(as.formula(paste0("~ ", paste(c(NimbleData$DynamicVars, "prophabitat", "mask"), collapse = " + "))), model.frame(as.formula(paste0("~ ", paste(c(NimbleData$DynamicVars, "prophabitat", "mask"), collapse = " + "))), as.data.frame(Y_temp), na.action = "na.pass"))
+  # get the design matrix and remove collinear variables for X
+  Y_temp <- model.matrix(as.formula(paste0("~ ", paste(c(NimbleData$DynamicVars, "prophabitat"), collapse = " + "))), model.frame(as.formula(paste0("~ ", paste(c(NimbleData$DynamicVars, "prophabitat"), collapse = " + "))), as.data.frame(Y_temp), na.action = "na.pass"))
 
   # remove the intercept term
   Y_temp <- Y_temp[, 2:ncol(Y_temp)] %>% as.data.frame()
@@ -921,7 +906,7 @@ get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRU
 }
 
 # function to get predictions from a model
-# Data is an output generated from get_prediction_data()
+# Data and output generated from get_prediction_data()
 get_predictions <- function(MCMC, Data) {
 
   # get the spatio-temporal random effects if needed
@@ -949,17 +934,16 @@ get_predictions <- function(MCMC, Data) {
 
     # get time variable linear predictors
     if (Data$VarTrend == 1) {
-      LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 2)], MARGIN = 1, function(z) {as.matrix(Data$Y[, (i - Data$FirstDateID + 1), 1:(dim(Data$Y)[3] - 2)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(STre[, (3 * (floor((i - Data$FirstDateID_Orig) / 2) + 1 - 1) + x)])}))
+      LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data$Y[, (i - Data$FirstDateID + 1), 1:(dim(Data$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(STre[, (3 * (floor((i - Data$FirstDateID_Orig) / 2) + 1 - 1) + x)])}))
     } else {
-      LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 2)], MARGIN = 1, function(z) {as.matrix(Data$Y[, (i - Data$FirstDateID + 1), 1:(dim(Data$Y)[3] - 2)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i - Data$FirstDateID_Orig) / 2) + 1])}))
+      LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data$Y[, (i - Data$FirstDateID + 1), 1:(dim(Data$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i - Data$FirstDateID_Orig) / 2) + 1])}))
     }
 
-    # multiply density estimates by the habitat availability to account for habitat masked out (second last covariate in Y generated from get_prediction_data())
-    # also multiply by the mask to remove masked areas (set density to zero) (last covariate in Y generated from get_prediction_data())
+    # multiply density estimates by the habitat availability to account for habitat masked out (last covariate in Y)
     if (i == Data$FirstDateID) {
-      Density <- sweep(exp(LPTime), MARGIN = 1, as.matrix(Data$Y[ , (i - Data$FirstDateID + 1 + Data$Lag), dim(Data$Y)[3] - 1]) * as.matrix(Data$Y[ , (i - Data$FirstDateID + 1 + Data$Lag), dim(Data$Y)[3]]), `*`)
+      Density <- sweep(exp(LPTime), MARGIN = 1, as.matrix(Data$Y[ , (i - Data$FirstDateID + 1 + Data$Lag), dim(Data$Y)[3]]), `*`)
     } else {
-      Density <- Density + sweep(exp(LPTime), MARGIN = 1, as.matrix(Data$Y[ , (i - Data$FirstDateID + 1 + Data$Lag), dim(Data$Y)[3] - 1]) * as.matrix(Data$Y[ , (i - Data$FirstDateID + 1 + Data$Lag), dim(Data$Y)[3]]), `*`)
+      Density <- Density + sweep(exp(LPTime), MARGIN = 1, as.matrix(Data$Y[ , (i - Data$FirstDateID + 1 + Data$Lag), dim(Data$Y)[3]]), `*`)
     }
 
     Density <- Density / (Data$LastDateID - Data$FirstDateID + 1)
@@ -969,182 +953,647 @@ get_predictions <- function(MCMC, Data) {
   Lower <- apply(Density, MARGIN = 1, function(x) {quantile(x, 0.025, na.rm = TRUE)})
   Upper <- apply(Density, MARGIN = 1, function(x) {quantile(x, 0.975, na.rm = TRUE)})
   SD <- apply(Density, MARGIN = 1, function(x) {sd(x, na.rm = TRUE)})
-  CV <- SD / Mean
-  Spatial <- tibble(GridID = Data$SGridID, Expected = Mean, LowerCI = Lower, UpperCI = Upper, SD = SD) %>% mutate(Expected = ifelse(is.na(Expected), NA, Expected), LowerCI = ifelse(is.na(LowerCI), NA, LowerCI), UpperCI = ifelse(is.na(UpperCI), NA, UpperCI), SD = ifelse(is.na(SD), NA, SD), CV = ifelse(is.na(CV), NA, CV))
+  Spatial <- tibble(GridID = Data$SGridID, Expected = Mean, LowerCI = Lower, UpperCI = Upper, SD = SD) %>% mutate(Expected = ifelse(is.na(Expected), NA, Expected), LowerCI = ifelse(is.na(LowerCI), NA, LowerCI), UpperCI = ifelse(is.na(UpperCI), NA, UpperCI), SD = ifelse(is.na(SD), NA, SD))
   # remove grids with missing data
   Spatial <- Spatial %>% filter(!is.na(Expected))
-  # get total abundance values (multiply by 25 since each 500 m x 500m grid cell is 25 ha in size)
-  TotalMean <- mean(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
-  TotalLower <- quantile(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
-  TotalUpper <- quantile(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
+  TotalSumMean <- mean(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  TotalSumLower <- quantile(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
+  TotalSumUpper <- quantile(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
   TotalSD <- sd(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
-  TotalCV <- TotalSD / TotalMean
-  Total <- tibble(Mean = TotalMean, Lower = TotalLower, Upper = TotalUpper, SD = TotalSD, CV = TotalCV)
-  # get total abundance values for each genetic population
-  # northern coast
-  NCMean <- mean(apply(Density[which(Data$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
-  NCLower <- quantile(apply(Density[which(Data$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
-  NCUpper <- quantile(apply(Density[which(Data$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
-  NCSD <- sd(apply(Density[which(Data$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
-  NCCV <- NCSD / NCMean
-  NC <- tibble(Mean = NCMean, Lower = NCLower, Upper = NCUpper, SD = NCSD, CV = NCCV)
-  # wstern inland
-  WIMean <- mean(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
-  WILower <- quantile(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
-  WIUpper <- quantile(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
-  WISD <- sd(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
-  WICV <- WISD / WIMean
-  WI <- tibble(Mean = WIMean, Lower = WILower, Upper = WIUpper, SD = WISD, CV = WICV)
-  # southern coast
-  SCMean <- mean(apply(Density[which(Data$GenPopID == 3),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
-  SCLower <- quantile(apply(Density[which(Data$GenPopID == 3),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
-  SCUpper <- quantile(apply(Density[which(Data$GenPopID == 3),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
-  SCSD <- sd(apply(Density[which(Data$GenPopID == 3),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
-  SCCV <- SCSD / SCMean
-  SC <- tibble(Mean = SCMean, Lower = SCLower, Upper = SCUpper, SD = SCSD, CV = SCCV)
 
-  # create output
-  Output <- list(Spatial = Spatial, Total = Total, NC = NC, WI = WI, SC = SC)
+  Output <- list(Spatial = Spatial, TotalSumMean = TotalSumMean, TotalSumLowerCI = TotalSumLower, TotalSumUpperCI = TotalSumUpper, TotalSD = TotalSD)
+
+  return(Output)
+}
+
+
+fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
+                          db.integrated = "Integrated_SEQKoalaDatabase.accdb",
+                          survey_sites = "KoalaSurveySites_231108.shp",
+                          update.spatial = T,
+                          spatial_transects = "transects_v240517.shp",
+                          line_transect_width = 57.38,
+                          site.info = "site_info.csv",
+                          monitoring.units = "Population_boundaries_v2.shp"){
   
-  # return output
-  return(Output)
-}
+  
+  # load function to create line transects as line feature
+  source("code/line-transect.r")
+  
+  cat(
+    "------------------------------------------------------------","\n",
+    "IT MAY TAKE AROUND 10 MINS TO RUN DEPENDING ON YOUR COMPUTER","\n",
+    "------------------------------------------------------------", "\n\n")
+  
+  # look for the database (db) within the working directory
+  path <- list.files(pattern = db, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
+  if (length(path) > 1) {
+    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date koala survey database in this working directory. Databases found in: %s", db))} # close {} of error message
+  
+  # create the db path for the odbc connection
+  db_path <- paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};",
+                    "DBQ=",
+                    getwd(), "/", path)
+  
+  # establish odbc connection
+  channel <- RODBC::odbcDriverConnect(db_path)
+  
+  # retrieve survey data table only
+  dat <- RODBC::sqlFetch(channel, "tblKoalaSurveyData2020_cur")
+  
+  # close odbc connection
+  RODBC::odbcClose(channel)
+  
+  # include number of sightings
+  
+  
+  # adding the 2018 Daisy Hill Line Transects
+  # create a temporary dataframe for merging
+  tmp <- dat |> 
+    dplyr::mutate(XID = as.character(ID),
+                  Start_Time = format(Start_Time, "%H:%M"),
+                  End_Time = format(End_Time, "%H:%M"),
+                  Time = format(Time, "%H:%M"),
+                  Year = as.numeric(format(Date, "%Y")))
+  
+  # standardize column names
+  SOL_2018 <- read.csv("input/line_transects_2018/V2_MASTER_Daisy Hill_Line_tidy.csv") |>  
+    dplyr::mutate(Date = as.POSIXct(Date),
+                  Weather = as.character(Weather),
+                  DBH = as.character(DBH),
+                  Wind = as.character(Wind),
+                  Cloud_Cover = as.character(Cloud_Cover),
+                  Canopy_Cover = as.character(Canopy_Cover)) |> 
+    dplyr::select(-Concern, -Fatal_problem)
+  
+  # standardize the 2018 line transects dataframe 
+  dat2 <- dplyr::bind_rows(tmp, SOL_2018) |> 
+    dplyr::relocate(Year, .before = Date) |> 
+    dplyr::relocate(Number_Sightings, .before = Sighting_Number) |>
+    dplyr::rename(NumSightings = Number_Sightings) |> 
+    dplyr::mutate(ID = dplyr::row_number())
+  
+  # include number of sightings per transect
+  trans1 <- dat2 |>
+    dplyr::mutate(Sighting_Number = ifelse(is.na(Sighting_Number),
+                                           0, Sighting_Number)) |> 
+    dplyr::group_by(Transect_ID) |>
+    dplyr::mutate(NumSightings =
+                    if (dplyr::n() > 1) {
+                      NumSightings = dplyr::n()
+                    }
+                  else if (dplyr::n() == 1 & Sighting_Number != 0) {
+                    NumSightings = 1
+                  }
+                  else {
+                    NumSightings = 0
+                  }) |> 
+    dplyr::ungroup() |> 
+    dplyr::mutate(Number_Sightings = ifelse(is.na(NumSightings),
+                                            NumSightings,
+                                            NumSightings)) |> 
+    dplyr::relocate(Number_Sightings, .before = Sighting_Number) |> 
+    dplyr::select(-NumSightings)
+  
+  
+  # add length and area if not recorded
+  trans.sf <- trans1 |> 
+    dplyr::filter(!Method %in% c("IS", "VT")) |> 
+    dplyr::group_by(Transect_ID) |> 
+    dplyr::reframe(
+      Start_Eastings = unique(Start_Eastings), 
+      Start_Northings = unique(Start_Northings),
+      End_Eastings = unique(End_Eastings),
+      End_Northings = unique(End_Northings),
+      Year = unique(Year)
+    ) |> 
+    fcn_line_transect_sf() |> 
+    dplyr::mutate(TLength2 = as.numeric(st_length(geometry))) |> 
+    dplyr::mutate(index = dplyr::row_number()) |> 
+    sf::st_buffer(line_transect_width/2, endCapStyle = "FLAT")
+  
+  trans2 <- trans1 |> 
+    dplyr::left_join(sf::st_drop_geometry(trans.sf) |> dplyr::select(Transect_ID, TLength2),
+                     by = "Transect_ID") |> 
+    dplyr::mutate(T_Length = ifelse(is.na(T_Length),
+                                    TLength2, T_Length)) |>
+    dplyr::mutate(T_Area = ifelse(is.na(T_Area),
+                                  T_Length * line_transect_width/1e4, T_Area),
+                  T_Width = ifelse(is.na(T_Width),
+                                   line_transect_width, T_Width)) |> 
+    dplyr::select(-TLength2)
+  
+  
+  #-----------------------------------------------------------
+  # standardise Site ID
+  # look for a file with the spatial representation of survey sites within the working directory
+  path <- list.files(pattern = survey_sites, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
+  if (length(path) > 1) {
+    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date spatial representation of survey sites in this working directory.", survey_sites))} # close {} of error message
+  
+  surveys <- sf::st_read(path) 
+  sf::st_crs(surveys) <- "EPSG:7856"
+  
+  siteIds <-
+    suppressWarnings({
+      lapply(split(trans.sf, trans.sf$Transect_ID), function(d) {
+        cat(
+          paste0(
+            "Matching Site_ID (",
+            round(d$index/max(trans.sf$index)*100, 0),
+            "% processed)","\n", "Transect_ID: ", d$Transect_ID, "\n\n"))
+        
+        sub <- sf::st_intersection(surveys, d) |>
+          dplyr::select(Survey_Yr, Site, NAME, Subsite)
+        
+        if (nrow(sub) == 0) {
+          Site_ID <- NA
+          Subsite <- NA
+          Site_Name <- NA
+          
+        } else if (nrow(sub) == 1) {
+          Site_ID <- unique(sub$Site)
+          Subsite <- unique(sub$Subsite)
+          Site_Name <- unique(sub$NAME)
+          
+        } else {
+          if (length(unique(sub$Site)) > 1) {
+            sub <- sub |> 
+              dplyr::mutate(inters.area = as.numeric(sf::st_area(geometry)) /
+                              1e4) |>
+              dplyr::select(Survey_Yr, Site, NAME, Subsite, inters.area)
+            
+            max <- max(sub$inters.area, na.rm = T)
+            sub <- sub[sub$inters.area == max,]
+            
+            year <-
+              unique(unique(d$Year))
+            survey_yr <- sub$Survey_Yr
+            
+            if (any(year %in% survey_yr)) {
+              filter <- survey_yr == year
+            } else {
+              filter <-
+                survey_yr == survey_yr[which.max(survey_yr[which(survey_yr <= year)])]
+            }
+          } else {
+            year <-
+              unique(unique(d$Year))
+            survey_yr <- sort(unique(sub$Survey_Yr))
+            
+            if (any(year %in% survey_yr)) {
+              filter <- survey_yr == year
+            } else {
+              filter <-
+                survey_yr == survey_yr[which.max(survey_yr[which(survey_yr <= year)])]
+            }
+          }
+          
+          
+          if (purrr::is_empty(filter)) {
+            diff <- abs(year - survey_yr)
+            filter <-
+              survey_yr == survey_yr[which.min(diff)]
+          }
+          
+          if (length(filter) != nrow(sub)) {
+            sub <- sf::st_intersection(surveys, d) |>
+              dplyr::mutate(inters.area = as.numeric(sf::st_area(geometry)) /
+                              1e4) |>
+              dplyr::select(Survey_Yr, Site, NAME, Subsite, inters.area)
+            sub <- sub[-which.min(sub$inters.area),]
+            
+            survey_yr <- sort(unique(sub$Survey_Yr))
+            
+            if (any(year %in% survey_yr)) {
+              filter <- survey_yr == year
+            } else {
+              filter <-
+                survey_yr == survey_yr[which.max(survey_yr[which(survey_yr <= year)])]
+            }
+          }
+          
+          sub <- sub |>
+            dplyr::distinct(Survey_Yr, Site, .keep_all = T)
+          
+          Site_ID <- sub[filter, "Site"]$Site
+          Subsite <- sub[filter, "Subsite"]$Subsite
+          Site_Name <- sub[filter, "NAME"]$NAME
+        }
+        
+        df <- data.frame(
+          Transect_ID = unique(d$Transect_ID),
+          Site_ID = Site_ID,
+          Subsite = Subsite,
+          Site_Name = Site_Name
+        )
+        
+        return(df)
+      }) |> dplyr::bind_rows()
+    })
+  
+  # Check if there are any duplicated Transect_IDs resulting from different Site_ID values for the same transect
+  siteIds <- siteIds |>
+    dplyr::mutate(dups = duplicated(Transect_ID))
+  
+  # Identify transects without a Site_ID
+  siteNAs <- siteIds |>
+    dplyr::filter(is.na(Site_ID)) |> 
+    dplyr::pull(unique(Transect_ID))
+  
+  siteNAs <- dat |> 
+    dplyr::filter(!Method %in% c("IS", "VT") & Transect_ID %in% siteNAs)
+  
+  siteNAs.n <- nrow(siteNAs)
+  
+  if (siteNAs.n > 0) {
+    assign("siteNAs", siteNAs, envir = .GlobalEnv)
+    
+    warning(sprintf("There are %s transects without a matching site_ID in %s. Please ensure you are using the most up-to-date spatial representation of survey sites, as outdated information could make it hard to get accurate data for the model. To see which transects are missing a matching site_ID, check the siteNAs dataframe in the top right panel (i.e., your global environment)", siteNAs.n, survey_sites))
+  } # close if (siteNAs.n > 0)
+  
+  # Assign the spatially retrieved Site_ID value to each transect of the data frame
+  trans3 <- trans2 |> 
+    dplyr::ungroup() |> 
+    dplyr::left_join(siteIds, by = "Transect_ID") |> 
+    
+    # Resolve problems with duplicated column names
+    dplyr::mutate(Site_Name = ifelse(is.na(Site_Name.y), Site_Name.x, Site_Name.y),
+                  Site_ID = ifelse(is.na(Site_ID.y), Site_ID.x, Site_ID.y),
+                  SiteID_Master = Site_ID.x,
+                  Subsite = ifelse(is.na(Subsite.y), NA, Subsite.y),
+                  Subsite_Master = Subsite.x) |> 
+    dplyr::select(-Site_Name.x, -Site_Name.y, -Site_ID.x, 
+                  -Site_ID.y, -Subsite.x, -Subsite.y) |> 
+    dplyr::relocate(Site_ID, .after = LGA) |> 
+    dplyr::relocate(Subsite, .after = Site_ID) |> 
+    dplyr::relocate(Site_Name, .after = Subsite) |> 
+    dplyr::relocate(Number_Observers, .before = Observer_Obstacles) |> 
+    
+    # Remove unwanted columns
+    dplyr::select(-Number_Observers_Master, -dups)
+  
+  # Define the source of the 2018 transects"V2_MASTER_Daisy Hill_Line"
+  trans3 <- trans3 |> 
+    dplyr::mutate(Source = ifelse(Year == 2018, "V2_MASTER_Daisy Hill_Line", "KoalaSurveyData2020_cur"))
+  
+  # Manually assign Site_ID and Subsite of a problematic transect
+  trans3[trans3$Transect_ID == "221.0_10_SOL.20220503",
+         "Site_ID"] <- 221
+  trans3[trans3$Transect_ID == "221.0_10_SOL.20220503",
+         "Subsite"] <- 3
+  
+  
+  #-----------------------------------------------------------
+  # UPDATE SHAPEFILE
+  # look for the most up-to-date spatial representation of transects within the working directory
+  if(update.spatial){
+    path <- list.files(pattern = spatial_transects, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
+    if (length(path) > 1) {
+      stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date spatial representation of transects in this working directory", spatial_transects))} # close {} of error message
+    
+    transects.sf <- sf::st_read(path) |> 
+      dplyr::filter(!Source %in% gsub(".accdb", "", db)) 
+    sf::st_crs(transects.sf) <- "EPSG:7856"
+    
+    lineTransect <- trans3 |> 
+      
+      # Remove incidental sightings and vehicle transects
+      dplyr::filter(Method %in% c("DOL", "SOL") & Year > 2018) |> 
+      
+      # Reframe to retain only columns relevant for modelling
+      dplyr::group_by(Transect_ID) |> 
+      dplyr::reframe(
+        Date = as.character(unique(Date)),
+        Start_Eastings = unique(Start_Eastings), 
+        Start_Northings = unique(Start_Northings),
+        End_Eastings = unique(End_Eastings),
+        End_Northings = unique(End_Northings),
+        Method = "SOL", 
+        Source = gsub(".accdb", "", db)
+      ) 
+    # Create a simple feature object to be exported as a shapefile
+    suppressWarnings({
+      lineTransectSf <- fcn_line_transect_sf(lineTransect) |> 
+        sf::st_buffer(line_transect_width/2, endCapStyle = "FLAT") |>
+        dplyr::mutate(Date = format(as.POSIXct(Date,"%Y-%m-%d"), "%d/%m/%Y")) |> 
+        dplyr::select(TrnscID = Transect_ID, Date, Method, Source)
+    })
+    
+    # Append to the source spatial representation
+    trans.final <- dplyr::bind_rows(transects.sf, lineTransectSf) |> 
+      dplyr::mutate(Year = as.integer(substring(Date, nchar(Date) - 4 + 1)))
+    
+    # Export as shapefile
+    if(!file.exists("output/transects_spatial_representation")){
+      dir.create("output/transects_spatial_representation")}
+    suppressWarnings({
+      sf::st_write(trans.final, 
+                   paste0("output/transects_spatial_representation/transects_v",
+                          format(Sys.Date(), "%y%m%d"),
+                          ".shp"), append = F)
+    })
+    
+    files.from <- list.files(pattern = paste0("transects_v", format(Sys.Date(), "%y%m%d")),
+                             path = "output/transects_spatial_representation",
+                             full.names = T)
+    files.to <- sub("/([^/]*)\\.", "/Integrated_SEQKoalaDatabase_Spatial.", files.from)
+    files.to <- sub("output", "input", files.to)
+    
+    file.copy(from = files.from, 
+              to = files.to,
+              overwrite = T)
+    
+  } # close conditional to update spatial representation of transects
+  
+  # Fill any missing value in number of observers (i.e., SOL = 1 and DOL = 2)
+  trans3[is.na(trans3$Number_Observers) & trans3$Method == "DOL", "Number_Observers"] <- 2
+  trans3[is.na(trans3$Number_Observers) & trans3$Method == "SOL", "Number_Observers"] <- 1
+  
+  #-----------------------------------------------------------
+  # Survey site information and monitoring unit
+  path <- list.files(pattern = site.info, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
+  if (length(path) > 1) {
+    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date information about survey site habitat in this working directory", site.info))} # close {} of error message
+  
+  # Load file with habitat information
+  info <- read.csv(path)
+  
+  trans4 <- trans3 |>
+    dplyr::left_join(
+      info |> dplyr::select(LGA, KPA, Site.Number,
+                            Land.Type, Habitat.Type, Site.Name),
+      dplyr::join_by(Site_ID == Site.Number)) |>
+    dplyr:: mutate(
+      LGA = ifelse(is.na(LGA.x), LGA.y, LGA.x),
+      KPA = ifelse(is.na(KPA.x),LGA.y, KPA.x),
+      Hab_Type = ifelse(is.na(Hab_Type), Habitat.Type, Hab_Type),
+      Land_Type = ifelse(is.na(Land_Type), Land.Type, Land_Type),
+      Site_Name_Master = ifelse(is.na(Site_Name_Master), Site.Name, Site_Name_Master),
+      Site_Name = ifelse(is.na(Site_Name), Site.Name, Site_Name)) |>
+    dplyr::select(-LGA.y,-LGA.x,-KPA.x, -KPA.y, -Land.Type, -Habitat.Type, -Site.Name)
+  
+  # Assign monitoring unit from shapefile
+  # This code follows the same logic applied to extract Site ID
+  path <- list.files(pattern = monitoring.units, recursive = T, ignore.case = T, full.names = F, include.dirs = T) 
+  path <- path[(substring(path, nchar(path) - 3 + 1) == "shp")]
+  
+  if (length(path) > 1) {
+    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date information about survey site habitat in this working directory", monitoring.units))} # close {} of error message
+  
+  units <- sf::st_read(path)
+  sf::st_crs(units) <- 7856
+  
+  tmp <- trans4 |> 
+    # Remove incidental sightings and vehicle transects
+    dplyr::filter(Method %in% c("DOL", "SOL")) |> 
+    # Reframe to retain only columns relevant for modelling
+    dplyr::group_by(Transect_ID) |> 
+    dplyr::reframe(
+      Date = as.character(unique(Date)),
+      Start_Eastings = unique(Start_Eastings), 
+      Start_Northings = unique(Start_Northings),
+      End_Eastings = unique(End_Eastings),
+      End_Northings = unique(End_Northings),
+      Method = "SOL", 
+      Source = gsub(".accdb", "", db)
+    ) |> 
+    fcn_line_transect_sf() |>  
+    dplyr::mutate(index = dplyr::row_number()) |> 
+    sf::st_buffer(line_transect_width/2, endCapStyle = "FLAT")
+  
+  M.unit <- suppressWarnings({
+    lapply(split(tmp, tmp$Transect_ID), function(d){
+      cat(
+        paste0(
+          "Matching monitoring unit (",
+          round(d$index/max(tmp$index)*100, 0),
+          "% processed)","\n", "Transect_ID: ", d$Transect_ID, "\n\n"))
+      
+      sub <- sf::st_intersection(units, d) |> 
+        dplyr::select(GENPOP_NAM, Transect_ID)
+      
+      if(nrow(sub) == 0) {
+        Monitoring_Unit <- NA
+        Transect_ID <- d$Transect_ID
+        
+      } else if (nrow(sub) == 1) {
+        Monitoring_Unit <- unique(sub$GENPOP_NAM)
+        Transect_ID <- unique(sub$Transect_ID)
+        
+      } else if(length(unique(sub$GENPOP_NAM)) > 1){
+        sub <- sf::st_intersection(units, d) |>
+          dplyr::mutate(inters.area = as.numeric(st_area(geometry)) / 1e4) |>
+          dplyr::select(GENPOP_NAM, Transect_ID, inters.area) 
+        
+        max <- max(sub$inters.area, na.rm = T)
+        sub <- sub[sub$inters.area == max, ]
+        
+        Monitoring_Unit <- sub$GENPOP_NAM
+        Transect_ID <- unique(sub$Transect_ID)
+      }
+      
+      df <- data.frame(Transect_ID = Transect_ID,
+                       Monitoring_Unit = Monitoring_Unit)
+      
+      return(df)
+    })
+  }) |> dplyr::bind_rows()
+  
+  # Check any missing data
+  M.unit.NAs <- M.unit |> 
+    dplyr::filter(is.na(Monitoring_Unit))
+  if (nrow(M.unit.NAs) > 0) {
+    assign("M.unit.NAs", M.unit.NAs, envir = .GlobalEnv)
+    stop(sprintf("There are %s transects without a matching monitoring unit. Please, check transects in the dataframe named M.unit.NAs before continuing.", nrow(M.unit.NAs)))} # close {} of error message
+  
+  # Assign a corresponding monitoring unit to the dataframe
+  trans5 <- trans4 |> 
+    dplyr::left_join(M.unit, by = "Transect_ID") |> 
+    dplyr::rename(Monitoring_Unit = Monitoring_Unit.y) |> 
+    dplyr::select(-Monitoring_Unit.x)
+  
+  #-----------------------------------------------------------
+  LTPerpDist <- trans5 |>
+    dplyr::filter(Method %in% c("SOL", "DOL") & Number_Sightings > 0) |> 
+    dplyr::mutate(Perp_Dist = ifelse(is.na(Perp_Dist), 
+                                     (Distance_Observer_Koala * 
+                                        sin(Angle_Koala * pi/180) / 1), # convert from degrees to radians
+                                     Perp_Dist)) |> 
+    dplyr::relocate(Sighting_ID, .before = Transect_ID)
+  
+  # Check for missing data
+  LTPerpDist.na <- LTPerpDist |> 
+    dplyr::filter(is.na(Perp_Dist)) |> 
+    
+    # Remove one potentially duplicate entry (ID = 1816)
+    dplyr::filter(!is.na(Koala_Eastings)) |> 
+    sf::st_as_sf(coords = c("Koala_Eastings", "Koala_Northings"),
+                 crs = 7856) # In this case is impossible to calculate the perpendicular distance because the Angle_Koala is also missing data
+  
+  
+  # Calculate perpendicular distances using spatial representations of the transects and of koala sightings
+  # Create an spatial object with transects
+  LTPerpDist.sf <- LTPerpDist |> 
+    dplyr::group_by(Transect_ID) |> 
+    dplyr::reframe(
+      Site_ID = unique(Transect_ID), 
+      Date = unique(Date),
+      T_Length = unique(T_Length),
+      Number_Sightings = unique(Number_Sightings),
+      Number_Observers = unique(Number_Observers),
+      Start_Eastings = unique(Start_Eastings), 
+      Start_Northings = unique(Start_Northings),
+      End_Eastings = unique(End_Eastings),
+      End_Northings = unique(End_Northings),
+      Year = as.integer(unique(Year)),
+      Sighting_ID = unique(Sighting_ID)
+    ) |> 
+    fcn_line_transect_sf() |> 
+    dplyr::filter(Sighting_ID %in% LTPerpDist.na$Sighting_ID)
+  
+  
+  # Calculate distance between the koala sighting and the transect line based on the spatial representation
+  dist <- lapply(split(LTPerpDist.na, LTPerpDist.na$Sighting_ID), function(x){
+    
+    dist <- x |>
+      sf::st_distance(
+        dplyr::filter(LTPerpDist.sf,
+                      LTPerpDist.sf$Sighting_ID == x$Sighting_ID)
+      ) |> 
+      as.numeric()
+    
+    z <- data.frame(Sighting_ID = x$Sighting_ID,
+                    Perp_Dist = dist)
+    
+    return(z)
+  }) |> 
+    dplyr::bind_rows()
+  
+  
+  # Update the data frame to fill the gap
+  trans6 <- trans5 |> 
+    dplyr::left_join(dist, by = "Sighting_ID") |> 
+    dplyr::mutate(Perp_Dist = ifelse(is.na(Perp_Dist.x),
+                                     Perp_Dist.y,
+                                     Perp_Dist.x)) |> 
+    dplyr::select(-Perp_Dist.x, -Perp_Dist.y)
+  
+  if(sum(duplicated(LTPerpDist$Sighting_ID)) > 0) {
+    warning(sprintf("%i duplicate Sighting_ID", sum(duplicated(lineTransect$Sighting_ID))))
+  } else {cat("There is a unique Sighting_ID per koala sighting")}
+  
+  # Final formatting
+  # Create a template
+  templ <- trans1[1, ] |> 
+    dplyr::mutate(across(everything(), ~ NA)) |> 
+    # Rename original Gen_Pop as Monitoring_Unit_Master
+    dplyr::rename(Monitoring_Unit_Master = Gen_Pop) |> 
+    dplyr::select(-ID, -XID) |> 
+    # Change column type for combining
+    dplyr::mutate(Date = as.character(Date))
+  
+  
+  # Keep incidental sightings and vehicle transects separate
+  IS_VT <- trans6 |> 
+    dplyr::filter(!Method %in% c("SOL", "DOL")) |> 
+    dplyr::mutate(Date = as.POSIXct(Date, format = "%d/%m/%Y"),
+                  Tran_Plot = ifelse(is.na(Tran_Plot), Tran_plot, Tran_Plot)) |> 
+    dplyr::rename("\"Date\"" = Date, "\"Time\"" = Time) 
+  
+  
+  trans7 <- trans6 |>
+    # Tidy up date format
+    dplyr::mutate(Date = format(Date, format = "%d/%m/%Y"))  |> 
+    # Assign empty values ("") instead of missing data (NAs)
+    dplyr::mutate(
+      dplyr::across(
+        dplyr::everything(),
+        ~ ifelse(is.na(.), "", .))) |> 
+    # Rename original Gen_Pop as Monitoring_Unit_Master
+    dplyr::rename(Monitoring_Unit_Master = Gen_Pop) |> 
+    # Tidying 
+    dplyr::relocate(Perp_Dist, .after = Angle_Koala) |> 
+    dplyr::select(-Site_Name_Master, -ID, -Distance_bt_Observers) |> 
+    dplyr::mutate(Site_Area = as.numeric(Site_Area),
+                  Subsite = as.numeric(Subsite))
+  
+  suppressWarnings({
+    final <- dplyr::bind_rows(templ, trans7) |> 
+      dplyr::mutate(Date = as.POSIXct(Date, format = "%d/%m/%Y"),
+                    Tran_Plot = ifelse(is.na(Tran_Plot), Tran_plot, Tran_Plot),
+                    Site_ID = as.integer(Site_ID),
+                    Total_Field_Staff = as.integer(Total_Field_Staff),
+                    Start_Eastings = as.integer(Start_Eastings),
+                    End_Eastings = as.integer(End_Eastings),
+                    Start_Northings = as.integer(Start_Northings),
+                    End_Northings = as.integer(End_Northings),
+                    Number_Observers = as.integer(Number_Observers),
+                    Count = as.integer(Count),
+                    Observer_Eastings = as.integer(Observer_Eastings),
+                    Observer_Northings = as.integer(Observer_Northings),
+                    Koala_Eastings = as.integer(Koala_Eastings),
+                    Koala_Northings = as.integer(Koala_Northings),
+                    Koala_Elevation = as.integer(Koala_Elevation),
+                    Koala_Bearing = as.integer(Koala_Bearing),
+                    Angle_Koala = as.integer(Angle_Koala),
+                    Field_Bearing = as.integer(Field_Bearing),
+                    T_Length = as.double(T_Length),
+                    T_Area = as.double(T_Area),
+                    Perp_Dist = as.double(Perp_Dist),
+                    Tree_Height = as.double(Tree_Height),
+                    Koala_Height = as.double(Koala_Height)) |> 
+      dplyr::rename("\"Date\"" = Date, "\"Time\"" = Time) |> 
+      dplyr::relocate(Monitoring_Unit_Master, .after = Study_Area) |> 
+      dplyr::relocate(Monitoring_Unit, .before = LGA) |> 
+      dplyr::select(-Tran_plot, -XID)
+    final <- final[-1, ]
+  })
+  
+  # update db
+  path <- list.files(pattern = db.integrated, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
+  if (length(path) > 1) {
+    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date koala survey database in this working directory. Databases found in: %s", db.integrated))} # close {} of error message
+  
+  # create a copy the database to avoid modifying the original
+  if(!file.exists("output/integrated_database")){
+    dir.create("output/integrated_database")}
+  
+  file.copy(from = path, 
+            to = "output/integrated_database/SEQKoalaDatabase_Integrated.accdb")
+  
+  # update path
+  path.upd <- "output/integrated_database/SEQKoalaDatabase_Integrated.accdb"
+  
+  # create the db path for the odbc connection
+  db_path <- paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};",
+                    "DBQ=",
+                    getwd(), "/", path.upd)
+  
+  # establish odbc connection
+  channel <- RODBC::odbcDriverConnect(db_path)
+  
+  # remove old SOL table survey data table only
+  RODBC::sqlDrop(channel, "SOL_compiled")
+  
+  RODBC::sqlSave(
+    channel,
+    dat = final,
+    tablename = "test",
+    fast = F, 
+    safer = F, 
+    rownames = F, 
+    colnames = F,
+    varTypes = c("\"Date\"" = "date")
+  )
+  
+  # close odbc connection
+  RODBC::odbcClose(channel)
+  
+  file.copy(from = "output/integrated_database/SEQKoalaDatabase_Integrated.accdb", 
+            to = "input/databases/Integrated_SEQKoalaDatabase.accdb",
+            overwrite = T)
+  
+} # finish function
 
-# function to get predictions from a model
-# Data is an output generated from get_prediction_data()
-get_change <- function(MCMC, Data1, Data2) {
 
-  # get the spatio-temporal random effects if needed
-  if (Data1$VarTrend == 1) {
-    STre <- select(as_tibble(MCMC),contains("std["))
-  } else {
-    # get temporal random effects
-    Tre <- select(as_tibble(MCMC),contains("td["))
-  }
-
-  # get regression coefficients
-  Betas <- select(as_tibble(MCMC),contains("beta_d["))
-
-  # remove grids with no genetic population ID
-  # first year
-  Data1$X <- Data1$X %>% filter(!is.na(Data1$GenPopID))
-  Data1$Y <- Data1$Y[which(!is.na(Data1$GenPopID)), , ]
-  Data1$SGridID <- Data1$SGridID[which(!is.na(Data1$GenPopID))]
-  Data1$GenPopID <- Data1$GenPopID[which(!is.na(Data1$GenPopID))]
-  # second year
-  Data2$X <- Data2$X %>% filter(!is.na(Data2$GenPopID))
-  Data2$Y <- Data2$Y[which(!is.na(Data2$GenPopID)), , ]
-  Data2$SGridID <- Data2$SGridID[which(!is.na(Data2$GenPopID))]
-  Data2$GenPopID <- Data2$GenPopID[which(!is.na(Data2$GenPopID))]
-
-  # get fixed linear predictors
-  LPFixed1 <- apply(Betas[,1:dim(Data1$X)[2]], MARGIN = 1, function(y) {as.matrix(Data1$X) %*% as.matrix(y)})
-  LPFixed2 <- apply(Betas[,1:dim(Data2$X)[2]], MARGIN = 1, function(y) {as.matrix(Data2$X) %*% as.matrix(y)})
-
-  # loop through time steps - first year
-  for (i in Data1$FirstDateID:Data1$LastDateID) {
-
-    # get time variable linear predictors
-    if (Data1$VarTrend == 1) {
-      LPTime1 <- LPFixed1 + apply(Betas[,(dim(Data1$X)[2] + 1):(dim(Data1$X)[2] + dim(Data1$Y)[3] - 2)], MARGIN = 1, function(z) {as.matrix(Data1$Y[, (i - Data1$FirstDateID + 1), 1:(dim(Data1$Y)[3] - 2)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(STre[, (3 * (floor((i - Data1$FirstDateID_Orig) / 2) + 1 - 1) + x)])}))
-    } else {
-      LPTime1 <- LPFixed1 + apply(Betas[,(dim(Data1$X)[2] + 1):(dim(Data1$X)[2] + dim(Data1$Y)[3] - 2)], MARGIN = 1, function(z) {as.matrix(Data1$Y[, (i - Data1$FirstDateID + 1), 1:(dim(Data1$Y)[3] - 2)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i - Data1$FirstDateID_Orig) / 2) + 1])}))
-    }
-
-    # multiply density estimates by the habitat availability to account for habitat masked out (second last covariate in Y generated from get_prediction_data())
-    # also multiply by the mask to remove masked areas (set density to zero) (last covariate in Y generated from get_prediction_data())
-    if (i == Data1$FirstDateID) {
-      Density1 <- sweep(exp(LPTime1), MARGIN = 1, as.matrix(Data1$Y[ , (i - Data1$FirstDateID + 1 + Data1$Lag), dim(Data1$Y)[3] - 1]) * as.matrix(Data1$Y[ , (i - Data1$FirstDateID + 1 + Data1$Lag), dim(Data1$Y)[3]]), `*`)
-    } else {
-      Density1 <- Density1 + sweep(exp(LPTime1), MARGIN = 1, as.matrix(Data1$Y[ , (i - Data1$FirstDateID + 1 + Data1$Lag), dim(Data1$Y)[3] - 1]) * as.matrix(Data1$Y[ , (i - Data1$FirstDateID + 1 + Data1$Lag), dim(Data1$Y)[3]]), `*`)
-    }
-
-    Density1 <- Density1 / (Data1$LastDateID - Data1$FirstDateID + 1)
-  }
-
-  # loop through time steps - second year
-  for (i in Data2$FirstDateID:Data2$LastDateID) {
-
-    # get time variable linear predictors
-    if (Data2$VarTrend == 1) {
-      LPTime2 <- LPFixed2 + apply(Betas[,(dim(Data2$X)[2] + 1):(dim(Data2$X)[2] + dim(Data2$Y)[3] - 2)], MARGIN = 1, function(z) {as.matrix(Data2$Y[, (i - Data2$FirstDateID + 1), 1:(dim(Data2$Y)[3] - 2)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(STre[, (3 * (floor((i - Data2$FirstDateID_Orig) / 2) + 1 - 1) + x)])}))
-    } else {
-      LPTime2 <- LPFixed2 + apply(Betas[,(dim(Data2$X)[2] + 1):(dim(Data2$X)[2] + dim(Data2$Y)[3] - 2)], MARGIN = 1, function(z) {as.matrix(Data2$Y[, (i - Data2$FirstDateID + 1), 1:(dim(Data2$Y)[3] - 2)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i - Data2$FirstDateID_Orig) / 2) + 1])}))
-    }
-
-    # multiply density estimates by the habitat availability to account for habitat masked out (second last covariate in Y generated from get_prediction_data())
-    # also multiply by the mask to remove masked areas (set density to zero) (last covariate in Y generated from get_prediction_data())
-    if (i == Data2$FirstDateID) {
-      Density2 <- sweep(exp(LPTime2), MARGIN = 1, as.matrix(Data2$Y[ , (i - Data2$FirstDateID + 1 + Data2$Lag), dim(Data2$Y)[3] - 1]) * as.matrix(Data2$Y[ , (i - Data2$FirstDateID + 1 + Data2$Lag), dim(Data2$Y)[3]]), `*`)
-    } else {
-      Density2 <- Density2 + sweep(exp(LPTime2), MARGIN = 1, as.matrix(Data2$Y[ , (i - Data2$FirstDateID + 1 + Data2$Lag), dim(Data2$Y)[3] - 1]) * as.matrix(Data2$Y[ , (i - Data2$FirstDateID + 1 + Data2$Lag), dim(Data2$Y)[3]]), `*`)
-    }
-
-    Density2 <- Density2 / (Data2$LastDateID - Data2$FirstDateID + 1)
-  }
-
-  # get change in total abundance values (multiply by 25 since each 500 m x 500m grid cell is 25 ha in size)
-  # total
-  ChangeTot <- apply(Density2 * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}) / apply(Density1 * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)})
-  TotalChangeMean <- mean(ChangeTot, na.rm = TRUE)
-  TotalChangeLower <- quantile(ChangeTot, 0.025, na.rm = TRUE)
-  TotalChangeUpper <- quantile(ChangeTot, 0.975, na.rm = TRUE)
-  TotalChangeSD <- sd(ChangeTot, na.rm = TRUE)
-  Total <- tibble(Mean = TotalChangeMean, Lower = TotalChangeLower, Upper = TotalChangeUpper, SD = TotalChangeSD)
-  # northern coast
-  ChangeNC <- apply(Density2[which(Data2$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}) / apply(Density1[which(Data1$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)})
-  NCChangeMean <- mean(ChangeNC, na.rm = TRUE)
-  NCChangeLower <- quantile(ChangeNC, 0.025, na.rm = TRUE)
-  NCChangeUpper <- quantile(ChangeNC, 0.975, na.rm = TRUE)
-  NCChangeSD <- sd(ChangeNC, na.rm = TRUE)
-  NC <- tibble(Mean = NCChangeMean, Lower = NCChangeLower, Upper = NCChangeUpper, SD = NCChangeSD)
-  # western inland
-  ChangeWI <- apply(Density2[which(Data2$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}) / apply(Density1[which(Data1$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)})
-  WIChangeMean <- mean(ChangeWI, na.rm = TRUE)
-  WIChangeLower <- quantile(ChangeWI, 0.025, na.rm = TRUE)
-  WIChangeUpper <- quantile(ChangeWI, 0.975, na.rm = TRUE)
-  WIChangeSD <- sd(ChangeWI, na.rm = TRUE)
-  WI <- tibble(Mean = WIChangeMean, Lower = WIChangeLower, Upper = WIChangeUpper, SD = WIChangeSD)
-  # southern coast
-  ChangeSC <- apply(Density2[which(Data2$GenPopID == 3),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}) / apply(Density1[which(Data1$GenPopID == 3),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)})
-  SCChangeMean <- mean(ChangeSC, na.rm = TRUE)
-  SCChangeLower <- quantile(ChangeSC, 0.025, na.rm = TRUE)
-  SCChangeUpper <- quantile(ChangeSC, 0.975, na.rm = TRUE)
-  SCChangeSD <- sd(ChangeSC, na.rm = TRUE)
-  SC <- tibble(Mean = SCChangeMean, Lower = SCChangeLower, Upper = SCChangeUpper, SD = SCChangeSD)
-
-  # create output
-  Output <- list(DistTot = ChangeTot, DistNC = ChangeNC, DistWI = ChangeWI, DistSC = ChangeSC, Total = Total, NC = NC, WI = WI, SC = SC)
-
-  # return output
-  return(Output)
-}
-
-# qq plot with confidence intervals
-qq.plot.ci <- function(R.sim,R.obs)
-{
-	MedObs<-apply(R.obs,MARGIN=2,FUN=median)
-	MedSim<-apply(R.sim,MARGIN=2,FUN=median)
-
-	NegSim<-apply(R.sim,MARGIN=1,FUN=function(X){quantile(sort(X[X<0]),ppoints(MedObs[MedObs<0],a=1))})
-	PosSim<-apply(R.sim,MARGIN=1,FUN=function(X){quantile(sort(X[X>=0]),ppoints(MedObs[MedObs>=0],a=1))})
-	
-	NegObs<-apply(R.obs,MARGIN=1,FUN=function(X){quantile(sort(X[X<0]),ppoints(MedObs[MedObs<0],a=1))})
-	PosObs<-apply(R.obs,MARGIN=1,FUN=function(X){quantile(sort(X[X>=0]),ppoints(MedObs[MedObs>=0],a=1))})
-	
-	NewSim<-c(apply(NegSim,MARGIN=1,FUN=median),apply(PosSim,MARGIN=1,FUN=median))	
-	NewObs<-c(apply(NegObs,MARGIN=1,FUN=median),apply(PosObs,MARGIN=1,FUN=median))
-	UpperSim<-c(apply(NegSim,MARGIN=1,FUN=function(X){quantile(X,0.975)}),apply(PosSim,MARGIN=1,FUN=function(X){quantile(X,0.975)}))
-	LowerSim<-c(apply(NegSim,MARGIN=1,FUN=function(X){quantile(X,0.025)}),apply(PosSim,MARGIN=1,FUN=function(X){quantile(X,0.025)}))
-	UpperObs<-c(apply(NegObs,MARGIN=1,FUN=function(X){quantile(X,0.975)}),apply(PosObs,MARGIN=1,FUN=function(X){quantile(X,0.975)}))
-	LowerObs<-c(apply(NegObs,MARGIN=1,FUN=function(X){quantile(X,0.025)}),apply(PosObs,MARGIN=1,FUN=function(X){quantile(X,0.025)}))
-	
-	minX <- min(NewSim)
-	maxX <- max(NewSim)
-	minY <- min(c(UpperSim,LowerSim,UpperObs,LowerObs))
-	maxY <- max(c(UpperSim,LowerSim,UpperObs,LowerObs))
-	
-  Data <- tibble(Simulated = NewSim, Observed = NewObs, LowerSim = LowerSim, UpperSim = UpperSim, LowerObs = LowerObs, UpperObs = UpperObs)
-
-  return(Data)  
-}

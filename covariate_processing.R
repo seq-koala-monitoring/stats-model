@@ -1,3 +1,32 @@
+# -------------------------------------------------------------------
+#                 UPDATE AND PROCESS COVARIATES 
+# -------------------------------------------------------------------
+
+# This R code updates and processes covariates required for the Bayesian state-space model 
+# used to estimate koala densities across Southeast Queensland.
+#
+# The basic workflow involves checking if the input folder already has the latest covariate file. 
+# If it doesn't, the code will automatically download, process, and save the most recent file
+# the correct location.
+#
+# Before anything, start fresh by clicking Session > Terminate R... > Yes in the pop-up (do not save anything if asked)
+#
+# To get started, please, select all lines by pressing Ctrl + A on a Windows PC or Command + A on a MAc. 
+# Then, run these lines by pressing Ctrl + Enter on a Windows PC or Command + Return on a Mac.
+#
+# When you see "THIS CODE HAS FINISHED" in the Console panel (usually at the bottom left),
+# you're ready to the modelling stage. You will be automatically redirected to a new tab 
+# with a file named data_processing.R. This file prepare all the data for the Bayesian state-space model
+#
+# PS: 1) Disregard any warnings on the task bar about packages that are not installed 
+#     2) This code may take anywhere from a few minutes to days to run, 
+#        depending on how many files need updating and your computer's specifications.
+
+
+# -------------------------------------------------------------------
+# install packages if required
+source("code/install_packages_covariates.R")
+
 # load libraries
 library(tidyverse)
 library(terra)
@@ -549,3 +578,10 @@ if (!file.exists("input/covariates/output/hhunf.tif")) {
   # save
   writeRaster(UDRast, "input/covariates/output/hhunf.tif", overwrite = TRUE)
 }
+
+
+{cat("\n","\n",
+    "################################################################",
+    "################  THIS CODE HAS FINISHED  ######################",
+    "################################################################", sep = "\n")
+file.edit('code/data_processing.R')}

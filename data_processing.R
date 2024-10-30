@@ -1,4 +1,32 @@
-# THIS SCRIPT DOES ANY PRE-PROCESSING OF THE DATA REQUIRED FOR THE ANALYSIS
+# -------------------------------------------------------------------
+#           DATA PRE-PROCESSING REQUIRED FOR THE MODEL   
+# -------------------------------------------------------------------
+
+# This R code process all data to the format required for the Bayesian state-space model 
+# used to estimate koala densities across Southeast Queensland.
+#
+# The basic workflow involves three main steps:
+# 1) Updating the koala survey database
+# 2) Extracting covariate values for the transects in the koala survey database
+# 3) Preparing the data for the modelling phase
+#
+# Before anything, start fresh by clicking Session > Terminate R... > Yes in the pop-up (do not save anything if asked)
+#
+# To get started, please, select all lines by pressing Ctrl + A on a Windows PC or Command + A on a MAc. 
+# Then, run these lines by pressing Ctrl + Enter on a Windows PC or Command + Return on a Mac.
+#
+# When you see "THIS CODE HAS FINISHED" in the Console panel (usually at the bottom left),
+# you're ready to the modelling stage. You will be automatically redirected to a new tab 
+# with a file named model_runs.R. This file will the Bayesian state-space models
+#
+# PS: 1) Disregard any warnings on the task bar about packages that are not installed 
+#     2) This code may take anywhere from a few minutes to days to run, 
+#        depending on how many files need updating and your computer's specifications.
+
+
+# -------------------------------------------------------------------
+# install packages if required
+source("code/install_packages_data_processing.R")
 
 # get tokens needed
 source("keys/apis.R")
@@ -20,9 +48,11 @@ library(readr)
 library(rstudioapi)
 
 # read utility functions
-source("functions.R")
+source("code/functions.R")
 
-# CAIOS CODE TO UPDATE DATA BASE HERE
+# Update database
+# It takes around 10 min to run depending on the computer
+fcn_update_db()
 
 # prepare integration of survey data and covariate data
 working_data_dir <- paste0(getwd(), "/input")
@@ -31,33 +61,33 @@ fcn_set_home_dir(working_data_dir) # Home directory
 
 ## Set db path
 fcn_set_db_path(list(
-  `1996` = 'SEQkoalaData.accdb',
-  `2015` = '2015-2019 SEQKoalaDatabase DES_20231027.accdb',
-  `2020` = 'KoalaSurveyData2020_cur.accdb',
-  `integrated` = 'Integrated_SEQKoalaDatabase.accdb'
+  `1996` = 'databases/SEQkoalaData.accdb',
+  `2015` = 'databases/2015-2019 SEQKoalaDatabase DES_20231027.accdb',
+  `2020` = 'databases/KoalaSurveyData2020_cur.accdb',
+  `integrated` = 'databases/Integrated_SEQKoalaDatabase.accdb'
 ))
 
 # Set gdb path
 fcn_set_gdb_path(list(
   koala_survey_data="KoalaSurveyData.gdb",
-  total_db="Integrated_SEQKoalaDatabase_Spatial.shp",
+  total_db="transects_spatial_representation/Integrated_SEQKoalaDatabase_Spatial.shp",
   koala_survey_sites="KoalaSurveySites_231108/KoalaSurveySites_231108.shp"
 ))
 
-# Grid size (in meters) - default 500m
-primary_grid_size <- 500
-secondary_grid_size <- primary_grid_size*10
+# Load parameters
+parameters <- readRDS("code/parameters_data_processing.rds")
 
-fcn_set_grid_size(primary_grid_size)
+# Grid size (in meters) - default 500m
+fcn_set_grid_size(grid_size = parameters$primary_grid_size)
 
 # Set line transect buffer width in meters (if generating transects using start and end coordinate information)
-fcn_set_line_transect_buffer(28.7)
+fcn_set_line_transect_buffer(parameters$line_transect_buffer/2)
 
 # Set covariate impute buffer distance (within the data pipeline)
-fcn_set_cov_impute_buffer(0)
+fcn_set_cov_impute_buffer(parameters$cov_impute_buffer)
 
 # Set study area buffer
-fcn_set_study_area_buffer(0)
+fcn_set_study_area_buffer(parameters$area_buffer)
 
 # If it is incorrect, specify the correct path
 use_imputation <- FALSE
@@ -89,7 +119,7 @@ run_cov_extraction <- TRUE
 print(fcn_get_raster_path()$covariates)
 
 # Set genetic population feature class file (relative to working directory)
-gen_pop_file_path <- "genetic_populations/Population_boundaries_v2.shp"
+gen_pop_file_path <- parameters$gen_pop_file_path
 
 # Write to grid
 grid_raster <- fcn_get_grid()
@@ -171,8 +201,8 @@ adj_data <- fcn_adj_matrix(directions = 'rook')
 saveRDS(adj_data, paste0(out_dir, "/adj_data_rook.rds"))
 
 # Write lookup table of GridID to genetic populations
-gen_pop_file <- sf::st_read(paste0(working_data_dir, '/', gen_pop_file_path))
-gen_pop_lookup <- fcn_grid_intersect_feature(gen_pop_file, field = 'GENPOP_ID')
+gen_pop_file <- sf::st_read(gen_pop_file_path))
+gen_pop_lookup <- fcn_grid_intersect_feature(gen_pop_file, field = parameters$gen_pop_column_id)
 saveRDS(gen_pop_lookup, paste0(out_dir, "/gen_pop_lookup.rds"))
 
 # End
@@ -314,3 +344,10 @@ gc()
 
 # save the mask matrix
 saveRDS(lu.mask.matrix, "input/covariates/output/mask/lu_mask_matrix.rds")
+
+
+{cat("\n","\n",
+     "################################################################",
+     "################  THIS CODE HAS FINISHED  ######################",
+     "################################################################", sep = "\n")
+  file.edit('code/model_runs.R')}
