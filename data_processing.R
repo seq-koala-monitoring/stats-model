@@ -71,7 +71,7 @@ fcn_set_db_path(list(
 fcn_set_gdb_path(list(
   koala_survey_data="KoalaSurveyData.gdb",
   total_db="transects_spatial_representation/Integrated_SEQKoalaDatabase_Spatial.shp",
-  koala_survey_sites="KoalaSurveySites_231108/KoalaSurveySites_231108.shp"
+  koala_survey_sites="survey_sites/KoalaSurveySites_231108.shp"
 ))
 
 # Load parameters
@@ -81,7 +81,7 @@ parameters <- readRDS("code/parameters_data_processing.rds")
 fcn_set_grid_size(grid_size = parameters$primary_grid_size)
 
 # Set line transect buffer width in meters (if generating transects using start and end coordinate information)
-fcn_set_line_transect_buffer(parameters$line_transect_buffer/2)
+fcn_set_line_transect_buffer(parameters$line_transect_buffer)
 
 # Set covariate impute buffer distance (within the data pipeline)
 fcn_set_cov_impute_buffer(parameters$cov_impute_buffer)

@@ -572,7 +572,7 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
     final <- dplyr::bind_rows(templ, trans7) |> 
       dplyr::mutate(Date = as.POSIXct(Date, format = "%d/%m/%Y"),
              Tran_Plot = ifelse(is.na(Tran_Plot), Tran_plot, Tran_Plot),
-             Site_ID = as.integer(Site_ID),
+             Site_ID = as.character(Site_ID),
              Total_Field_Staff = as.integer(Total_Field_Staff),
              Start_Eastings = as.integer(Start_Eastings),
              End_Eastings = as.integer(End_Eastings),
@@ -610,10 +610,10 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
       dir.create("output/integrated_database")}
     
     file.copy(from = path, 
-              to = "output/integrated_database/SEQKoalaDatabase_Integrated.accdb")
+              to = "output/integrated_database/Integrated_SEQKoalaDatabase.accdb")
     
     # update path
-    path.upd <- "output/integrated_database/SEQKoalaDatabase_Integrated.accdb"
+    path.upd <- "output/integrated_database/Integrated_SEQKoalaDatabase.accdb"
     
     # create the db path for the odbc connection
     db_path <- paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};",
@@ -624,12 +624,12 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
     channel <- RODBC::odbcDriverConnect(db_path)
     
     # remove old SOL table survey data table only
-    RODBC::sqlDrop(channel, "SOL_compiled")
+    RODBC::sqlDrop(channel, "SOL_Compiled")
     
     RODBC::sqlSave(
         channel,
         dat = final,
-        tablename = "test",
+        tablename = "SOL_Compiled",
         fast = F, 
         safer = F, 
         rownames = F, 
@@ -640,7 +640,7 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
         # close odbc connection
     RODBC::odbcClose(channel)
     
-    file.copy(from = "output/integrated_database/SEQKoalaDatabase_Integrated.accdb", 
+    file.copy(from = "output/integrated_database/Integrated_SEQKoalaDatabase.accdb", 
               to = "input/databases/Integrated_SEQKoalaDatabase.accdb")
     
 } # finish function
