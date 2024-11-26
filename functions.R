@@ -972,628 +972,1249 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
                           survey_sites = "KoalaSurveySites_231108.shp",
                           update.spatial = T,
                           spatial_transects = "transects_v240517.shp",
-                          line_transect_width = 57.38,
+                          line_transect_width = 28.69,
                           site.info = "site_info.csv",
                           monitoring.units = "Population_boundaries_v2.shp"){
   
   
-    # load function to create line transects as line feature
-    source("code/line-transect.r")
+  # load function to create line transects as line feature
+  source("code/line-transect.r")
   
-    cat(
-      "------------------------------------------------------------","\n",
-      "IT MAY TAKE AROUND 10 MINS TO RUN DEPENDING ON YOUR COMPUTER","\n",
-      "------------------------------------------------------------", "\n\n")
+  cat(
+    "------------------------------------------------------------","\n",
+    "IT MAY TAKE AROUND 10 MINS TO RUN DEPENDING ON YOUR COMPUTER","\n",
+    "------------------------------------------------------------", "\n\n")
   
-    # look for the database (db) within the working directory
-    path <- list.files(pattern = db, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
+  # look for the database (db) within the working directory
+  path <- list.files(pattern = db, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
+  if (length(path) > 1) {
+    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date koala survey database in this working directory. Databases found in: %s", db))} # close {} of error message
+  
+  # create the db path for the odbc connection
+  db_path <- paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};",
+                    "DBQ=",
+                    getwd(), "/", path)
+  
+  # establish odbc connection
+  channel <- RODBC::odbcDriverConnect(db_path)
+  
+  # retrieve survey data table only
+  dat <- RODBC::sqlFetch(channel, "tblKoalaSurveyData2020_cur")
+  
+  # close odbc connection
+  RODBC::odbcClose(channel)
+  
+  # include number of sightings
+  
+  
+  # adding the 2018 Daisy Hill Line Transects
+  # create a temporary dataframe for merging
+  tmp <- dat |> 
+    dplyr::mutate(XID = as.character(ID),
+                  Start_Time = format(Start_Time, "%H:%M"),
+                  End_Time = format(End_Time, "%H:%M"),
+                  Time = format(Time, "%H:%M"),
+                  Year = as.numeric(format(Date, "%Y")))
+  
+  # standardize column names
+  SOL_2018 <- read.csv("input/line_transects_2018/V2_MASTER_Daisy Hill_Line_tidy.csv") |>  
+    dplyr::mutate(Date = as.POSIXct(Date),
+                  Weather = as.character(Weather),
+                  DBH = as.character(DBH),
+                  Wind = as.character(Wind),
+                  Cloud_Cover = as.character(Cloud_Cover),
+                  Canopy_Cover = as.character(Canopy_Cover)) |> 
+    dplyr::select(-Concern, -Fatal_problem)
+  
+  # standardize the 2018 line transects dataframe 
+  dat2 <- dplyr::bind_rows(tmp, SOL_2018) |> 
+    dplyr::relocate(Year, .before = Date) |> 
+    dplyr::relocate(Number_Sightings, .before = Sighting_Number) |>
+    dplyr::rename(NumSightings = Number_Sightings) |> 
+    dplyr::mutate(ID = dplyr::row_number())
+  
+  # include number of sightings per transect
+  trans1 <- dat2 |>
+    dplyr::mutate(Sighting_Number = ifelse(is.na(Sighting_Number),
+                                           0, Sighting_Number)) |> 
+    dplyr::group_by(Transect_ID) |>
+    dplyr::mutate(NumSightings =
+                    if (dplyr::n() > 1) {
+                      NumSightings = dplyr::n()
+                    }
+                  else if (dplyr::n() == 1 & Sighting_Number != 0) {
+                    NumSightings = 1
+                  }
+                  else {
+                    NumSightings = 0
+                  }) |> 
+    dplyr::ungroup() |> 
+    dplyr::mutate(Number_Sightings = ifelse(is.na(NumSightings),
+                                            NumSightings,
+                                            NumSightings)) |> 
+    dplyr::relocate(Number_Sightings, .before = Sighting_Number) |> 
+    dplyr::select(-NumSightings)
+  
+  
+  # add length and area if not recorded
+  trans.sf <- trans1 |> 
+    dplyr::filter(!Method %in% c("IS", "VT")) |> 
+    dplyr::group_by(Transect_ID) |> 
+    dplyr::reframe(
+      Start_Eastings = unique(Start_Eastings), 
+      Start_Northings = unique(Start_Northings),
+      End_Eastings = unique(End_Eastings),
+      End_Northings = unique(End_Northings),
+      Year = unique(Year)
+    ) |> 
+    fcn_line_transect_sf() |> 
+    dplyr::mutate(TLength2 = as.numeric(st_length(geometry))) |> 
+    dplyr::mutate(index = dplyr::row_number()) |> 
+    sf::st_buffer(line_transect_width/2, endCapStyle = "FLAT")
+  
+  trans2 <- trans1 |> 
+    dplyr::left_join(sf::st_drop_geometry(trans.sf) |> dplyr::select(Transect_ID, TLength2),
+                     by = "Transect_ID") |> 
+    dplyr::mutate(T_Length = ifelse(is.na(T_Length),
+                                    TLength2, T_Length)) |>
+    dplyr::mutate(T_Area = ifelse(is.na(T_Area),
+                                  T_Length * line_transect_width/1e4, T_Area),
+                  T_Width = ifelse(is.na(T_Width),
+                                   line_transect_width, T_Width)) |> 
+    dplyr::select(-TLength2)
+  
+  
+  #-----------------------------------------------------------
+  # standardise Site ID
+  # look for a file with the spatial representation of survey sites within the working directory
+  path <- list.files(pattern = survey_sites, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
+  if (length(path) > 1) {
+    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date spatial representation of survey sites in this working directory.", survey_sites))} # close {} of error message
+  
+  surveys <- sf::st_read(path) 
+  sf::st_crs(surveys) <- "EPSG:7856"
+  
+  siteIds <-
+    suppressWarnings({
+      lapply(split(trans.sf, trans.sf$Transect_ID), function(d) {
+        cat(
+          paste0(
+            "Matching Site_ID (",
+            round(d$index/max(trans.sf$index)*100, 0),
+            "% processed)","\n", "Transect_ID: ", d$Transect_ID, "\n\n"))
+        
+        sub <- sf::st_intersection(surveys, d) |>
+          dplyr::select(Survey_Yr, Site, NAME, Subsite)
+        
+        if (nrow(sub) == 0) {
+          Site_ID <- NA
+          Subsite <- NA
+          Site_Name <- NA
+          
+        } else if (nrow(sub) == 1) {
+          Site_ID <- unique(sub$Site)
+          Subsite <- unique(sub$Subsite)
+          Site_Name <- unique(sub$NAME)
+          
+        } else {
+          if (length(unique(sub$Site)) > 1) {
+            sub <- sub |> 
+              dplyr::mutate(inters.area = as.numeric(sf::st_area(geometry)) /
+                              1e4) |>
+              dplyr::select(Survey_Yr, Site, NAME, Subsite, inters.area)
+            
+            max <- max(sub$inters.area, na.rm = T)
+            sub <- sub[sub$inters.area == max,]
+            
+            year <-
+              unique(unique(d$Year))
+            survey_yr <- sub$Survey_Yr
+            
+            if (any(year %in% survey_yr)) {
+              filter <- survey_yr == year
+            } else {
+              filter <-
+                survey_yr == survey_yr[which.max(survey_yr[which(survey_yr <= year)])]
+            }
+          } else {
+            year <-
+              unique(unique(d$Year))
+            survey_yr <- sort(unique(sub$Survey_Yr))
+            
+            if (any(year %in% survey_yr)) {
+              filter <- survey_yr == year
+            } else {
+              filter <-
+                survey_yr == survey_yr[which.max(survey_yr[which(survey_yr <= year)])]
+            }
+          }
+          
+          
+          if (purrr::is_empty(filter)) {
+            diff <- abs(year - survey_yr)
+            filter <-
+              survey_yr == survey_yr[which.min(diff)]
+          }
+          
+          if (length(filter) != nrow(sub)) {
+            sub <- sf::st_intersection(surveys, d) |>
+              dplyr::mutate(inters.area = as.numeric(sf::st_area(geometry)) /
+                              1e4) |>
+              dplyr::select(Survey_Yr, Site, NAME, Subsite, inters.area)
+            sub <- sub[-which.min(sub$inters.area),]
+            
+            survey_yr <- sort(unique(sub$Survey_Yr))
+            
+            if (any(year %in% survey_yr)) {
+              filter <- survey_yr == year
+            } else {
+              filter <-
+                survey_yr == survey_yr[which.max(survey_yr[which(survey_yr <= year)])]
+            }
+          }
+          
+          sub <- sub |>
+            dplyr::distinct(Survey_Yr, Site, .keep_all = T)
+          
+          Site_ID <- sub[filter, "Site"]$Site
+          Subsite <- sub[filter, "Subsite"]$Subsite
+          Site_Name <- sub[filter, "NAME"]$NAME
+        }
+        
+        df <- data.frame(
+          Transect_ID = unique(d$Transect_ID),
+          Site_ID = Site_ID,
+          Subsite = Subsite,
+          Site_Name = Site_Name
+        )
+        
+        return(df)
+      }) |> dplyr::bind_rows()
+    })
+  
+  # Check if there are any duplicated Transect_IDs resulting from different Site_ID values for the same transect
+  siteIds <- siteIds |>
+    dplyr::mutate(dups = duplicated(Transect_ID))
+  
+  # Identify transects without a Site_ID
+  siteNAs <- siteIds |>
+    dplyr::filter(is.na(Site_ID)) |> 
+    dplyr::pull(unique(Transect_ID))
+  
+  siteNAs <- dat |> 
+    dplyr::filter(!Method %in% c("IS", "VT") & Transect_ID %in% siteNAs)
+  
+  siteNAs.n <- nrow(siteNAs)
+  
+  if (siteNAs.n > 0) {
+    assign("siteNAs", siteNAs, envir = .GlobalEnv)
+    
+    warning(sprintf("There are %s transects without a matching site_ID in %s. Please ensure you are using the most up-to-date spatial representation of survey sites, as outdated information could make it hard to get accurate data for the model. To see which transects are missing a matching site_ID, check the siteNAs dataframe in the top right panel (i.e., your global environment)", siteNAs.n, survey_sites))
+  } # close if (siteNAs.n > 0)
+  
+  # Assign the spatially retrieved Site_ID value to each transect of the data frame
+  trans3 <- trans2 |> 
+    dplyr::ungroup() |> 
+    dplyr::left_join(siteIds, by = "Transect_ID") |> 
+    
+    # Resolve problems with duplicated column names
+    dplyr::mutate(Site_Name = ifelse(is.na(Site_Name.y), Site_Name.x, Site_Name.y),
+                  Site_ID = ifelse(is.na(Site_ID.y), Site_ID.x, Site_ID.y),
+                  SiteID_Master = Site_ID.x,
+                  Subsite = ifelse(is.na(Subsite.y), NA, Subsite.y),
+                  Subsite_Master = Subsite.x) |> 
+    dplyr::select(-Site_Name.x, -Site_Name.y, -Site_ID.x, 
+                  -Site_ID.y, -Subsite.x, -Subsite.y) |> 
+    dplyr::relocate(Site_ID, .after = LGA) |> 
+    dplyr::relocate(Subsite, .after = Site_ID) |> 
+    dplyr::relocate(Site_Name, .after = Subsite) |> 
+    dplyr::relocate(Number_Observers, .before = Observer_Obstacles) |> 
+    
+    # Remove unwanted columns
+    dplyr::select(-Number_Observers_Master, -dups)
+  
+  # Define the source of the 2018 transects"V2_MASTER_Daisy Hill_Line"
+  trans3 <- trans3 |> 
+    dplyr::mutate(Source = ifelse(Year == 2018, "V2_MASTER_Daisy Hill_Line", "KoalaSurveyData2020_cur"))
+  
+  # Manually assign Site_ID and Subsite of a problematic transect
+  trans3[trans3$Transect_ID == "221.0_10_SOL.20220503",
+         "Site_ID"] <- 221
+  trans3[trans3$Transect_ID == "221.0_10_SOL.20220503",
+         "Subsite"] <- 3
+  
+  
+  #-----------------------------------------------------------
+  # UPDATE SHAPEFILE
+  # look for the most up-to-date spatial representation of transects within the working directory
+  if(update.spatial){
+    path <- list.files(pattern = spatial_transects, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
     if (length(path) > 1) {
-      stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date koala survey database in this working directory. Databases found in: %s", db))} # close {} of error message
+      stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date spatial representation of transects in this working directory", spatial_transects))} # close {} of error message
     
-    # create the db path for the odbc connection
-    db_path <- paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};",
-                      "DBQ=",
-                      getwd(), "/", path)
-
-    # establish odbc connection
-    channel <- RODBC::odbcDriverConnect(db_path)
+    transects.sf <- sf::st_read(path) |> 
+      dplyr::filter(!Source %in% gsub(".accdb", "", db)) 
+    sf::st_crs(transects.sf) <- "EPSG:7856"
     
-    # retrieve survey data table only
-    dat <- RODBC::sqlFetch(channel, "tblKoalaSurveyData2020_cur")
-    
-    # close odbc connection
-    RODBC::odbcClose(channel)
-    
-    # include number of sightings
-    
-    
-    # adding the 2018 Daisy Hill Line Transects
-    # create a temporary dataframe for merging
-    tmp <- dat |> 
-      dplyr::mutate(XID = as.character(ID),
-             Start_Time = format(Start_Time, "%H:%M"),
-             End_Time = format(End_Time, "%H:%M"),
-             Time = format(Time, "%H:%M"),
-             Year = as.numeric(format(Date, "%Y")))
-    
-    # standardize column names
-    SOL_2018 <- read.csv("input/line_transects_2018/V2_MASTER_Daisy Hill_Line_tidy.csv") |>  
-      dplyr::mutate(Date = as.POSIXct(Date),
-             Weather = as.character(Weather),
-             DBH = as.character(DBH),
-             Wind = as.character(Wind),
-             Cloud_Cover = as.character(Cloud_Cover),
-             Canopy_Cover = as.character(Canopy_Cover)) |> 
-      dplyr::select(-Concern, -Fatal_problem)
-    
-    # standardize the 2018 line transects dataframe 
-    dat2 <- dplyr::bind_rows(tmp, SOL_2018) |> 
-      dplyr::relocate(Year, .before = Date) |> 
-      dplyr::relocate(Number_Sightings, .before = Sighting_Number) |>
-      dplyr::rename(NumSightings = Number_Sightings) |> 
-      dplyr::mutate(ID = dplyr::row_number())
-    
-    # include number of sightings per transect
-    trans1 <- dat2 |>
-      dplyr::mutate(Sighting_Number = ifelse(is.na(Sighting_Number),
-                                      0, Sighting_Number)) |> 
-      dplyr::group_by(Transect_ID) |>
-      dplyr::mutate(NumSightings =
-               if (dplyr::n() > 1) {
-                 NumSightings = dplyr::n()
-               }
-             else if (dplyr::n() == 1 & Sighting_Number != 0) {
-               NumSightings = 1
-             }
-             else {
-               NumSightings = 0
-             }) |> 
-      dplyr::ungroup() |> 
-      dplyr::mutate(Number_Sightings = ifelse(is.na(NumSightings),
-                                       NumSightings,
-                                       NumSightings)) |> 
-      dplyr::relocate(Number_Sightings, .before = Sighting_Number) |> 
-      dplyr::select(-NumSightings)
-    
-    
-    # add length and area if not recorded
-    trans.sf <- trans1 |> 
-      dplyr::filter(!Method %in% c("IS", "VT")) |> 
+    lineTransect <- trans3 |> 
+      
+      # Remove incidental sightings and vehicle transects
+      dplyr::filter(Method %in% c("DOL", "SOL") & Year > 2018) |> 
+      
+      # Reframe to retain only columns relevant for modelling
       dplyr::group_by(Transect_ID) |> 
       dplyr::reframe(
+        Date = as.character(unique(Date)),
         Start_Eastings = unique(Start_Eastings), 
         Start_Northings = unique(Start_Northings),
         End_Eastings = unique(End_Eastings),
         End_Northings = unique(End_Northings),
-        Year = unique(Year)
-      ) |> 
-      fcn_line_transect_sf() |> 
-      dplyr::mutate(TLength2 = as.numeric(st_length(geometry))) |> 
-      dplyr::mutate(index = dplyr::row_number()) |> 
-      sf::st_buffer(line_transect_width/2, endCapStyle = "FLAT")
-    
-    trans2 <- trans1 |> 
-      dplyr::left_join(sf::st_drop_geometry(trans.sf) |> dplyr::select(Transect_ID, TLength2),
-                by = "Transect_ID") |> 
-      dplyr::mutate(T_Length = ifelse(is.na(T_Length),
-                               TLength2, T_Length)) |>
-      dplyr::mutate(T_Area = ifelse(is.na(T_Area),
-                             T_Length * line_transect_width/1e4, T_Area),
-             T_Width = ifelse(is.na(T_Width),
-                              line_transect_width, T_Width)) |> 
-      dplyr::select(-TLength2)
-    
-    
-    #-----------------------------------------------------------
-    # standardise Site ID
-    # look for a file with the spatial representation of survey sites within the working directory
-    path <- list.files(pattern = survey_sites, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
-    if (length(path) > 1) {
-      stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date spatial representation of survey sites in this working directory.", survey_sites))} # close {} of error message
-    
-    surveys <- sf::st_read(path) 
-    sf::st_crs(surveys) <- "EPSG:7856"
-    
-    siteIds <-
-      suppressWarnings({
-        lapply(split(trans.sf, trans.sf$Transect_ID), function(d) {
-          cat(
-            paste0(
-              "Matching Site_ID (",
-              round(d$index/max(trans.sf$index)*100, 0),
-              "% processed)","\n", "Transect_ID: ", d$Transect_ID, "\n\n"))
-          
-          sub <- sf::st_intersection(surveys, d) |>
-            dplyr::select(Survey_Yr, Site, NAME, Subsite)
-          
-          if (nrow(sub) == 0) {
-            Site_ID <- NA
-            Subsite <- NA
-            Site_Name <- NA
-            
-          } else if (nrow(sub) == 1) {
-            Site_ID <- unique(sub$Site)
-            Subsite <- unique(sub$Subsite)
-            Site_Name <- unique(sub$NAME)
-            
-          } else {
-            if (length(unique(sub$Site)) > 1) {
-              sub <- sub |> 
-                dplyr::mutate(inters.area = as.numeric(sf::st_area(geometry)) /
-                                             1e4) |>
-                dplyr::select(Survey_Yr, Site, NAME, Subsite, inters.area)
-              
-              max <- max(sub$inters.area, na.rm = T)
-              sub <- sub[sub$inters.area == max,]
-              
-              year <-
-                unique(unique(d$Year))
-              survey_yr <- sub$Survey_Yr
-              
-              if (any(year %in% survey_yr)) {
-                filter <- survey_yr == year
-              } else {
-                filter <-
-                  survey_yr == survey_yr[which.max(survey_yr[which(survey_yr <= year)])]
-              }
-            } else {
-              year <-
-                unique(unique(d$Year))
-              survey_yr <- sort(unique(sub$Survey_Yr))
-              
-              if (any(year %in% survey_yr)) {
-                filter <- survey_yr == year
-              } else {
-                filter <-
-                  survey_yr == survey_yr[which.max(survey_yr[which(survey_yr <= year)])]
-              }
-            }
-            
-            
-            if (purrr::is_empty(filter)) {
-              diff <- abs(year - survey_yr)
-              filter <-
-                survey_yr == survey_yr[which.min(diff)]
-            }
-            
-            if (length(filter) != nrow(sub)) {
-              sub <- sf::st_intersection(surveys, d) |>
-                dplyr::mutate(inters.area = as.numeric(sf::st_area(geometry)) /
-                                             1e4) |>
-                dplyr::select(Survey_Yr, Site, NAME, Subsite, inters.area)
-              sub <- sub[-which.min(sub$inters.area),]
-              
-              survey_yr <- sort(unique(sub$Survey_Yr))
-              
-              if (any(year %in% survey_yr)) {
-                filter <- survey_yr == year
-              } else {
-                filter <-
-                  survey_yr == survey_yr[which.max(survey_yr[which(survey_yr <= year)])]
-              }
-            }
-            
-            sub <- sub |>
-              dplyr::distinct(Survey_Yr, Site, .keep_all = T)
-            
-            Site_ID <- sub[filter, "Site"]$Site
-            Subsite <- sub[filter, "Subsite"]$Subsite
-            Site_Name <- sub[filter, "NAME"]$NAME
-          }
-          
-          df <- data.frame(
-            Transect_ID = unique(d$Transect_ID),
-            Site_ID = Site_ID,
-            Subsite = Subsite,
-            Site_Name = Site_Name
-          )
-          
-          return(df)
-        }) |> dplyr::bind_rows()
-      })
-    
-    # Check if there are any duplicated Transect_IDs resulting from different Site_ID values for the same transect
-    siteIds <- siteIds |>
-      dplyr::mutate(dups = duplicated(Transect_ID))
-    
-    # Identify transects without a Site_ID
-    siteNAs <- siteIds |>
-      dplyr::filter(is.na(Site_ID)) |> 
-      dplyr::pull(unique(Transect_ID))
-    
-    siteNAs <- dat |> 
-      dplyr::filter(!Method %in% c("IS", "VT") & Transect_ID %in% siteNAs)
-    
-    siteNAs.n <- nrow(siteNAs)
-    
-    if (siteNAs.n > 0) {
-      assign("siteNAs", siteNAs, envir = .GlobalEnv)
-      
-      warning(sprintf("There are %s transects without a matching site_ID in %s. Please ensure you are using the most up-to-date spatial representation of survey sites, as outdated information could make it hard to get accurate data for the model. To see which transects are missing a matching site_ID, check the siteNAs dataframe in the top right panel (i.e., your global environment)", siteNAs.n, survey_sites))
-      } # close if (siteNAs.n > 0)
-    
-    # Assign the spatially retrieved Site_ID value to each transect of the data frame
-    trans3 <- trans2 |> 
-      dplyr::ungroup() |> 
-      dplyr::left_join(siteIds, by = "Transect_ID") |> 
-      
-      # Resolve problems with duplicated column names
-      dplyr::mutate(Site_Name = ifelse(is.na(Site_Name.y), Site_Name.x, Site_Name.y),
-             Site_ID = ifelse(is.na(Site_ID.y), Site_ID.x, Site_ID.y),
-             SiteID_Master = Site_ID.x,
-             Subsite = ifelse(is.na(Subsite.y), NA, Subsite.y),
-             Subsite_Master = Subsite.x) |> 
-      dplyr::select(-Site_Name.x, -Site_Name.y, -Site_ID.x, 
-             -Site_ID.y, -Subsite.x, -Subsite.y) |> 
-      dplyr::relocate(Site_ID, .after = LGA) |> 
-      dplyr::relocate(Subsite, .after = Site_ID) |> 
-      dplyr::relocate(Site_Name, .after = Subsite) |> 
-      dplyr::relocate(Number_Observers, .before = Observer_Obstacles) |> 
-      
-      # Remove unwanted columns
-      dplyr::select(-Number_Observers_Master, -dups)
-    
-    # Define the source of the 2018 transects"V2_MASTER_Daisy Hill_Line"
-    trans3 <- trans3 |> 
-      dplyr::mutate(Source = ifelse(Year == 2018, "V2_MASTER_Daisy Hill_Line", "KoalaSurveyData2020_cur"))
-    
-    # Manually assign Site_ID and Subsite of a problematic transect
-    trans3[trans3$Transect_ID == "221.0_10_SOL.20220503",
-           "Site_ID"] <- 221
-    trans3[trans3$Transect_ID == "221.0_10_SOL.20220503",
-           "Subsite"] <- 3
-    
-    
-    #-----------------------------------------------------------
-    # UPDATE SHAPEFILE
-    # look for the most up-to-date spatial representation of transects within the working directory
-    if(update.spatial){
-      path <- list.files(pattern = spatial_transects, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
-      if (length(path) > 1) {
-        stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date spatial representation of transects in this working directory", spatial_transects))} # close {} of error message
-      
-      transects.sf <- sf::st_read(path) |> 
-        dplyr::filter(!Source %in% gsub(".accdb", "", db)) 
-      sf::st_crs(transects.sf) <- "EPSG:7856"
-
-      lineTransect <- trans3 |> 
-        
-        # Remove incidental sightings and vehicle transects
-        dplyr::filter(Method %in% c("DOL", "SOL") & Year > 2018) |> 
-        
-        # Reframe to retain only columns relevant for modelling
-        dplyr::group_by(Transect_ID) |> 
-        dplyr::reframe(
-          Date = as.character(unique(Date)),
-          Start_Eastings = unique(Start_Eastings), 
-          Start_Northings = unique(Start_Northings),
-          End_Eastings = unique(End_Eastings),
-          End_Northings = unique(End_Northings),
-          Method = "SOL", 
-          Source = gsub(".accdb", "", db)
-        ) 
-      # Create a simple feature object to be exported as a shapefile
-      suppressWarnings({
+        Method = "SOL", 
+        Source = gsub(".accdb", "", db)
+      ) 
+    # Create a simple feature object to be exported as a shapefile
+    suppressWarnings({
       lineTransectSf <- fcn_line_transect_sf(lineTransect) |> 
-        sf::st_buffer(line_transect_width/2, endCapStyle = "FLAT") |>
+        sf::st_buffer(line_transect_width, endCapStyle = "FLAT") |>
         dplyr::mutate(Date = format(as.POSIXct(Date,"%Y-%m-%d"), "%d/%m/%Y")) |> 
         dplyr::select(TrnscID = Transect_ID, Date, Method, Source)
-      })
-      
-      # Append to the source spatial representation
-      trans.final <- dplyr::bind_rows(transects.sf, lineTransectSf) |> 
-        dplyr::mutate(Year = as.integer(substring(Date, nchar(Date) - 4 + 1)))
-      
-      # Export as shapefile
-      if(!file.exists("output/transects_spatial_representation")){
-        dir.create("output/transects_spatial_representation")}
-      suppressWarnings({
+    })
+    
+    # Append to the source spatial representation
+    trans.final <- dplyr::bind_rows(transects.sf, lineTransectSf) |> 
+      dplyr::mutate(Year = as.integer(substring(Date, nchar(Date) - 4 + 1)))
+    
+    # Export as shapefile
+    if(!file.exists("output/transects_spatial_representation")){
+      dir.create("output/transects_spatial_representation")}
+    suppressWarnings({
       sf::st_write(trans.final, 
                    paste0("output/transects_spatial_representation/transects_v",
                           format(Sys.Date(), "%y%m%d"),
                           ".shp"), append = F)
-      })
-      
-      files.from <- list.files(pattern = paste0("transects_v", format(Sys.Date(), "%y%m%d")),
-                               path = "output/transects_spatial_representation",
-                               full.names = T)
-      files.to <- sub("/([^/]*)\\.", "/Integrated_SEQKoalaDatabase_Spatial.", files.from)
-      files.to <- sub("output", "input", files.to)
-      
-      file.copy(from = files.from, 
-                to = files.to,
-                overwrite = T)
-      
-    } # close conditional to update spatial representation of transects
+    })
+    
+    files.from <- list.files(pattern = paste0("transects_v", format(Sys.Date(), "%y%m%d")),
+                             path = "output/transects_spatial_representation",
+                             full.names = T)
+    files.to <- sub("/([^/]*)\\.", "/Integrated_SEQKoalaDatabase_Spatial_updated.", files.from)
+    files.to <- sub("output", "input", files.to)
+    
+    file.copy(from = files.from, 
+              to = files.to,
+              overwrite = T)
+    
+  } # close conditional to update spatial representation of transects
   
-    # Fill any missing value in number of observers (i.e., SOL = 1 and DOL = 2)
-    trans3[is.na(trans3$Number_Observers) & trans3$Method == "DOL", "Number_Observers"] <- 2
-    trans3[is.na(trans3$Number_Observers) & trans3$Method == "SOL", "Number_Observers"] <- 1
+  # Fill any missing value in number of observers (i.e., SOL = 1 and DOL = 2)
+  trans3[is.na(trans3$Number_Observers) & trans3$Method == "DOL", "Number_Observers"] <- 2
+  trans3[is.na(trans3$Number_Observers) & trans3$Method == "SOL", "Number_Observers"] <- 1
+  
+  #-----------------------------------------------------------
+  # Survey site information and monitoring unit
+  path <- list.files(pattern = site.info, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
+  if (length(path) > 1) {
+    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date information about survey site habitat in this working directory", site.info))} # close {} of error message
+  
+  # Load file with habitat information
+  info <- read.csv(path)
+  
+  trans4 <- trans3 |>
+    dplyr::left_join(
+      info |> dplyr::select(LGA, KPA, Site.Number,
+                            Land.Type, Habitat.Type, Site.Name),
+      dplyr::join_by(Site_ID == Site.Number)) |>
+    dplyr:: mutate(
+      LGA = ifelse(is.na(LGA.x), LGA.y, LGA.x),
+      KPA = ifelse(is.na(KPA.x),LGA.y, KPA.x),
+      Hab_Type = ifelse(is.na(Hab_Type), Habitat.Type, Hab_Type),
+      Land_Type = ifelse(is.na(Land_Type), Land.Type, Land_Type),
+      Site_Name_Master = ifelse(is.na(Site_Name_Master), Site.Name, Site_Name_Master),
+      Site_Name = ifelse(is.na(Site_Name), Site.Name, Site_Name)) |>
+    dplyr::select(-LGA.y,-LGA.x,-KPA.x, -KPA.y, -Land.Type, -Habitat.Type, -Site.Name)
+  
+  # Assign monitoring unit from shapefile
+  # This code follows the same logic applied to extract Site ID
+  path <- list.files(pattern = monitoring.units, recursive = T, ignore.case = T, full.names = F, include.dirs = T) 
+  path <- path[(substring(path, nchar(path) - 3 + 1) == "shp")]
+  
+  if (length(path) > 1) {
+    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date information about survey site habitat in this working directory", monitoring.units))} # close {} of error message
+  
+  units <- sf::st_read(path)
+  sf::st_crs(units) <- 7856
+  
+  tmp <- trans4 |> 
+    # Remove incidental sightings and vehicle transects
+    dplyr::filter(Method %in% c("DOL", "SOL")) |> 
+    # Reframe to retain only columns relevant for modelling
+    dplyr::group_by(Transect_ID) |> 
+    dplyr::reframe(
+      Date = as.character(unique(Date)),
+      Start_Eastings = unique(Start_Eastings), 
+      Start_Northings = unique(Start_Northings),
+      End_Eastings = unique(End_Eastings),
+      End_Northings = unique(End_Northings),
+      Method = "SOL", 
+      Source = gsub(".accdb", "", db)
+    ) |> 
+    fcn_line_transect_sf() |>  
+    dplyr::mutate(index = dplyr::row_number()) |> 
+    sf::st_buffer(line_transect_width/2, endCapStyle = "FLAT")
+  
+  M.unit <- suppressWarnings({
+    lapply(split(tmp, tmp$Transect_ID), function(d){
+      cat(
+        paste0(
+          "Matching monitoring unit (",
+          round(d$index/max(tmp$index)*100, 0),
+          "% processed)","\n", "Transect_ID: ", d$Transect_ID, "\n\n"))
+      
+      sub <- sf::st_intersection(units, d) |> 
+        dplyr::select(GENPOP_NAM, Transect_ID)
+      
+      if(nrow(sub) == 0) {
+        Monitoring_Unit <- NA
+        Transect_ID <- d$Transect_ID
+        
+      } else if (nrow(sub) == 1) {
+        Monitoring_Unit <- unique(sub$GENPOP_NAM)
+        Transect_ID <- unique(sub$Transect_ID)
+        
+      } else if(length(unique(sub$GENPOP_NAM)) > 1){
+        sub <- sf::st_intersection(units, d) |>
+          dplyr::mutate(inters.area = as.numeric(st_area(geometry)) / 1e4) |>
+          dplyr::select(GENPOP_NAM, Transect_ID, inters.area) 
+        
+        max <- max(sub$inters.area, na.rm = T)
+        sub <- sub[sub$inters.area == max, ]
+        
+        Monitoring_Unit <- sub$GENPOP_NAM
+        Transect_ID <- unique(sub$Transect_ID)
+      }
+      
+      df <- data.frame(Transect_ID = Transect_ID,
+                       Monitoring_Unit = Monitoring_Unit)
+      
+      return(df)
+    })
+  }) |> dplyr::bind_rows()
+  
+  # Check any missing data
+  M.unit.NAs <- M.unit |> 
+    dplyr::filter(is.na(Monitoring_Unit))
+  if (nrow(M.unit.NAs) > 0) {
+    assign("M.unit.NAs", M.unit.NAs, envir = .GlobalEnv)
+    stop(sprintf("There are %s transects without a matching monitoring unit. Please, check transects in the dataframe named M.unit.NAs before continuing.", nrow(M.unit.NAs)))} # close {} of error message
+  
+  # Assign a corresponding monitoring unit to the dataframe
+  trans5 <- trans4 |> 
+    dplyr::left_join(M.unit, by = "Transect_ID") |> 
+    dplyr::rename(Monitoring_Unit = Monitoring_Unit.y) |> 
+    dplyr::select(-Monitoring_Unit.x)
+  
+  #-----------------------------------------------------------
+  LTPerpDist <- trans5 |>
+    dplyr::filter(Method %in% c("SOL", "DOL") & Number_Sightings > 0) |> 
+    dplyr::mutate(Perp_Dist = ifelse(is.na(Perp_Dist), 
+                                     (Distance_Observer_Koala * 
+                                        sin(Angle_Koala * pi/180) / 1), # convert from degrees to radians
+                                     Perp_Dist)) |> 
+    dplyr::relocate(Sighting_ID, .before = Transect_ID)
+  
+  # Check for missing data
+  LTPerpDist.na <- LTPerpDist |> 
+    dplyr::filter(is.na(Perp_Dist)) |> 
     
-    #-----------------------------------------------------------
-    # Survey site information and monitoring unit
-      path <- list.files(pattern = site.info, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
-      if (length(path) > 1) {
-        stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date information about survey site habitat in this working directory", site.info))} # close {} of error message
-      
-      # Load file with habitat information
-      info <- read.csv(path)
-      
-      trans4 <- trans3 |>
-        dplyr::left_join(
-          info |> dplyr::select(LGA, KPA, Site.Number,
-                          Land.Type, Habitat.Type, Site.Name),
-          dplyr::join_by(Site_ID == Site.Number)) |>
-        dplyr:: mutate(
-          LGA = ifelse(is.na(LGA.x), LGA.y, LGA.x),
-          KPA = ifelse(is.na(KPA.x),LGA.y, KPA.x),
-          Hab_Type = ifelse(is.na(Hab_Type), Habitat.Type, Hab_Type),
-          Land_Type = ifelse(is.na(Land_Type), Land.Type, Land_Type),
-          Site_Name_Master = ifelse(is.na(Site_Name_Master), Site.Name, Site_Name_Master),
-          Site_Name = ifelse(is.na(Site_Name), Site.Name, Site_Name)) |>
-        dplyr::select(-LGA.y,-LGA.x,-KPA.x, -KPA.y, -Land.Type, -Habitat.Type, -Site.Name)
-      
-      # Assign monitoring unit from shapefile
-      # This code follows the same logic applied to extract Site ID
-      path <- list.files(pattern = monitoring.units, recursive = T, ignore.case = T, full.names = F, include.dirs = T) 
-      path <- path[(substring(path, nchar(path) - 3 + 1) == "shp")]
-      
-      if (length(path) > 1) {
-        stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date information about survey site habitat in this working directory", monitoring.units))} # close {} of error message
-      
-      units <- sf::st_read(path)
-      sf::st_crs(units) <- 7856
-      
-      tmp <- trans4 |> 
-        # Remove incidental sightings and vehicle transects
-        dplyr::filter(Method %in% c("DOL", "SOL")) |> 
-        # Reframe to retain only columns relevant for modelling
-        dplyr::group_by(Transect_ID) |> 
-        dplyr::reframe(
-          Date = as.character(unique(Date)),
-          Start_Eastings = unique(Start_Eastings), 
-          Start_Northings = unique(Start_Northings),
-          End_Eastings = unique(End_Eastings),
-          End_Northings = unique(End_Northings),
-          Method = "SOL", 
-          Source = gsub(".accdb", "", db)
-        ) |> 
-        fcn_line_transect_sf() |>  
-        dplyr::mutate(index = dplyr::row_number()) |> 
-        sf::st_buffer(line_transect_width/2, endCapStyle = "FLAT")
-      
-      M.unit <- suppressWarnings({
-        lapply(split(tmp, tmp$Transect_ID), function(d){
-          cat(
-            paste0(
-              "Matching monitoring unit (",
-              round(d$index/max(tmp$index)*100, 0),
-              "% processed)","\n", "Transect_ID: ", d$Transect_ID, "\n\n"))
-          
-          sub <- sf::st_intersection(units, d) |> 
-            dplyr::select(GENPOP_NAM, Transect_ID)
-          
-          if(nrow(sub) == 0) {
-            Monitoring_Unit <- NA
-            Transect_ID <- d$Transect_ID
-            
-          } else if (nrow(sub) == 1) {
-            Monitoring_Unit <- unique(sub$GENPOP_NAM)
-            Transect_ID <- unique(sub$Transect_ID)
-            
-          } else if(length(unique(sub$GENPOP_NAM)) > 1){
-            sub <- sf::st_intersection(units, d) |>
-              dplyr::mutate(inters.area = as.numeric(st_area(geometry)) / 1e4) |>
-              dplyr::select(GENPOP_NAM, Transect_ID, inters.area) 
-            
-            max <- max(sub$inters.area, na.rm = T)
-            sub <- sub[sub$inters.area == max, ]
-            
-            Monitoring_Unit <- sub$GENPOP_NAM
-            Transect_ID <- unique(sub$Transect_ID)
-          }
-          
-          df <- data.frame(Transect_ID = Transect_ID,
-                           Monitoring_Unit = Monitoring_Unit)
-          
-          return(df)
-        })
-      }) |> dplyr::bind_rows()
-      
-      # Check any missing data
-      M.unit.NAs <- M.unit |> 
-        dplyr::filter(is.na(Monitoring_Unit))
-      if (nrow(M.unit.NAs) > 0) {
-        assign("M.unit.NAs", M.unit.NAs, envir = .GlobalEnv)
-        stop(sprintf("There are %s transects without a matching monitoring unit. Please, check transects in the dataframe named M.unit.NAs before continuing.", nrow(M.unit.NAs)))} # close {} of error message
-      
-      # Assign a corresponding monitoring unit to the dataframe
-      trans5 <- trans4 |> 
-        dplyr::left_join(M.unit, by = "Transect_ID") |> 
-        dplyr::rename(Monitoring_Unit = Monitoring_Unit.y) |> 
-        dplyr::select(-Monitoring_Unit.x)
-      
-    #-----------------------------------------------------------
-    LTPerpDist <- trans5 |>
-      dplyr::filter(Method %in% c("SOL", "DOL") & Number_Sightings > 0) |> 
-      dplyr::mutate(Perp_Dist = ifelse(is.na(Perp_Dist), 
-                                (Distance_Observer_Koala * 
-                                   sin(Angle_Koala * pi/180) / 1), # convert from degrees to radians
-                                Perp_Dist)) |> 
-      dplyr::relocate(Sighting_ID, .before = Transect_ID)
+    # Remove one potentially duplicate entry (ID = 1816)
+    dplyr::filter(!is.na(Koala_Eastings)) |> 
+    sf::st_as_sf(coords = c("Koala_Eastings", "Koala_Northings"),
+                 crs = 7856) # In this case is impossible to calculate the perpendicular distance because the Angle_Koala is also missing data
+  
+  
+  # Calculate perpendicular distances using spatial representations of the transects and of koala sightings
+  # Create an spatial object with transects
+  LTPerpDist.sf <- LTPerpDist |> 
+    dplyr::group_by(Transect_ID) |> 
+    dplyr::reframe(
+      Site_ID = unique(Transect_ID), 
+      Date = unique(Date),
+      T_Length = unique(T_Length),
+      Number_Sightings = unique(Number_Sightings),
+      Number_Observers = unique(Number_Observers),
+      Start_Eastings = unique(Start_Eastings), 
+      Start_Northings = unique(Start_Northings),
+      End_Eastings = unique(End_Eastings),
+      End_Northings = unique(End_Northings),
+      Year = as.integer(unique(Year)),
+      Sighting_ID = unique(Sighting_ID)
+    ) |> 
+    fcn_line_transect_sf() |> 
+    dplyr::filter(Sighting_ID %in% LTPerpDist.na$Sighting_ID)
+  
+  
+  # Calculate distance between the koala sighting and the transect line based on the spatial representation
+  dist <- lapply(split(LTPerpDist.na, LTPerpDist.na$Sighting_ID), function(x){
     
-    # Check for missing data
-    LTPerpDist.na <- LTPerpDist |> 
-      dplyr::filter(is.na(Perp_Dist)) |> 
-      
-      # Remove one potentially duplicate entry (ID = 1816)
-      dplyr::filter(!is.na(Koala_Eastings)) |> 
-      sf::st_as_sf(coords = c("Koala_Eastings", "Koala_Northings"),
-               crs = 7856) # In this case is impossible to calculate the perpendicular distance because the Angle_Koala is also missing data
-    
-    
-    # Calculate perpendicular distances using spatial representations of the transects and of koala sightings
-    # Create an spatial object with transects
-    LTPerpDist.sf <- LTPerpDist |> 
-      dplyr::group_by(Transect_ID) |> 
-      dplyr::reframe(
-        Site_ID = unique(Transect_ID), 
-        Date = unique(Date),
-        T_Length = unique(T_Length),
-        Number_Sightings = unique(Number_Sightings),
-        Number_Observers = unique(Number_Observers),
-        Start_Eastings = unique(Start_Eastings), 
-        Start_Northings = unique(Start_Northings),
-        End_Eastings = unique(End_Eastings),
-        End_Northings = unique(End_Northings),
-        Year = as.integer(unique(Year)),
-        Sighting_ID = unique(Sighting_ID)
+    dist <- x |>
+      sf::st_distance(
+        dplyr::filter(LTPerpDist.sf,
+                      LTPerpDist.sf$Sighting_ID == x$Sighting_ID)
       ) |> 
-      fcn_line_transect_sf() |> 
-      dplyr::filter(Sighting_ID %in% LTPerpDist.na$Sighting_ID)
+      as.numeric()
     
+    z <- data.frame(Sighting_ID = x$Sighting_ID,
+                    Perp_Dist = dist)
     
-    # Calculate distance between the koala sighting and the transect line based on the spatial representation
-    dist <- lapply(split(LTPerpDist.na, LTPerpDist.na$Sighting_ID), function(x){
-      
-      dist <- x |>
-        sf::st_distance(
-          dplyr::filter(LTPerpDist.sf,
-                 LTPerpDist.sf$Sighting_ID == x$Sighting_ID)
-        ) |> 
-        as.numeric()
-      
-      z <- data.frame(Sighting_ID = x$Sighting_ID,
-                      Perp_Dist = dist)
-      
-      return(z)
-    }) |> 
-      dplyr::bind_rows()
-    
-    
-    # Update the data frame to fill the gap
-    trans6 <- trans5 |> 
-      dplyr::left_join(dist, by = "Sighting_ID") |> 
-      dplyr::mutate(Perp_Dist = ifelse(is.na(Perp_Dist.x),
-                                Perp_Dist.y,
-                                Perp_Dist.x)) |> 
-      dplyr::select(-Perp_Dist.x, -Perp_Dist.y)
-    
-    if(sum(duplicated(LTPerpDist$Sighting_ID)) > 0) {
-      warning(sprintf("%i duplicate Sighting_ID", sum(duplicated(lineTransect$Sighting_ID))))
-    } else {cat("There is a unique Sighting_ID per koala sighting")}
-    
-    # Final formatting
-        # Create a template
-    templ <- trans1[1, ] |> 
-      dplyr::mutate(across(everything(), ~ NA)) |> 
-      # Rename original Gen_Pop as Monitoring_Unit_Master
-      dplyr::rename(Monitoring_Unit_Master = Gen_Pop) |> 
-      dplyr::select(-ID, -XID) |> 
-      # Change column type for combining
-      dplyr::mutate(Date = as.character(Date))
-    
-    
-    # Keep incidental sightings and vehicle transects separate
-    IS_VT <- trans6 |> 
-      dplyr::filter(!Method %in% c("SOL", "DOL")) |> 
-      dplyr::mutate(Date = as.POSIXct(Date, format = "%d/%m/%Y"),
-                    Tran_Plot = ifelse(is.na(Tran_Plot), Tran_plot, Tran_Plot)) |> 
-      dplyr::rename("\"Date\"" = Date, "\"Time\"" = Time) 
-    
-    
-    trans7 <- trans6 |>
-      # Tidy up date format
-      dplyr::mutate(Date = format(Date, format = "%d/%m/%Y"))  |> 
-      # Assign empty values ("") instead of missing data (NAs)
-      dplyr::mutate(
-        dplyr::across(
-          dplyr::everything(),
-          ~ ifelse(is.na(.), "", .))) |> 
-      # Rename original Gen_Pop as Monitoring_Unit_Master
-      dplyr::rename(Monitoring_Unit_Master = Gen_Pop) |> 
-      # Tidying 
-      dplyr::relocate(Perp_Dist, .after = Angle_Koala) |> 
-      dplyr::select(-Site_Name_Master, -ID, -Distance_bt_Observers) |> 
-      dplyr::mutate(Site_Area = as.numeric(Site_Area),
-             Subsite = as.numeric(Subsite))
-    
-    suppressWarnings({
+    return(z)
+  }) |> 
+    dplyr::bind_rows()
+  
+  
+  # Update the data frame to fill the gap
+  trans6 <- trans5 |> 
+    dplyr::left_join(dist, by = "Sighting_ID") |> 
+    dplyr::mutate(Perp_Dist = ifelse(is.na(Perp_Dist.x),
+                                     Perp_Dist.y,
+                                     Perp_Dist.x)) |> 
+    dplyr::select(-Perp_Dist.x, -Perp_Dist.y)
+  
+  if(sum(duplicated(LTPerpDist$Sighting_ID)) > 0) {
+    warning(sprintf("%i duplicate Sighting_ID", sum(duplicated(lineTransect$Sighting_ID))))
+  } else {cat("There is a unique Sighting_ID per koala sighting")}
+  
+  # Final formatting
+  # Create a template
+  templ <- trans1[1, ] |> 
+    dplyr::mutate(across(everything(), ~ NA)) |> 
+    # Rename original Gen_Pop as Monitoring_Unit_Master
+    dplyr::rename(Monitoring_Unit_Master = Gen_Pop) |> 
+    dplyr::select(-ID, -XID) |> 
+    # Change column type for combining
+    dplyr::mutate(Date = as.character(Date))
+  
+  
+  # Keep incidental sightings and vehicle transects separate
+  IS_VT <- trans6 |> 
+    dplyr::filter(!Method %in% c("SOL", "DOL")) |> 
+    dplyr::mutate(Date = as.POSIXct(Date, format = "%d/%m/%Y"),
+                  Tran_Plot = ifelse(is.na(Tran_Plot), Tran_plot, Tran_Plot)) |> 
+    dplyr::rename("\"Date\"" = Date, "\"Time\"" = Time) 
+  
+  
+  trans7 <- trans6 |>
+    # Tidy up date format
+    dplyr::mutate(Date = format(Date, format = "%d/%m/%Y"))  |> 
+    # Assign empty values ("") instead of missing data (NAs)
+    dplyr::mutate(
+      dplyr::across(
+        dplyr::everything(),
+        ~ ifelse(is.na(.), "", .))) |> 
+    # Rename original Gen_Pop as Monitoring_Unit_Master
+    dplyr::rename(Monitoring_Unit_Master = Gen_Pop) |> 
+    # Tidying 
+    dplyr::relocate(Perp_Dist, .after = Angle_Koala) |> 
+    dplyr::select(-Site_Name_Master, -ID, -Distance_bt_Observers) |> 
+    dplyr::mutate(Site_Area = as.numeric(Site_Area),
+                  Subsite = as.numeric(Subsite))
+  
+  suppressWarnings({
     final <- dplyr::bind_rows(templ, trans7) |> 
       dplyr::mutate(Date = as.POSIXct(Date, format = "%d/%m/%Y"),
-             Tran_Plot = ifelse(is.na(Tran_Plot), Tran_plot, Tran_Plot),
-             Site_ID = as.character(Site_ID),
-             Total_Field_Staff = as.integer(Total_Field_Staff),
-             Start_Eastings = as.integer(Start_Eastings),
-             End_Eastings = as.integer(End_Eastings),
-             Start_Northings = as.integer(Start_Northings),
-             End_Northings = as.integer(End_Northings),
-             Number_Observers = as.integer(Number_Observers),
-             Count = as.integer(Count),
-             Observer_Eastings = as.integer(Observer_Eastings),
-             Observer_Northings = as.integer(Observer_Northings),
-             Koala_Eastings = as.integer(Koala_Eastings),
-             Koala_Northings = as.integer(Koala_Northings),
-             Koala_Elevation = as.integer(Koala_Elevation),
-             Koala_Bearing = as.integer(Koala_Bearing),
-             Angle_Koala = as.integer(Angle_Koala),
-             Field_Bearing = as.integer(Field_Bearing),
-             T_Length = as.double(T_Length),
-             T_Area = as.double(T_Area),
-             Perp_Dist = as.double(Perp_Dist),
-             Tree_Height = as.double(Tree_Height),
-             Koala_Height = as.double(Koala_Height)) |> 
+                    Tran_Plot = ifelse(is.na(Tran_Plot), Tran_plot, Tran_Plot),
+                    Site_ID = as.character(Site_ID),
+                    Total_Field_Staff = as.integer(Total_Field_Staff),
+                    Start_Eastings = as.integer(Start_Eastings),
+                    End_Eastings = as.integer(End_Eastings),
+                    Start_Northings = as.integer(Start_Northings),
+                    End_Northings = as.integer(End_Northings),
+                    Number_Observers = as.integer(Number_Observers),
+                    Count = as.integer(Count),
+                    Observer_Eastings = as.integer(Observer_Eastings),
+                    Observer_Northings = as.integer(Observer_Northings),
+                    Koala_Eastings = as.integer(Koala_Eastings),
+                    Koala_Northings = as.integer(Koala_Northings),
+                    Koala_Elevation = as.integer(Koala_Elevation),
+                    Koala_Bearing = as.integer(Koala_Bearing),
+                    Angle_Koala = as.integer(Angle_Koala),
+                    Field_Bearing = as.integer(Field_Bearing),
+                    T_Length = as.double(T_Length),
+                    T_Area = as.double(T_Area),
+                    Perp_Dist = as.double(Perp_Dist),
+                    Tree_Height = as.double(Tree_Height),
+                    Koala_Height = as.double(Koala_Height)) |> 
       dplyr::rename("\"Date\"" = Date, "\"Time\"" = Time) |> 
       dplyr::relocate(Monitoring_Unit_Master, .after = Study_Area) |> 
       dplyr::relocate(Monitoring_Unit, .before = LGA) |> 
       dplyr::select(-Tran_plot, -XID)
     final <- final[-1, ]
-    })
-    
-    # update db
-    path <- list.files(pattern = db.integrated, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
-    if (length(path) > 1) {
-      stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date koala survey database in this working directory. Databases found in: %s", db.integrated))} # close {} of error message
-    
-    # create a copy the database to avoid modifying the original
-    if(!file.exists("output/integrated_database")){
-      dir.create("output/integrated_database")}
-    
-    file.copy(from = path, 
-              to = "output/integrated_database/Integrated_SEQKoalaDatabase.accdb")
-    
-    # update path
-    path.upd <- "output/integrated_database/Integrated_SEQKoalaDatabase.accdb"
-    
-    # create the db path for the odbc connection
-    db_path <- paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};",
-                      "DBQ=",
-                      getwd(), "/", path.upd)
-    
-    # establish odbc connection
-    channel <- RODBC::odbcDriverConnect(db_path)
-    
-    # remove old SOL table survey data table only
-    RODBC::sqlDrop(channel, "SOL_Compiled")
-    
-    RODBC::sqlSave(
-        channel,
-        dat = final,
-        tablename = "SOL_Compiled",
-        fast = F, 
-        safer = F, 
-        rownames = F, 
-        colnames = F,
-        varTypes = c("\"Date\"" = "date")
-      )
-    
-        # close odbc connection
-    RODBC::odbcClose(channel)
-    
-    file.copy(from = "output/integrated_database/Integrated_SEQKoalaDatabase.accdb", 
-              to = "input/databases/Integrated_SEQKoalaDatabase.accdb")
-    
+  })
+  
+  # update db
+  path <- list.files(pattern = db.integrated, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
+  if (length(path) > 1) {
+    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date koala survey database in this working directory. Databases found in: %s", db.integrated))} # close {} of error message
+  
+  # create a copy the database to avoid modifying the original
+  if(!file.exists("output/integrated_database")){
+    dir.create("output/integrated_database")}
+  
+  file.copy(from = path, 
+            to = "output/integrated_database/Integrated_SEQKoalaDatabase_updated.accdb")
+  
+  # update path
+  path.upd <- "output/integrated_database/Integrated_SEQKoalaDatabase_updated.accdb"
+  
+  # create the db path for the odbc connection
+  db_path <- paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};",
+                    "DBQ=",
+                    getwd(), "/", path.upd)
+  
+  # establish odbc connection
+  channel <- RODBC::odbcDriverConnect(db_path)
+  
+  # remove old SOL table survey data table only
+  RODBC::sqlDrop(channel, "SOL_Compiled")
+  
+  RODBC::sqlSave(
+    channel,
+    dat = final,
+    tablename = "SOL_Compiled",
+    fast = F, 
+    safer = F, 
+    rownames = F, 
+    colnames = F,
+    varTypes = c("\"Date\"" = "date")
+  )
+  
+  # close odbc connection
+  RODBC::odbcClose(channel)
+  
+  file.copy(from = "output/integrated_database/Integrated_SEQKoalaDatabase_updated.accdb", 
+            to = "input/databases/Integrated_SEQKoalaDatabase_updated.accdb", overwrite = T)
+  
 } # finish function
 
+
+### Survey data from MS Access to R ###
+fcn_all_tables_detect <- function(db_name = "integrated",
+                                  script_name = c("line_transect_detect",
+                                                  "strip_transect_detect", 
+                                                  "uaoa_detect",
+                                                  "perp_distance_detect",
+                                                  "names_to_code"),
+                                  columns = c("Weather",
+                                              "Wind",
+                                              "Cloud_Cover",
+                                              "Canopy_Cover",
+                                              "Subcanopy_Cover"),
+                                  updated.db = T)
+{
+  # custom function to extract the maximum value when multiple values are separated by "_". For instance: in "2_3" only 3 is retained  
+  split_sep <- function(column){
+    ifelse(grepl("_", column),
+           max(as.numeric(unlist(strsplit(column, "_"))), na.rm = T),
+           column)}
+  
+  # extract and query tables from MS Access
+  conn <- fcn_db_connect_table(db_name)
+  table <- list()
+  for(i in 1:length(script_name)){
+    path <- list.files(
+      pattern = script_name[i],
+      recursive = T,
+      ignore.case = T,
+      full.names = F,
+      include.dirs = T)
     
+    query <- readr::read_file(path)
+    table[[i]] <- RODBC::sqlQuery(conn, query, errors = TRUE)
+    names(table)[i] <- gsub("_detect", "", script_name[i])
+  }
+  
+  # change column names of "perp_distance" to avoid issues with the "Date" column 
+  colnames(table[["perp_distance"]]) <- c("TransectID", "SightingID", "Perp_Dist", "Date")
+  
+  # close ODBC connection
+  if (is.character(table)) {
+    fcn_db_disconnect(conn)
+    stop(table)
+  }
+  else {
+    fcn_db_disconnect(conn)
+  }
+  
+  # Process tables to include variables for koala detectability
+  tables <- lapply(table[which(names(table) %in% c("line_transect", "strip_transect", "uaoa"))], function(df){
     
+    # check duplicates
+    if(anyDuplicated(df$TransectID)) {
+      stop(sprintf("%s duplicate values found in TransectID", sum(duplicated(df$TransectID))))
+    }
+    
+    df2 <- df |> 
+      dplyr::mutate(dplyr::across(dplyr::everything(), ~ifelse(. %in% c("NA's", ""), NA, .)),
+                    # retain maximum values only
+                    dplyr::across(.cols = dplyr::all_of(columns), split_sep),
+                    # transform from character to numeric
+                    dplyr::across(.cols = dplyr::all_of(columns), as.numeric),
+                    # transform from character to Date
+                    Date = as.Date(Date, format = "%d/%m/%Y"),
+                    # extract day of the year
+                    DayYear = lubridate::yday(Date),
+                    # extract time of the day
+                    TimeDay = lubridate::hour(
+                      lubridate::round_date(
+                        as.POSIXct(
+                          paste(Date, Start_Time),
+                          format = "%Y-%m-%d %H:%M"),
+                        unit = "hour")),
+      ) |> 
+      dplyr::select(-Start_Time) |> 
+      # add TimePeriodID
+      SEQKoalaDataPipeline::fcn_add_date_interval() |> 
+      # add Observer_ID (i.e., group of observers) code to surveys between 1996 and 2019. Information provided by DESI via document Grouped Observers.docx
+      dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) < 1998 ~ "GR66",
+                                                     lubridate::year(Date) >= 1999 & lubridate::year(Date) <= 2003 ~ "GR67",
+                                                     lubridate::year(Date) >= 2004 & lubridate::year(Date) < 2010 ~ "GR68",
+                                                     lubridate::year(Date) >= 2010 & Date <= as.Date("2012-03-31") ~ "GR69",
+                                                     Date >= as.Date("2012-04-01") & Date <= as.Date("2012-06-30") ~ "GR70",
+                                                     Date >= as.Date("2012-07-01") & lubridate::year(Date) < 2015 ~ "GR71",
+                                                     lubridate::year(Date) >= 2015 & lubridate::year(Date) < 2017 ~ "GR72",
+                                                     lubridate::year(Date) == 2017 ~ "GR73",
+                                                     lubridate::year(Date) >= 2018 & Date <= as.Date("2019-05-31") ~ "GR74",
+                                                     Date >= as.Date("2019-06-01") & lubridate::year(Date) <= 2020 ~ "GR75"))
+    
+    # add ObserverGroup to survey data from 2020 onwards
+    if("ObserverID" %in% names(df2)){
+      df2 <- df2 |> 
+        dplyr::left_join(table[["names_to_code"]], dplyr::join_by(ObserverID == Initials)) |> 
+        dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverID), ObserverGroup, paste0("GR", Code))) |> 
+        dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverGroup), paste0("GR", readr::parse_integer(ObserverID)), ObserverGroup)) |>
+        # this line needs update unless the Names_to_Code table in Acess is up-to-date
+        dplyr::mutate(ObserverGroup = ifelse(ObserverID %in% "BK", "GR76", ObserverGroup)) |>
+        dplyr::select(-Code, -ObserverID)
+    }
+    
+    # standardize values to DESI's metadata
+    if("Cloud_Cover" %in% names(df2)){
+      df2 <- df2 |> 
+        dplyr::mutate(Cloud_Cover = dplyr::case_when(Cloud_Cover > 5 & Cloud_Cover <= 20 ~ 1,
+                                                     Cloud_Cover > 20 & Cloud_Cover <= 40 ~ 2,
+                                                     Cloud_Cover > 40 & Cloud_Cover <= 60 ~ 3,
+                                                     Cloud_Cover > 60 & Cloud_Cover <= 80 ~ 4,
+                                                     Cloud_Cover > 80 & Cloud_Cover <= 100 ~ 5,
+                                                     .default = Cloud_Cover))
+    }
+    
+    if("Canopy_Cover" %in% names(df2)){
+      df2 <- df2 |> 
+        dplyr::mutate(Canopy_Cover = dplyr::case_when(Canopy_Cover == 1.5 ~ 2,
+                                                      Canopy_Cover == 2.5 ~ 3,
+                                                      Canopy_Cover == 3.5 ~ 4,
+                                                      .default = Canopy_Cover)) |> 
+        dplyr::mutate(Canopy_Cover = dplyr::case_when(Canopy_Cover > 5 & Canopy_Cover <= 20 ~ 1,
+                                                      Canopy_Cover > 20 & Canopy_Cover <= 40 ~ 2,
+                                                      Canopy_Cover > 40 & Canopy_Cover <= 60 ~ 3,
+                                                      Canopy_Cover > 60 & Canopy_Cover <= 80 ~ 4,
+                                                      Canopy_Cover > 80 & Canopy_Cover <= 100 ~ 5,
+                                                      .default = Canopy_Cover))
+    }
+    
+    if("Subcanopy_Cover" %in% names(df2)){
+      df2 <- df2 |> 
+        dplyr::mutate(Subcanopy_Cover = dplyr::case_when(Subcanopy_Cover == 1.5 ~ 2,
+                                                         Subcanopy_Cover == 2.5 ~ 3,
+                                                         Subcanopy_Cover == 3.5 ~ 4,
+                                                         Subcanopy_Cover == 4.5 ~ 5,
+                                                         .default = Subcanopy_Cover)) |> 
+        dplyr::mutate(Subcanopy_Cover = dplyr::case_when(Subcanopy_Cover > 5 & Subcanopy_Cover <= 20 ~ 1,
+                                                         Subcanopy_Cover > 20 & Subcanopy_Cover <= 40 ~ 2,
+                                                         Subcanopy_Cover > 40 & Subcanopy_Cover <= 60 ~ 3,
+                                                         Subcanopy_Cover > 60 & Subcanopy_Cover <= 80 ~ 4,
+                                                         Subcanopy_Cover > 80 & Subcanopy_Cover <= 100 ~ 5,
+                                                         .default = Subcanopy_Cover))
+    }
+    return(df2)
+  }) # Close the lapply function
+  
+  # process perpedincular distances
+  table[["perp_distance"]] <- table[["perp_distance"]] |> 
+    dplyr::mutate(dplyr::across(dplyr::everything(), ~ifelse(. %in% c("NA's", ""), NA, .)),
+                  Date = as.Date(Date, format = "%d/%m/%Y")) |> 
+    SEQKoalaDataPipeline::fcn_add_date_interval()
+  
+  # combine survey and perpendicular distances into a list
+  master <- append(tables, table["perp_distance"])
+  
+  return(master)
+}
+
+
+### Spatial representation of line transect data ###
+fcn_line_transect_sf_all_detect <- function (
+    cols = c(
+    "TransectID",
+    "SiteID",
+    "Date",
+    "TrSiteID",
+    "Tlength",
+    "Number_Sightings",
+    "Number_Observers",
+    "Start_Eastings",
+    "Start_Northings",
+    "End_Eastings",
+    "End_Northings",
+    "geometry"
+  ),
+  table.list = master,
+  table.name = "line_transect")
+  {
+    state <- fcn_get_state()
+    if (state$use_integrated_db) {
+      # retrieve line transect table
+      db_original <- table.list[[table.name]]
+      # stop if not using integrated table
+      if (!state$use_integrated_db) {
+        stop("use_integrated_db must be set to TRUE to get integrated db in SF format")
+      }
+      # line transects to sf
+      sp <-
+        sf::st_read(file.path(state$home_dir, state$gdb_path$total_db),
+                    quiet = T) |>
+        dplyr::mutate(TransectID = ifelse(is.na(TrnscID), Trns_ID, TrnscID))  |>
+        dplyr::select(TransectID)
+      if (anyDuplicated(sp$TransectID)) {
+        warning(
+          sprintf(
+            "Number of records with duplicate TransectID detected in %s: %s. Dropping duplicates",
+            state$gdb_path$total_db,
+            sum(duplicated(sp$TransectID))
+          )
+        )
+        sp <- sp[!duplicated(sp$TransectID), ]
+      }
+
+      # join survey data with sf object
+      db_joined <- sp |>
+        dplyr::inner_join(db_original, by = "TransectID")
+      db_not_joined <-
+        dplyr::anti_join(db_original, sp, by = "TransectID")
+      
+      # Create spatial representation if the db is not joined
+      db_coords_present <- db_not_joined |>
+        dplyr::filter(
+          !is.na(Start_Eastings) &
+            !is.na(Start_Northings) &
+            !is.na(End_Eastings) & !is.na(End_Northings)
+        )
+      
+      db_coords_absent <-
+        dplyr::filter(db_not_joined,!(TransectID %in% db_coords_present))
+      
+      line_transect <- fcn_line_transect_sf(db_coords_present)
+      buffer_width <- fcn_get_line_transect_buffer()
+      line_transect_buffer <-
+        sf::st_buffer(line_transect, endCapStyle = "FLAT", dist = buffer_width)
+      db <- rbind(db_joined, line_transect_buffer)
+      
+      # Recover unjoined records to join at the site level
+      site_join_results <-
+        fcn_join_koala_survey_sites(db_coords_absent)
+      db <- rbind(db, site_join_results$joined_table)
+      unjoined_table <- site_join_results$unjoined_table
+      
+      if (nrow(sp) != nrow(db_original)) {
+        warning(
+          sprintf(
+            "Integrated DB line transects (total=%s): %s joined with total shp, %s created with coordinates, %s joined with site information, %s not joined. Final result: %s records",
+            nrow(db_original),
+            nrow(db_joined),
+            nrow(db_coords_present),
+            nrow(site_join_results$joined_table),
+            nrow(db_original) - nrow(db),
+            nrow(db)
+          )
+        )
+      }
+      
+      return(db)
+    }
+  }
+
+
+### Spatial representation strip transects ###
+fcn_strip_transect_sf_all_detect <- function(table.list = master,
+                                             table.name = "strip_transect",
+                                             date.format = "%d/%m/%Y")
+{
+  state <- fcn_get_state()
+  # retrieve strip transect table
+  strip_transects <- table.list[[table.name]]
+  
+  if (state$use_integrated_db) {
+    transect_sf <-
+      sf::st_read(file.path(state$home_dir, state$gdb_path$total_db),
+                  quiet = T) |>
+      dplyr::mutate(TransectID = ifelse(is.na(TrnscID), Trns_ID, TrnscID))  |>
+      dplyr::select(TransectID)
+    if (anyDuplicated(transect_sf$TransectID)) {
+      warning(
+        sprintf(
+          "Number of records with duplicate TransectID detected in %s: %s. Dropping duplicates",
+          state$gdb_path$total_db,
+          sum(duplicated(transect_sf$TransectID))
+        )
+      )
+      transect_sf <-
+        transect_sf[!duplicated(transect_sf$TransectID),]
+    }
+
+    # join survey data
+    joined_table <- dplyr::inner_join(transect_sf, strip_transects,
+                                      by = c("TransectID"))
+    unjoined_table <-
+      dplyr::anti_join(strip_transects, transect_sf,
+                       by = c("TransectID"))
+    site_join_results <- fcn_join_koala_survey_sites(unjoined_table)
+    joined_table <-
+      rbind(joined_table, site_join_results$joined_table)
+    unjoined_table <- site_join_results$unjoined_table
+    if (nrow(site_join_results$joined_table) > 0) {
+      warning(
+        sprintf(
+          "Strip Transect: attribute join incomplete, %s transects joined at the site level",
+          nrow(site_join_results$joined_table)
+        )
+      )
+    }
+    if (nrow(unjoined_table) > 0) {
+      warning(
+        sprintf(
+          "Strip Transect: attribute join incomplete, with %s transects dropped.",
+          nrow(unjoined_table)
+        )
+      )
+    }
+    return(joined_table)
+  } # if (state$use_integrated_db)
+}
+
+
+# Spatial representation of all-of-area searches
+fcn_all_of_area_sf_all_detect <- function (table.list = master,
+                                           table.name = "uaoa",
+                                           date.format = "%d/%m/%Y") 
+{
+  state <- fcn_get_state()
+  # retrieve urban all of area searches table
+  all_of_areas <- table.list[[table.name]]
+  
+  if (state$use_integrated_db) {
+    site_sf <-  sf::st_read(file.path(state$home_dir, state$gdb_path$total_db),
+                            quiet = T) |>
+      dplyr::mutate(TransectID = ifelse(is.na(TrnscID), Trns_ID, TrnscID))  |>
+      dplyr::select(TransectID)
+    if (anyDuplicated(site_sf$TransectID)) {
+      warning(
+        sprintf(
+          "Number of records with duplicate TransectID detected in %s: %s. Dropping duplicates",
+          state$gdb_path$total_db,
+          sum(duplicated(site_sf$TransectID))
+        )
+      )
+      site_sf <-
+        site_sf[!duplicated(site_sf$TransectID),]
+    }
+
+    joined_table <- dplyr::inner_join(site_sf, all_of_areas, 
+                                      by = c("TransectID"))
+    unjoined_table <- dplyr::anti_join(all_of_areas, site_sf, 
+                                       by = c("TransectID"))
+    site_join_results <- fcn_join_koala_survey_sites(unjoined_table)
+    joined_table <- rbind(joined_table, site_join_results$joined_table)
+    unjoined_table <- site_join_results$unjoined_table
+    if (nrow(site_join_results$joined_table) > 0) {
+      warning(sprintf("Strip Transect: attribute join incomplete, %s transects joined at the site level", 
+                      nrow(site_join_results$joined_table)))
+    }
+  }
+  
+  if (nrow(unjoined_table) > 0) {
+    warning(paste0("Number of rows not joined: ", nrow(unjoined_table)))
+  }
+  study_area <- fcn_get_study_area()
+  joined_table <- sf::st_intersection(joined_table, study_area) |> 
+    dplyr::select(-AREA_HA, SHAPE_Length, SHAPE_Area)
+  return(joined_table)
+}
+
+
+### Combine sf objects into a list ###
+fcn_all_tables_sf_detect <- function (table_names = c("line_transect", 
+                                                      "strip_transect", 
+                                                      "uaoa")) 
+{
+  master_sf <- list()
+  if ("line_transect" %in% table_names) {
+    master_sf$line_transect = fcn_line_transect_sf_all_detect()}
+  if ("strip_transect" %in% table_names) {
+    master_sf$strip_transect = fcn_strip_transect_sf_all_detect()}
+  if ("uaoa" %in% table_names){
+    master_sf$uaoa = fcn_all_of_area_sf_all_detect()}
+  master_sf <- lapply(master_sf, fcn_add_date_interval)
+  return(master_sf)
+}
+
+### Covariate data frame ###
+fcn_covariate_layer_df_detect <- function(layer = NULL) {
+  # Extract name from string containing dates
+  fcn_get_covariate_name <- function(input) {
+    pattern <- ".*\\d{6}.tif$"
+    if (grepl(pattern, input)) {
+      output <- gsub("\\d{6}.tif$", "", input)
+    } else {
+      output <- gsub(".tif$", "", input)
+    }
+    return(output)
+  }
+  
+  state <- SEQKoalaDataPipeline::fcn_get_state()
+  match_method <- state$covariate_time_match
+    
+  covariate_description <- paste0(SEQKoalaDataPipeline::fcn_get_raster_path()$covariates, "\\..\\covariate_descriptions.csv") |>
+    readr::read_csv(show_col_types = FALSE) |>
+    dplyr::mutate(name = substr(Code, 0, 5)) |>
+    dplyr::rename(static_dynamic = `Static/Dynamic`, continuous_discrete = `Continuous/Discrete`) |>
+    dplyr::select(name, static_dynamic, continuous_discrete, Proportions )
+  
+  covariate_description <- covariate_description[!duplicated(covariate_description$name),]
+  
+  constant_covariates <- data.frame(filename = SEQKoalaDataPipeline::fcn_list_covariate_layers_constant())
+  temporal_covariates <- data.frame(filename = SEQKoalaDataPipeline::fcn_list_covariate_layers_temporal())
+  temporal_covariates <- temporal_covariates |>
+    dplyr::mutate(date = as.numeric(as.numeric(gsub(".*[^0-9]([0-9]{6})[^0-9]*", "\\1", filename)))) |>
+    dplyr::mutate(date = ifelse(is.na(date), NA, paste0("X", date))) |>
+    dplyr::mutate(fullname = sub('\\.tif$', '', filename))
+  
+  df <- dplyr::bind_rows(list(constant = constant_covariates,
+                              temporal = temporal_covariates),
+                         .id = 'type') |>
+    dplyr::mutate(name = sapply(filename, fcn_get_covariate_name)) |>
+    dplyr::mutate(match_method = match_method[name]) |>
+    dplyr::mutate(fullname = sub('\\.tif$', '', filename))
+  
+  # Exclude files that have a processing error, less than 100 bytes
+  file_sizes <- file.info(paste0(state$home_dir, "\\", state$raster_path,'\\', df$filename))$size
+  low_filesize <- 100
+  if (any(file_sizes < low_filesize)) {
+    invalid_files <- df$filename[file_sizes < low_filesize]
+    warning(sprintf("Raster(s) %s appears to be less than 100bytes and therefore removed.", paste(invalid_files, collapse=", ")))
+    df <- df[file_sizes > low_filesize,]
+  }
+  
+  if (!is.null(layer)) {
+    df <- df |>
+      filter(name == layer)
+  }
+  
+  df <- df |>
+    dplyr::mutate(join_name = substr(name, 0, 5)) |>
+    dplyr::inner_join(covariate_description, by = dplyr::join_by('join_name' == 'name')) |>
+    dplyr::select(-join_name)
+  
+  return(df)
+}
+
+###
+fcn_covariate_interval_mean_detect <- function (date, cov_name, get_df = TRUE) 
+{
+  cov_layer_df <- fcn_covariate_layer_df_detect()
+  cov_layer_df_name <- cov_layer_df[cov_layer_df$name == cov_name, 
+  ]
+  cov_categorical <- any(cov_layer_df[cov_layer_df$name == 
+                                        cov_name, ] == "Categorical")
+  cov_dates <- cov_layer_df_name$date
+  cov_dates_num <- gsub(".*[^0-9]([0-9]{6})[^0-9]*", "\\1", 
+                        cov_dates) |> as.numeric() |> lubridate::ym()
+  within_interval <- lubridate::`%within%`(cov_dates_num, date$interval)
+  if (sum(within_interval) > 0) {
+    cov_layer_list <- cov_layer_df_name[within_interval, 
+                                        "filename"]
+  }
+  else {
+    date_diff <- abs(cov_dates_num - date$middle_date)
+    if (cov_name %in% c("hctmn", "hctma", "hcpre")) {
+      months_in_interval <- function(start_date, end_date) {
+        lubridate::month(seq.Date(from = as.Date(start_date, 
+                                                 tz = Sys.timezone()), to = as.Date(end_date, 
+                                                                                    tz = Sys.timezone()), by = "day")) |> unique()
+      }
+      date_interval_months <- months_in_interval(date$start_date, 
+                                                 date$end_date)
+      date_diff[!(lubridate::month(cov_dates_num) %in% 
+                    date_interval_months)] <- NA
+    }
+    nearest_date <- which.min(date_diff)
+    cov_layer_list <- cov_layer_df_name[nearest_date, "filename"]
+  }
+  cov_temporal <- SEQKoalaDataPipeline::fcn_extract_covariate_grid(cov_layer_list)
+  if (length(cov_layer_list) > 1) {
+    if (cov_categorical) {
+      cov_temporal_mean <- terra::modal(cov_temporal[[2:terra::nlyr(cov_temporal)]], 
+                                        ties = "first")
+      cov_temporal_mean <- terra::round(cov_temporal_mean)
+    }
+    else {
+      cov_temporal_mean <- terra::mean(cov_temporal[[2:terra::nlyr(cov_temporal)]])
+    }
+    cov_temporal <- c(cov_temporal["GridID"], cov_temporal_mean)
+  }
+  names(cov_temporal) <- c("GridID", cov_name)
+  calc_proportion <- any(cov_layer_df[cov_layer_df$name == 
+                                        cov_name, "Proportions"] == "Yes")
+  if (calc_proportion) {
+    cov_temporal_prop <- SEQKoalaDataPipeline::fcn_extract_covariate_grid(cov_layer_list, 
+                                                    proportion = TRUE)
+    name_list <- names(cov_temporal_prop[[2:terra::nlyr(cov_temporal_prop)]])
+    cov_lyr_names <- stringr::str_split_i(name_list, "_", 
+                                          1)
+    cov_values <- stringr::str_split_i(name_list, "_", 2)
+    cov_temporal_mean <- lapply(unique(cov_values), function(x) terra::mean(cov_temporal_prop[name_list[x == 
+                                                                                                          cov_values]])) |> terra::rast()
+    names(cov_temporal_mean) <- paste(cov_name, unique(cov_values), 
+                                      sep = "_")
+    cov_temporal <- c(cov_temporal, cov_temporal_mean)
+  }
+  if (get_df) {
+    cov_temporal_df <- SEQKoalaDataPipeline::fcn_cov_grid_df(cov_temporal)
+    return(cov_temporal_df)
+  }
+  else {
+    return(cov_temporal)
+  }
+}
+
+
+### extract temporal covariates ###
+fcn_extract_cov_date_detect <- function(d, time_lag = NULL) {
+  cov_layer_df <- fcn_covariate_layer_df_detect()
+  cov_temporal_names <- cov_layer_df[cov_layer_df$type == 'temporal','name'] |>
+    unique()
+  
+  print(sprintf("Processing covariates for date starting %s", d$start_date))
+  
+  # Apply for each of the covariate names
+  covs <- purrr::map(cov_temporal_names, \(x) fcn_covariate_interval_mean_detect(d, x))
+  cov_comb <- purrr::reduce(covs, dplyr::full_join, by = "GridID")
+  
+  # Compute lagged variables and join back to the dataframe
+  if (!is.null(time_lag)) {
+    for (lag in time_lag) {
+      d_lag <- SEQKoalaDataPipeline::fcn_shift_months(d, -lag) # date object lagged
+      covs_lag <- purrr::map(cov_temporal_names, ~ fcn_covariate_interval_detect(d_lag, .))
+      cov_lag_comb <- purrr::reduce(covs_lag, dplyr::inner_join, by = "GridID")
+      colnames(cov_lag_comb)[2:ncol(cov_lag_comb)] <- paste0(colnames(cov_lag_comb)[2:ncol(cov_lag_comb)],
+                                                             "_",
+                                                             lag, "mths")
+      cov_comb <- dplyr::inner_join(cov_comb, cov_lag_comb, by = "GridID")
+    }
+  }
+  return(cov_comb)
+}
+
+
+### develop covariate array ###
+fcn_cov_array_detect <- function (cov_type = "temporal", dates = d, time_lag = NULL, write_path = paste0(out_dir, "/cov_raster")) 
+{
+  compute_constant <- cov_type %in% c("constant", "both")
+  compute_temporal <- cov_type %in% c("temporal", "both")
+  if (is.null(dates)) {
+    dates <- SEQKoalaDataPipeline::fcn_get_date_intervals()
+  }
+  output <- list()
+  cov_layer_df <- fcn_covariate_layer_df_detect()
+  if (compute_constant) {
+    cov_constant_names <- cov_layer_df[cov_layer_df$type == 
+                                         "constant", "filename"]
+    cov_constant <- SEQKoalaDataPipeline::fcn_extract_covariate_grid(cov_constant_names)
+    cov_constant_df <- SEQKoalaDataPipeline::fcn_cov_grid_df(cov_constant)
+    output$cov_constant <- cov_constant_df
+    if (!is.null(write_path)) {
+      saveRDS(cov_constant_df, file = paste0(write_path, 
+                                             "\\cov_constant_array.rds"))
+    }
+    rm("cov_constant_df")
+    gc()
+  }
+  if (compute_temporal) {
+    dates <- list(dates)
+    if (!is.null(write_path)) {
+      lapply(dates, function(d) {
+        cov_temporal <- fcn_extract_cov_date_detect(d, time_lag = NULL)
+        readr::write_rds(cov_temporal, file = paste0(write_path, 
+                                                     "\\cov_temporal_", d$id, ".rds"))
+        rm(cov_temporal)
+      })
+    }
+    else {
+      cov_temporal <- lapply(dates, function(d) {
+        SEQKoalaDataPipeline::fcn_extract_cov_date(d, time_lag = NULL)
+      })
+      cov_temporal_array <- do.call(abind::abind, c(cov_temporal, 
+                                                    list(along = 3)))
+      output$cov_temporal <- cov_temporal_array
+    }
+  }
+  return(output)
+}
+
+### grid fraction ###
+fcn_all_transect_grid_fractions <- function (buffer = c(0), keep_all = FALSE, grid_id_vec = NULL) 
+{
+  fcn_extract_raster_buffer <- function(df, fishnet, buffer = 0) {
+    if (buffer > 0) {
+      df <- sf::st_buffer(df, dist = buffer, joinStyle = 'ROUND')
+    }
+    res <- fcn_mixed_extract_raster(fishnet, df)
+    return(res)
+  }
+  
+  fishnet <- fcn_get_grid()
+  master <- fcn_all_tables_sf_detect()
+  buffer <- sort(buffer)
+  master_grid <- lapply(master, function(df) {
+    res <- fcn_extract_raster_buffer(df, fishnet, 0)
+    if (!is.null(grid_id_vec)) {
+      res <- res %>% dplyr::filter(GridID %in% grid_id_vec) %>% 
+        dplyr::group_by(TransectID) %>% dplyr::mutate(fraction = fraction/sum(fraction)) %>% 
+        dplyr::ungroup()
+    }
+    if (length(buffer) == 1) {
+      var_name <- c("fraction")
+    }
+    else {
+      var_name <- paste0("fraction_", buffer)
+    }
+    res <- res %>% dplyr::rename(`:=`(!!var_name[1], fraction))
+    if (length(buffer) > 1) {
+      for (i in 2:length(buffer)) {
+        res_buffer <- fcn_extract_raster_buffer(df, fishnet, 
+                                                buffer[i]) %>% dplyr::rename(`:=`(!!var_name[i], 
+                                                                                  fraction))
+        res <- res %>% dplyr::select(TransectID, GridID, 
+                                     dplyr::all_of(var_name[1:(i - 1)])) %>% dplyr::right_join(res_buffer, 
+                                                                                               by = c("TransectID", "GridID"))
+      }
+      res <- res %>% dplyr::mutate_at(var_name, ~replace(., 
+                                                         is.na(.), 0))
+    }
+    if (!keep_all) {
+      res <- res %>% dplyr::select("TransectID", "GridID", 
+                                   "Date", dplyr::all_of(var_name))
+      res <- fcn_add_date_interval(res)
+    }
+    return(res)
+  })
+  return(master_grid)
+}
