@@ -28,9 +28,6 @@
 # install packages if required
 source("code/install_packages_data_processing.R")
 
-# get tokens needed
-source("keys/apis.R")
-
 # load libraries
 library(tidyverse)
 library(terra)
@@ -42,7 +39,7 @@ library(mice)
 library(factoextra)
 library(nimble)
 library(devtools)
-if (!require("SEQKoalaDataPipeline")) devtools::install_github('seq-koala-monitoring/data-pipeline', auth_token = GITHUB_PAT)
+if (!require("SEQKoalaDataPipeline")) devtools::install_github('seq-koala-monitoring/data-pipeline')
 library(SEQKoalaDataPipeline)
 library(readr)
 library(rstudioapi)
@@ -50,9 +47,16 @@ library(rstudioapi)
 # read utility functions
 source("code/functions.R")
 
-# Update database
+# Load parameters
+parameters <- readRDS("code/parameters_data_processing.rds")
+
+# Update database? (default = TRUE)
 # It takes around 10 min to run depending on the computer
-fcn_update_db()
+parameters$update_database <- F # change if not
+
+if(parameters$update_database) {
+  fcn_update_db()
+}
 
 # prepare integration of survey data and covariate data
 working_data_dir <- paste0(getwd(), "/input")
@@ -64,18 +68,19 @@ fcn_set_db_path(list(
   `1996` = 'databases/SEQkoalaData.accdb',
   `2015` = 'databases/2015-2019 SEQKoalaDatabase DES_20231027.accdb',
   `2020` = 'databases/KoalaSurveyData2020_cur.accdb',
-  `integrated` = 'databases/Integrated_SEQKoalaDatabase.accdb'
+  `integrated` = ifelse(parameters$update_database == T,
+                        'databases/Integrated_SEQKoalaDatabase_updated.accdb',
+                        'databases/Integrated_SEQKoalaDatabase.accdb')
 ))
 
 # Set gdb path
 fcn_set_gdb_path(list(
-  koala_survey_data="KoalaSurveyData.gdb",
-  total_db="transects_spatial_representation/Integrated_SEQKoalaDatabase_Spatial.shp",
-  koala_survey_sites="survey_sites/KoalaSurveySites_231108.shp"
+  koala_survey_data = "KoalaSurveyData.gdb",
+  total_db = ifelse(parameters$update_database == T,
+                    "transects_spatial_representation/Integrated_SEQKoalaDatabase_Spatial_updated.shp",
+                    "transects_spatial_representation/Integrated_SEQKoalaDatabase_Spatial.shp"),
+  koala_survey_sites = "survey_sites/KoalaSurveySites_231108.shp"
 ))
-
-# Load parameters
-parameters <- readRDS("code/parameters_data_processing.rds")
 
 # Grid size (in meters) - default 500m
 fcn_set_grid_size(grid_size = parameters$primary_grid_size)
@@ -128,17 +133,17 @@ grid_vector <- terra::as.polygons(grid_raster)
 terra::writeVector(grid_vector, paste0(out_dir, "\\grid_vec.shp"), overwrite = T)
 
 # Load the survey data as tables
-master <- fcn_all_tables()
+master <- fcn_all_tables_detect()
 saveRDS(master, paste0(out_dir, '/master.rds'))
-master_sf <- fcn_all_tables_sf()
+master_sf <- fcn_all_tables_sf_detect()
 lapply(seq_along(master_sf), \(i) sf::st_write(master_sf[[i]], paste0(out_dir, '/master_', names(master_sf)[i], '.shp'), append=F))
 
 # Load covariates from the directory
 
 # Extract covariates
 if (run_cov_extraction) {
-  source('cov_temporal_parallel.R')
-  source('cov_temporal_array.R')
+  source('code/cov_temporal_parallel_detect.R')
+  source('code/cov_temporal_array.R')
 }
 
 # Extract and save only those in surveylocations as a separate file
@@ -148,7 +153,7 @@ cov_temporal_array <- readr::read_rds(paste0(out_dir, "/cov_temporal_array.rds")
 if (use_imputation) cov_temporal_array <- fcn_impute_temporal_cov(cov_temporal_array)
 
 # Load grid fractions as tables
-grid_fractions <- fcn_all_transect_grid_fractions()
+grid_fractions <- fcn_all_transect_grid_fractions_detect()
 grid_fractions_comb <- dplyr::bind_rows(grid_fractions, .id = 'transect')
 readr::write_rds(grid_fractions_comb, paste0(out_dir, '/grid_fractions.rds'))
 data.table::fwrite(grid_fractions_comb, paste0(out_dir, "/grid_fractions.csv"))
@@ -188,7 +193,7 @@ readr::write_rds(cov_temporal_array_surveylocations, paste0(out_dir, '/cov_tempo
 
 # Produce date interval lookup table
 write.csv(fcn_date_interval_lookup(), paste0(out_dir, "/date_interval_lookup.csv"))
-cov_layer_df <- fcn_covariate_layer_df()
+cov_layer_df <- fcn_covariate_layer_df_detect()
 write.csv(cov_layer_df[,1:5], paste0(out_dir, '/covariate_info.csv'))
 
 # Produce and save the adjacency matrix
@@ -201,7 +206,7 @@ adj_data <- fcn_adj_matrix(directions = 'rook')
 saveRDS(adj_data, paste0(out_dir, "/adj_data_rook.rds"))
 
 # Write lookup table of GridID to genetic populations
-gen_pop_file <- sf::st_read(gen_pop_file_path))
+gen_pop_file <- sf::st_read(gen_pop_file_path)
 gen_pop_lookup <- fcn_grid_intersect_feature(gen_pop_file, field = parameters$gen_pop_column_id)
 saveRDS(gen_pop_lookup, paste0(out_dir, "/gen_pop_lookup.rds"))
 
@@ -233,16 +238,16 @@ for (Order in 1:2) {
     for (VarTrend in 0:1) {
       # set seed
       set.seed(20)
-
+      
       # generate data to fit models
       FitData <- get_fit_data(Surveys = Surveys, GridFrac = GridFrac, CovConsSurv = CovConsSurv, CovTempSurv = CovTempSurv, DateIntervals = DateIntervals, GenPopLookup = GenPopLookup, Order = Order, Lag = Lag, VarTrend = VarTrend, FirstDate = FirstDate, LastDate = LastDate, StaticVars = c("htslo", "hspc1", "hspc2", "hcltp", "hcltt", "hhgde"), DynamicVars = c("hhfwc", "hhpgr2km", "htpls2km", "hcpre", "hctmn", "hseas", "hhkha", "htlus"))
-
+      
       # save data
       saveRDS(FitData, paste0("input/nimble_data/data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
-
+      
       # save continuous variable correlations
       write.csv(FitData$CorrXY, paste0("input/nimble_data/correlations/cor_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
-
+      
       # save PCA plots and PCAs
       saveRDS(FitData$SoilPCA, paste0("input/nimble_data/pca/pca_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
       ggsave(FitData$SoilScree1, file = paste0("input/nimble_data/pca/soilscree1_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
