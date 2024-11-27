@@ -45,7 +45,7 @@ library(readr)
 library(rstudioapi)
 
 # read utility functions
-source("test/functions.R")
+source("code/functions.R")
 
 # Load parameters
 parameters <- readRDS("code/parameters_data_processing.rds")
