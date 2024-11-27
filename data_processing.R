@@ -169,7 +169,7 @@ readr::write_rds(cov_temporal_array_surveylocations, paste0(out_dir, '/cov_tempo
 # Resave grid fractions for the subset with complete covariate information
 grid_id_non_na <- fcn_complete_grid_id(cov_constant_array, cov_temporal_array) # Get GridID index with non-NA covariates
 cov_constant_array$GridID[!(cov_constant_array$GridID %in% grid_id_non_na)]
-grid_fractions_complete_cov <- fcn_all_transect_grid_fractions(grid_id_vec = grid_id_non_na)
+grid_fractions_complete_cov <- fcn_all_transect_grid_fractions_detect(grid_id_vec = grid_id_non_na)
 grid_fractions_comb_complete_cov <- dplyr::bind_rows(grid_fractions_complete_cov, .id = 'transect')
 readr::write_rds(grid_fractions_comb_complete_cov, paste0(out_dir, '/grid_fractions_complete_cov.rds'))
 data.table::fwrite(grid_fractions_comb_complete_cov, paste0(out_dir, "/grid_fractions_complete_cov.csv"))
