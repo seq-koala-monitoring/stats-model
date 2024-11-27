@@ -2222,7 +2222,7 @@ fcn_all_transect_grid_fractions_detect <- function (buffer = c(0), keep_all = FA
 ### extract covariates in parallel ###
 # Modify either to maximise RAM or speed (at the risk of running out of memory RAM). If running in sequence, the slowest but safest option, assign use_parallel = F 
 fcn_cov_temporal_array_parallel <- function(prioritise_RAM = TRUE,
-                                            use_parallel = use_parallel,
+                                            use.parallel = use_parallel,
                                             dates = dates)
 {
   fcn_cov_temporal <- function(d){
@@ -2260,7 +2260,7 @@ fcn_cov_temporal_array_parallel <- function(prioritise_RAM = TRUE,
   
   if (!require("furrr")) install.packages('furrr')
   
-  if (use_parallel & prioritise_RAM) {
+  if (use.parallel & prioritise_RAM) {
     # Run in groups to minimise RAM usage
     # From empirical tests on a laptop (12th Gen IntelR CoreTM i7-1260P, with 16 logical processors, 12 cores, and 16GB RAM),
     #   the maximum numbers of workers to use without running out of memory is 5
@@ -2287,7 +2287,7 @@ fcn_cov_temporal_array_parallel <- function(prioritise_RAM = TRUE,
     
   } 
   
-  if (use_parallel & !prioritise_RAM) {
+  if (use.parallel & !prioritise_RAM) {
     # Run in groups to prioritise speed while trying to minimise RAM usage. Note that it might still run out memory
     library(furrr)
     n.groups <-
@@ -2314,7 +2314,7 @@ fcn_cov_temporal_array_parallel <- function(prioritise_RAM = TRUE,
     
   } 
   
-  if (!use_parallel) {
+  if (!use.parallel) {
     # Run sequentially (i.e., no parallelisation)
     message("#### Running tasks in sequence, not in parallel ####")
     start <- Sys.time()
