@@ -45,7 +45,7 @@ library(readr)
 library(rstudioapi)
 
 # read utility functions
-source("code/functions.R")
+source("test/functions.R")
 
 # Load parameters
 parameters <- readRDS("code/parameters_data_processing.rds")
@@ -142,7 +142,9 @@ lapply(seq_along(master_sf), \(i) sf::st_write(master_sf[[i]], paste0(out_dir, '
 
 # Extract covariates
 if (run_cov_extraction) {
-  source('code/cov_temporal_parallel_detect.R')
+  dates <- fcn_get_date_intervals()
+  cov_constant_array <- fcn_cov_array('constant', write_path = out_dir)
+  fcn_cov_temporal_array_parallel()
   source('code/cov_temporal_array.R')
 }
 
@@ -197,7 +199,7 @@ cov_layer_df <- fcn_covariate_layer_df_detect()
 write.csv(cov_layer_df[,1:5], paste0(out_dir, '/covariate_info.csv'))
 
 # Produce and save the adjacency matrix
-adj_data <- fcn_adj_matrix(secondary_grid_size = secondary_grid_size)
+adj_data <- fcn_adj_matrix(secondary_grid_size = parameters$secondary_grid_size)
 saveRDS(adj_data, paste0(out_dir, "/adj_data_queen.rds"))
 terra::writeRaster(adj_data$grid_raster_sp, paste0(out_dir, "/grid_raster_secondary.tif"), overwrite = T)
 grid_vec_sp <- terra::as.polygons(adj_data$grid_raster_sp)

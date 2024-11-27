@@ -2170,7 +2170,7 @@ fcn_cov_array_detect <- function (cov_type = "temporal", dates = d, time_lag = N
 }
 
 ### grid fraction ###
-fcn_all_transect_grid_fractions <- function (buffer = c(0), keep_all = FALSE, grid_id_vec = NULL) 
+fcn_all_transect_grid_fractions_detect <- function (buffer = c(0), keep_all = FALSE, grid_id_vec = NULL) 
 {
   fcn_extract_raster_buffer <- function(df, fishnet, buffer = 0) {
     if (buffer > 0) {
@@ -2218,3 +2218,103 @@ fcn_all_transect_grid_fractions <- function (buffer = c(0), keep_all = FALSE, gr
   })
   return(master_grid)
 }
+
+### extract covariates in parallel ###
+# Modify either to maximise RAM or speed (at the risk of running out of memory RAM). If running in sequence, the slowest but safest option, assign use_parallel = F 
+fcn_cov_temporal_array_parallel <- function(prioritise_RAM = TRUE,
+                                            use_parallel = use_parallel,
+                                            dates = dates)
+{
+  fcn_cov_temporal <- function(d){
+    working_data_dir <- paste0(getwd(), "/input")
+    target_dir <- paste0(getwd(), "/input/survey_data")
+    SEQKoalaDataPipeline::fcn_set_home_dir(working_data_dir) # Home directory
+    parameters <- readRDS("code/parameters_data_processing.rds")
+    ## Set db path
+    SEQKoalaDataPipeline::fcn_set_db_path(list(
+      `1996` = 'databases/SEQkoalaData.accdb',
+      `2015` = 'databases/2015-2019 SEQKoalaDatabase DES_20231027.accdb',
+      `2020` = 'databases/KoalaSurveyData2020_cur.accdb',
+      `integrated` = ifelse(parameters$update_database == T,
+                            'databases/Integrated_SEQKoalaDatabase_updated.accdb',
+                            'databases/Integrated_SEQKoalaDatabase.accdb')))
+    # Set gdb path
+    SEQKoalaDataPipeline::fcn_set_gdb_path(list(
+      koala_survey_data = "KoalaSurveyData.gdb",
+      total_db = ifelse(parameters$update_database == T,
+                        "transects_spatial_representation/Integrated_SEQKoalaDatabase_Spatial_updated.shp",
+                        "transects_spatial_representation/Integrated_SEQKoalaDatabase_Spatial.shp"),
+      koala_survey_sites = "survey_sites/KoalaSurveySites_231108.shp"))
+    # Grid size (in meters) - default 500m
+    SEQKoalaDataPipeline::fcn_set_grid_size(grid_size = parameters$primary_grid_size)
+    # Set line transect buffer width in meters (if generating transects using start and end coordinate information)
+    SEQKoalaDataPipeline::fcn_set_line_transect_buffer(parameters$line_transect_buffer)
+    # Set covariate impute buffer distance (within the data pipeline)
+    SEQKoalaDataPipeline::fcn_set_cov_impute_buffer(parameters$cov_impute_buffer)
+    # Set study area buffer
+    SEQKoalaDataPipeline::fcn_set_study_area_buffer(parameters$area_buffer)
+    SEQKoalaDataPipeline::fcn_set_raster_path(list(covariates = 'covariates/output'))
+    fcn_cov_array_detect('temporal', d, write_path = paste0(out_dir, "/cov_raster"))
+  }
+  
+  
+  if (!require("furrr")) install.packages('furrr')
+  
+  if (use_parallel & prioritise_RAM) {
+    # Run in groups to minimise RAM usage
+    # From empirical tests on a laptop (12th Gen IntelR CoreTM i7-1260P, with 16 logical processors, 12 cores, and 16GB RAM),
+    #   the maximum numbers of workers to use without running out of memory is 5
+    library(furrr)
+    n.groups <-
+      ceiling(length(dates) / 5) # Set the maximal number of cores to use
+    dates.groups <- split(dates,
+                          rep(1:n.groups,
+                              each = 5, # distribute dates into groups of similar length
+                              length.out = length(dates)))
+    
+    
+    # Loop over the group of dates
+    # Around 2hs to run
+    start <- Sys.time()
+    for (i in 1:length(dates.groups)) {
+      cat("###### GROUP ", i, " ######")
+      plan("multisession", workers = length(dates.groups[[i]])) # if possible, minimise the number of cores without slowing down processing
+      future_map(dates.groups[[i]], fcn_cov_temporal)
+      plan("sequential")
+      gc()
+    }
+    print(Sys.time() - start)
+    
+  } else if (use_parallel & !prioritise_RAM) {
+    # Run in groups to prioritise speed while trying to minimise RAM usage. Note that it might still run out memory
+    library(furrr)
+    n.groups <-
+      ceiling(length(dates) / (as.numeric(availableCores()) - 2)) # Set the maximal number of cores to use (leave a few for system tasks)
+    dates.groups <- split(dates,
+                          rep(
+                            1:n.groups,
+                            each = floor(length(dates) / n.groups),
+                            # distribute dates into groups of similar length
+                            length.out = length(dates)
+                          ))
+    
+    
+    # Loop over the group of dates
+    start <- Sys.time()
+    for (i in 1:length(dates.groups)) {
+      cat("###### GROUP ", i, " ######")
+      plan("multisession", workers = length(dates.groups[[i]])) # if possible, minimise the number of cores without slowing down processing
+      future_map(dates.groups[[i]], fcn_cov_temporal)
+      plan("sequential")
+      gc()
+    }
+    print(Sys.time() - start)
+    
+  } else {
+    # Run sequentially (i.e., no parallelisation)
+    message("#### Running tasks in sequence, not in parallel ####")
+    start <- Sys.time()
+    map(dates, fcn_cov_temporal)
+    print(Sys.time() - start)
+  }
+} 

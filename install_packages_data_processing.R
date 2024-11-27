@@ -17,7 +17,8 @@ required.packages <- c(
   "nimble",
   "devtools",
   "readr",
-  "rstudioapi"
+  "rstudioapi",
+"furrr"
 )
 
 new.packages <- required.packages[!(required.packages %in% installed.packages()[,"Package"])]

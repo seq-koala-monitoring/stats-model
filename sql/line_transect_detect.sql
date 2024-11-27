@@ -1,0 +1,5 @@
+SELECT SOL_Compiled.Transect_ID AS TransectID, First(SOL_Compiled.Site_ID) AS SiteID, First(CStr(SOL_Compiled.Date)) AS [Date], Val(Left([Transect_ID],(InStr(1,[Transect_ID],'.')-1))) AS TrSiteID, First(SOL_Compiled.T_Length) AS Tlength, First(SOL_Compiled.Number_Sightings) AS Number_Sightings, IIf(Max(SOL_Compiled.Number_Observers) Is Null,1,Max(SOL_Compiled.Number_Observers)) AS Number_Observers, First(SOL_Compiled.Start_Eastings) AS Start_Eastings, First(SOL_Compiled.Start_Northings) AS Start_Northings, First(SOL_Compiled.End_Eastings) AS End_Eastings, First(SOL_Compiled.End_Northings) AS End_Northings, Max(SOL_Compiled.Weather) AS Weather, Max(SOL_Compiled.Cloud_Cover) AS Cloud_Cover, Max(SOL_Compiled.Wind) AS Wind, Max(SOL_Compiled.Canopy_Cover) AS Canopy_Cover, Max(SOL_Compiled.Subcanopy_Cover) AS Subcanopy_Cover, First(SOL_Compiled.Start_Time) AS Start_Time, First(SOL_Compiled.Observer_ID) AS ObserverID
+FROM SOL_Compiled
+WHERE SOL_Compiled.Method='SOL' OR SOL_Compiled.Method='DOL'
+GROUP BY SOL_Compiled.Transect_ID;
+
