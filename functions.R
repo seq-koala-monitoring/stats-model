@@ -2285,7 +2285,9 @@ fcn_cov_temporal_array_parallel <- function(prioritise_RAM = TRUE,
     }
     print(Sys.time() - start)
     
-  } else if (use_parallel & !prioritise_RAM) {
+  } 
+  
+  if (use_parallel & !prioritise_RAM) {
     # Run in groups to prioritise speed while trying to minimise RAM usage. Note that it might still run out memory
     library(furrr)
     n.groups <-
@@ -2310,11 +2312,13 @@ fcn_cov_temporal_array_parallel <- function(prioritise_RAM = TRUE,
     }
     print(Sys.time() - start)
     
-  } else {
+  } 
+  
+  if (!use_parallel) {
     # Run sequentially (i.e., no parallelisation)
     message("#### Running tasks in sequence, not in parallel ####")
     start <- Sys.time()
     map(dates, fcn_cov_temporal)
     print(Sys.time() - start)
   }
-} 
+}
