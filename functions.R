@@ -2223,7 +2223,7 @@ fcn_all_transect_grid_fractions_detect <- function (buffer = c(0), keep_all = FA
 # Modify either to maximise RAM or speed (at the risk of running out of memory RAM). If running in sequence, the slowest but safest option, assign use_parallel = F 
 fcn_cov_temporal_array_parallel <- function(prioritise_RAM = TRUE,
                                             use.parallel = use_parallel,
-                                            dates = dates)
+                                            date_intervals = dates)
 {
   fcn_cov_temporal <- function(d){
     working_data_dir <- paste0(getwd(), "/input")
@@ -2266,11 +2266,11 @@ fcn_cov_temporal_array_parallel <- function(prioritise_RAM = TRUE,
     #   the maximum numbers of workers to use without running out of memory is 5
     library(furrr)
     n.groups <-
-      ceiling(length(dates) / 5) # Set the maximal number of cores to use
-    dates.groups <- split(dates,
+      ceiling(length(date_intervals) / 5) # Set the maximal number of cores to use
+    dates.groups <- split(date_intervals,
                           rep(1:n.groups,
                               each = 5, # distribute dates into groups of similar length
-                              length.out = length(dates)))
+                              length.out = length(date_intervals)))
     
     
     # Loop over the group of dates
@@ -2291,13 +2291,13 @@ fcn_cov_temporal_array_parallel <- function(prioritise_RAM = TRUE,
     # Run in groups to prioritise speed while trying to minimise RAM usage. Note that it might still run out memory
     library(furrr)
     n.groups <-
-      ceiling(length(dates) / (as.numeric(availableCores()) - 2)) # Set the maximal number of cores to use (leave a few for system tasks)
-    dates.groups <- split(dates,
+      ceiling(length(date_intervals) / (as.numeric(availableCores()) - 2)) # Set the maximal number of cores to use (leave a few for system tasks)
+    dates.groups <- split(date_intervals,
                           rep(
                             1:n.groups,
-                            each = floor(length(dates) / n.groups),
+                            each = floor(length(date_intervals) / n.groups),
                             # distribute dates into groups of similar length
-                            length.out = length(dates)
+                            length.out = length(date_intervals)
                           ))
     
     
@@ -2318,7 +2318,7 @@ fcn_cov_temporal_array_parallel <- function(prioritise_RAM = TRUE,
     # Run sequentially (i.e., no parallelisation)
     message("#### Running tasks in sequence, not in parallel ####")
     start <- Sys.time()
-    map(dates, fcn_cov_temporal)
+    map(date_intervals, fcn_cov_temporal)
     print(Sys.time() - start)
   }
 }
