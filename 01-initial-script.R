@@ -29,7 +29,7 @@
 # that estimates densities of koalas across South East Queensland. 
 #
 # To get started, run the line below by pressing Ctrl + Enter on a Windows PC or Command + Return on a Mac.
-{source("code/initial_setup.R")
+{source("code/download_code_github.R")
   
   source("code/fcn_set_parameters.R")
   fcn_set_parameters() # If you want to change any default settings, add the parameter names and their new values inside the brackets. If you're changing more than one, separate them with commas.
