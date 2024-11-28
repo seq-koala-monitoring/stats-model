@@ -9,10 +9,11 @@
 # If it doesn't, the code will automatically download, process, and save the most recent file
 # the correct location.
 #
-# Before anything, start fresh by clicking Session > Terminate R... > Yes in the pop-up (do not save anything if asked)
+# Before anything, start fresh by clicking Session > Restart R... > Yes in the pop-up (do not save anything if asked)
 #
 # To get started, please, select all lines by pressing Ctrl + A on a Windows PC or Command + A on a MAc. 
 # Then, run these lines by pressing Ctrl + Enter on a Windows PC or Command + Return on a Mac.
+# Alternatively, click on the Source button near the top right corner of this script
 #
 # When you see "THIS CODE HAS FINISHED" in the Console panel (usually at the bottom left),
 # you're ready to the modelling stage. You will be automatically redirected to a new tab 
@@ -24,6 +25,12 @@
 
 
 # -------------------------------------------------------------------
+# Clean global environment
+rm(list=ls())
+try(dev.off(dev.list()["RStudioGD"]), silent=TRUE)
+gc()
+
+
 # install packages if required
 source("code/install_packages_covariates.R")
 
@@ -510,6 +517,7 @@ for (i in 1:length(FeatureClasses$name)) {
 
 # download data - UPDATE URLs when necessary - search for "national forest and sparse woody vegetation data" to find the latest version of the data (currently version 7 - 1988 to 2022)
 # download northern woody cover tile time series
+if (!file.exists("input/covariates/raw_data/woody_cover/sg56_woody_8822.zip") & !file.exists("input/covariates/raw_data/woody_cover/sh56_woody_8822.zip")) {
 download.file("https://data.gov.au/data/dataset/48900c21-c5e2-499a-86f0-20b1b82275e2/resource/f0c169a3-afce-413c-be9e-3c27f9825a85/download/sg56_woody_8822.zip", "input/covariates/raw_data/woody_cover/sg56_woody_8822.zip", mode = "wb")
 unzip("input/covariates/raw_data/woody_cover/sg56_woody_8822.zip", exdir = "input/covariates/raw_data/woody_cover/sg56/", junkpaths = TRUE)
 # download southern woody cover tile time series
@@ -541,6 +549,7 @@ for (i in 1:length(SGTiffFiles$value)) {
 
       # save
       writeRaster(Woody, paste0("input/covariates/output/hhfwc", Year, "06.tif"), overwrite = TRUE)
+     }
     }
   }
 }
@@ -578,7 +587,6 @@ if (!file.exists("input/covariates/output/hhunf.tif")) {
   # save
   writeRaster(UDRast, "input/covariates/output/hhunf.tif", overwrite = TRUE)
 }
-
 
 {cat("\n","\n",
     "################################################################",
