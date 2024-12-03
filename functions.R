@@ -1662,6 +1662,8 @@ fcn_all_tables_detect <- function(db_name = "integrated",
                     Date = as.Date(Date, format = "%d/%m/%Y"),
                     # extract day of the year
                     DayYear = lubridate::yday(Date),
+                    # extract month
+                    Month = lubridate::month(Date),
                     # extract time of the day
                     TimeDay = lubridate::hour(
                       lubridate::round_date(
