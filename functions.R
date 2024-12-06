@@ -987,8 +987,17 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
   
   # look for the database (db) within the working directory
   path <- list.files(pattern = db, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
-  if (length(path) > 1) {
-    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date koala survey database in this working directory. Databases found in: %s", db))} # close {} of error message
+  if (length(path) == 0) {
+    stop(sprintf("No % s file found. Please, make sure you have a file named % s in this working directory",
+                 db, db))} # close {} of error message
+  if(length(path) > 1){
+    message("Multiple files found:")
+    for (i in seq_along(path)) {
+      cat(i, ":", path[i], "\n")}
+    choice <- as.integer(readline("Enter the number corresponding to the file you want to use: "))
+    if (is.na(choice) || choice < 1 || choice > length(path)) {
+      stop("Invalid selection. Process terminated. Please, rerun this function and choose one of the provided options.")}
+    path <- path[choice]}
   
   # create the db path for the odbc connection
   db_path <- paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};",
@@ -1088,8 +1097,17 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
   # standardise Site ID
   # look for a file with the spatial representation of survey sites within the working directory
   path <- list.files(pattern = survey_sites, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
-  if (length(path) > 1) {
-    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date spatial representation of survey sites in this working directory.", survey_sites))} # close {} of error message
+  if (length(path) == 0) {
+    stop(sprintf("No % s file found. Please, make sure you have a file named % s in this working directory",
+                 survey_sites, survey_sites))} # close {} of error message
+  if(length(path) > 1){
+    message("Multiple files found:")
+    for (i in seq_along(path)) {
+      cat(i, ":", path[i], "\n")}
+    choice <- as.integer(readline("Enter the number corresponding to the file you want to use: "))
+    if (is.na(choice) || choice < 1 || choice > length(path)) {
+      stop("Invalid selection. Process terminated. Please, rerun this function and choose one of the provided options.")}
+    path <- path[choice]}
   
   surveys <- sf::st_read(path) 
   sf::st_crs(surveys) <- "EPSG:7856"
@@ -1249,8 +1267,17 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
   # look for the most up-to-date spatial representation of transects within the working directory
   if(update.spatial){
     path <- list.files(pattern = spatial_transects, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
-    if (length(path) > 1) {
-      stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date spatial representation of transects in this working directory", spatial_transects))} # close {} of error message
+    if (length(path) == 0) {
+      stop(sprintf("No % s file found. Please, make sure you have a file named % s in this working directory",
+                   spatial_transects, spatial_transects))} # close {} of error message
+    if(length(path) > 1){
+      message("Multiple files found:")
+      for (i in seq_along(path)) {
+        cat(i, ":", path[i], "\n")}
+      choice <- as.integer(readline("Enter the number corresponding to the file you want to use: "))
+      if (is.na(choice) || choice < 1 || choice > length(path)) {
+        stop("Invalid selection. Process terminated. Please, rerun this function and choose one of the provided options.")}
+      path <- path[choice]}
     
     transects.sf <- sf::st_read(path) |> 
       dplyr::filter(!Source %in% gsub(".accdb", "", db)) 
@@ -1313,8 +1340,17 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
   #-----------------------------------------------------------
   # Survey site information and monitoring unit
   path <- list.files(pattern = site.info, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
-  if (length(path) > 1) {
-    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date information about survey site habitat in this working directory", site.info))} # close {} of error message
+  if (length(path) == 0) {
+    stop(sprintf("No % s file found. Please, make sure you have a file named % s in this working directory",
+                 site.info, site.info))} # close {} of error message
+  if(length(path) > 1){
+    message("Multiple files found:")
+    for (i in seq_along(path)) {
+      cat(i, ":", path[i], "\n")}
+    choice <- as.integer(readline("Enter the number corresponding to the file you want to use: "))
+    if (is.na(choice) || choice < 1 || choice > length(path)) {
+      stop("Invalid selection. Process terminated. Please, rerun this function and choose one of the provided options.")}
+    path <- path[choice]}
   
   # Load file with habitat information
   info <- read.csv(path)
@@ -1338,8 +1374,17 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
   path <- list.files(pattern = monitoring.units, recursive = T, ignore.case = T, full.names = F, include.dirs = T) 
   path <- path[(substring(path, nchar(path) - 3 + 1) == "shp")]
   
-  if (length(path) > 1) {
-    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date information about survey site habitat in this working directory", monitoring.units))} # close {} of error message
+  if (length(path) == 0) {
+    stop(sprintf("No % s file found. Please, make sure you have a file named % s in this working directory",
+                 monitoring.units, monitoring.units))} # close {} of error message
+  if(length(path) > 1){
+    message("Multiple files found:")
+    for (i in seq_along(path)) {
+      cat(i, ":", path[i], "\n")}
+    choice <- as.integer(readline("Enter the number corresponding to the file you want to use: "))
+    if (is.na(choice) || choice < 1 || choice > length(path)) {
+      stop("Invalid selection. Process terminated. Please, rerun this function and choose one of the provided options.")}
+    path <- path[choice]}
   
   units <- sf::st_read(path)
   sf::st_crs(units) <- 7856
