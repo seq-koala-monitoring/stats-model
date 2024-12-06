@@ -1601,8 +1601,8 @@ fcn_all_tables_detect <- function(db_name = "integrated",
                                   script_name = c("line_transect_detect",
                                                   "strip_transect_detect", 
                                                   "uaoa_detect",
-                                                  "perp_distance_detect",
-                                                  "names_to_code"),
+                                                  "perp_distance_detect"),
+                                  observers_file = "group_observers_lookup.csv",
                                   columns = c("Weather",
                                               "Wind",
                                               "Cloud_Cover",
@@ -1644,6 +1644,37 @@ fcn_all_tables_detect <- function(db_name = "integrated",
     fcn_db_disconnect(conn)
   }
   
+  # read lookup for obervers
+  max.year <- lapply(table[which(names(table) %in% c("line_transect", "strip_transect", "uaoa"))], function(df){
+    df <- df |> 
+      mutate(Date = as.Date(Date, format = "%d/%m/%Y"),
+             Year = lubridate::year(Date)) |>
+      pull(Year) |> 
+      max()
+  }) |> unlist()
+  if(max(max.year, na.rm = T) > 2023){
+    warning(sprintf("Please, update the % s file to include groups of observers from 2024 onward. Otherwise, they will be recorded as missing data.", observers_file))}
+  
+  path <- list.files(pattern = observers_file, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
+  if (length(path) == 0) {
+    stop(sprintf("No % s file found. Please, make sure you have a file named % s in this working directory",
+        observers_file, observers_file))} # close {} of error message
+  if(length(path) > 1){
+    message("Multiple files found:")
+    for (i in seq_along(path)) {
+      cat(i, ":", path[i], "\n")}
+    choice <- as.integer(readline("Enter the number corresponding to the file you want to use: "))
+    if (is.na(choice) || choice < 1 || choice > length(path)) {
+      stop("Invalid selection. Process terminated. Please, rerun this function and choose one of the provided options.")}
+    path <- path[choice]}
+  
+   # generate a random sequence for groups of observers to preserve privacy
+    set.seed(123)
+    obs <- data.table::fread(path)[, ":="(start_date = as.POSIXct(start_date, format = "%d/%m/%Y"),
+                                          end_date = as.POSIXct(end_date, format = "%d/%m/%Y"),
+                                          ObserverGroup = sample(nrow(obs), replace = F))]
+    data.table::setkey(obs, start_date, end_date)
+
   # Process tables to include variables for koala detectability
   tables <- lapply(table[which(names(table) %in% c("line_transect", "strip_transect", "uaoa"))], function(df){
     
@@ -1674,29 +1705,7 @@ fcn_all_tables_detect <- function(db_name = "integrated",
       ) |> 
       dplyr::select(-Start_Time) |> 
       # add TimePeriodID
-      SEQKoalaDataPipeline::fcn_add_date_interval() |> 
-      # add Observer_ID (i.e., group of observers) code to surveys between 1996 and 2019. Information provided by DESI via document Grouped Observers.docx
-      dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) < 1998 ~ "GR66",
-                                                     lubridate::year(Date) >= 1999 & lubridate::year(Date) <= 2003 ~ "GR67",
-                                                     lubridate::year(Date) >= 2004 & lubridate::year(Date) < 2010 ~ "GR68",
-                                                     lubridate::year(Date) >= 2010 & Date <= as.Date("2012-03-31") ~ "GR69",
-                                                     Date >= as.Date("2012-04-01") & Date <= as.Date("2012-06-30") ~ "GR70",
-                                                     Date >= as.Date("2012-07-01") & lubridate::year(Date) < 2015 ~ "GR71",
-                                                     lubridate::year(Date) >= 2015 & lubridate::year(Date) < 2017 ~ "GR72",
-                                                     lubridate::year(Date) == 2017 ~ "GR73",
-                                                     lubridate::year(Date) >= 2018 & Date <= as.Date("2019-05-31") ~ "GR74",
-                                                     Date >= as.Date("2019-06-01") & lubridate::year(Date) <= 2020 ~ "GR75"))
-    
-    # add ObserverGroup to survey data from 2020 onwards
-    if("ObserverID" %in% names(df2)){
-      df2 <- df2 |> 
-        dplyr::left_join(table[["names_to_code"]], dplyr::join_by(ObserverID == Initials)) |> 
-        dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverID), ObserverGroup, paste0("GR", Code))) |> 
-        dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverGroup), paste0("GR", readr::parse_integer(ObserverID)), ObserverGroup)) |>
-        # this line needs update unless the Names_to_Code table in Acess is up-to-date
-        dplyr::mutate(ObserverGroup = ifelse(ObserverID %in% "BK", "GR76", ObserverGroup)) |>
-        dplyr::select(-Code, -ObserverID)
-    }
+      SEQKoalaDataPipeline::fcn_add_date_interval() 
     
     # standardize values to DESI's metadata
     if("Cloud_Cover" %in% names(df2)){
@@ -1739,6 +1748,21 @@ fcn_all_tables_detect <- function(db_name = "integrated",
     }
     return(df2)
   }) # Close the lapply function
+  
+  # add group of observers
+  tables <- lapply(tables, function(dt){
+    dt <- data.table::as.data.table(dt)[, ":="(start_date = as.POSIXct(Date),
+                                               end_date = as.POSIXct(Date))]
+    dt <- suppressWarnings({ 
+      data.table::foverlaps(dt, obs, by.x = c("start_date", "end_date"), type = "within") |> 
+        tidytable::select(-start_date, -start_date, -i.start_date, -i.end_date, -group_observers, -end_date) |> 
+        tidytable::relocate(ObserverGroup, .before = Weather) |> 
+        as.data.frame()
+      })
+        if("ObserverID" %in% names(dt)){
+        dt <- dt |> dplyr::select(-ObserverID)
+        return(dt)} else {return(dt)}
+    })
   
   # process perpedincular distances
   table[["perp_distance"]] <- table[["perp_distance"]] |> 
@@ -2172,7 +2196,7 @@ fcn_cov_array_detect <- function (cov_type = "temporal", dates = d, time_lag = N
 }
 
 ### grid fraction ###
-fcn_all_transect_grid_fractions_detect <- function (buffer = c(0), keep_all = FALSE, grid_id_vec = NULL) 
+fcn_all_transect_grid_fractions <- function (buffer = c(0), keep_all = FALSE, grid_id_vec = NULL) 
 {
   fcn_extract_raster_buffer <- function(df, fishnet, buffer = 0) {
     if (buffer > 0) {
@@ -2219,108 +2243,4 @@ fcn_all_transect_grid_fractions_detect <- function (buffer = c(0), keep_all = FA
     return(res)
   })
   return(master_grid)
-}
-
-### extract covariates in parallel ###
-# Modify either to maximise RAM or speed (at the risk of running out of memory RAM). If running in sequence, the slowest but safest option, assign use_parallel = F 
-fcn_cov_temporal_array_parallel <- function(prioritise_RAM = TRUE,
-                                            use.parallel = use_parallel,
-                                            date_intervals = dates)
-{
-  fcn_cov_temporal <- function(d){
-    working_data_dir <- paste0(getwd(), "/input")
-    target_dir <- paste0(getwd(), "/input/survey_data")
-    SEQKoalaDataPipeline::fcn_set_home_dir(working_data_dir) # Home directory
-    parameters <- readRDS("code/parameters_data_processing.rds")
-    ## Set db path
-    SEQKoalaDataPipeline::fcn_set_db_path(list(
-      `1996` = 'databases/SEQkoalaData.accdb',
-      `2015` = 'databases/2015-2019 SEQKoalaDatabase DES_20231027.accdb',
-      `2020` = 'databases/KoalaSurveyData2020_cur.accdb',
-      `integrated` = ifelse(parameters$update_database == T,
-                            'databases/Integrated_SEQKoalaDatabase_updated.accdb',
-                            'databases/Integrated_SEQKoalaDatabase.accdb')))
-    # Set gdb path
-    SEQKoalaDataPipeline::fcn_set_gdb_path(list(
-      koala_survey_data = "KoalaSurveyData.gdb",
-      total_db = ifelse(parameters$update_database == T,
-                        "transects_spatial_representation/Integrated_SEQKoalaDatabase_Spatial_updated.shp",
-                        "transects_spatial_representation/Integrated_SEQKoalaDatabase_Spatial.shp"),
-      koala_survey_sites = "survey_sites/KoalaSurveySites_231108.shp"))
-    # Grid size (in meters) - default 500m
-    SEQKoalaDataPipeline::fcn_set_grid_size(grid_size = parameters$primary_grid_size)
-    # Set line transect buffer width in meters (if generating transects using start and end coordinate information)
-    SEQKoalaDataPipeline::fcn_set_line_transect_buffer(parameters$line_transect_buffer)
-    # Set covariate impute buffer distance (within the data pipeline)
-    SEQKoalaDataPipeline::fcn_set_cov_impute_buffer(parameters$cov_impute_buffer)
-    # Set study area buffer
-    SEQKoalaDataPipeline::fcn_set_study_area_buffer(parameters$area_buffer)
-    SEQKoalaDataPipeline::fcn_set_raster_path(list(covariates = 'covariates/output'))
-    fcn_cov_array_detect('temporal', d, write_path = paste0(out_dir, "/cov_raster"))
-  }
-  
-  
-  if (!require("furrr")) install.packages('furrr')
-  
-  if (use.parallel & prioritise_RAM) {
-    # Run in groups to minimise RAM usage
-    # From empirical tests on a laptop (12th Gen IntelR CoreTM i7-1260P, with 16 logical processors, 12 cores, and 16GB RAM),
-    #   the maximum numbers of workers to use without running out of memory is 5
-    library(furrr)
-    n.groups <-
-      ceiling(length(date_intervals) / 5) # Set the maximal number of cores to use
-    dates.groups <- split(date_intervals,
-                          rep(1:n.groups,
-                              each = 5, # distribute dates into groups of similar length
-                              length.out = length(date_intervals)))
-    
-    
-    # Loop over the group of dates
-    # Around 2hs to run
-    start <- Sys.time()
-    for (i in 1:length(dates.groups)) {
-      cat("###### GROUP ", i, " ######")
-      plan("multisession", workers = length(dates.groups[[i]])) # if possible, minimise the number of cores without slowing down processing
-      future_map(dates.groups[[i]], fcn_cov_temporal)
-      plan("sequential")
-      gc()
-    }
-    print(Sys.time() - start)
-    
-  } 
-  
-  if (use.parallel & !prioritise_RAM) {
-    # Run in groups to prioritise speed while trying to minimise RAM usage. Note that it might still run out memory
-    library(furrr)
-    n.groups <-
-      ceiling(length(date_intervals) / (as.numeric(availableCores()) - 2)) # Set the maximal number of cores to use (leave a few for system tasks)
-    dates.groups <- split(date_intervals,
-                          rep(
-                            1:n.groups,
-                            each = floor(length(date_intervals) / n.groups),
-                            # distribute dates into groups of similar length
-                            length.out = length(date_intervals)
-                          ))
-    
-    
-    # Loop over the group of dates
-    start <- Sys.time()
-    for (i in 1:length(dates.groups)) {
-      cat("###### GROUP ", i, " ######")
-      plan("multisession", workers = length(dates.groups[[i]])) # if possible, minimise the number of cores without slowing down processing
-      future_map(dates.groups[[i]], fcn_cov_temporal)
-      plan("sequential")
-      gc()
-    }
-    print(Sys.time() - start)
-    
-  } 
-  
-  if (!use.parallel) {
-    # Run sequentially (i.e., no parallelisation)
-    message("#### Running tasks in sequence, not in parallel ####")
-    start <- Sys.time()
-    map(date_intervals, fcn_cov_temporal)
-    print(Sys.time() - start)
-  }
 }
