@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------
-#                 UPDATE AND PROCESS COVARIATES 
+#                 UPDATE AND PROCESS COVARIATES
 # -------------------------------------------------------------------
 
 # This R code updates and processes covariates required for the Bayesian state-space model 
@@ -29,7 +29,6 @@
 rm(list=ls())
 try(dev.off(dev.list()["RStudioGD"]), silent=TRUE)
 gc()
-
 
 # install packages if required
 source("code/install_packages_covariates.R")
@@ -588,8 +587,8 @@ if (!file.exists("input/covariates/output/hhunf.tif")) {
   writeRaster(UDRast, "input/covariates/output/hhunf.tif", overwrite = TRUE)
 }
 
-{cat("\n","\n",
-    "################################################################",
-    "################  THIS CODE HAS FINISHED  ######################",
-    "################################################################", sep = "\n")
-file.edit('code/data_processing.R')}
+#{cat("\n","\n",
+#    "################################################################",
+#    "################  THIS CODE HAS FINISHED  ######################",
+#    "################################################################", sep = "\n")
+#file.edit('code/data_processing.R')}

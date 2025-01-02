@@ -2,8 +2,8 @@
 #                          GETTING STARTED  
 # --------------------------------------------------------------------------------
 
-# The initial function will download the latest code from GitHub (https://github.com/seq-koala-monitoring/stats-model/tree/main) 
-# and configure the working directory to ensure that the analyses run properly. 
+# This initial script will download the latest code from GitHub (https://github.com/seq-koala-monitoring/stats-model/tree/main) 
+# and configure the working directory to ensure that the analyses run properly.
 #
 # You also need to provide APIs - code that allows different software programs to communicate - to download
 # a few soil variables from TERN () and GitHub. Please, follow the steps below:
@@ -11,7 +11,7 @@
 #   2) Create an account
 #
 # We designed this project to give users flexibility to adjust parameters while still achieving reliable results.
-# If you need to modify any spatial parameter from the default, adjust the arguments in the fcn_set_parameters function.
+# If you need to modify any spatial parameter from the default, adjust the arguments in the fcn_set_parameters.R file.
 # The parameters are:
 #   - primary_grid_size: A numeric value representing the spatial dimensions (in metres) of each cell in the analysis and mapping grid. Default: 500
 #   - secondary_grid_size: A numeric value that multiplies the primary grid size to create a coarser grid. Default: 10
@@ -26,17 +26,10 @@
 #
 # Lastly, you will be redirected to a new tab with a file named covariate_processing.R. 
 # This file will gather and prepare all the information needed for the Bayesian state-space model 
-# that estimates densities of koalas across South East Queensland. 
+# that estimates densities and trends of koalas across South East Queensland.
 #
-# To get started, run the line below by pressing Ctrl + Enter on a Windows PC or Command + Return on a Mac.
+# To get started, run the code below by pressing Ctrl + Enter on a Windows PC or Command + Return on a Mac.
 {source("code/download_code_github.R")
-  
   source("code/fcn_set_parameters.R")
   fcn_set_parameters() # If you want to change any default settings, add the parameter names and their new values inside the brackets. If you're changing more than one, separate them with commas.
-  
   file.edit('code/covariate_processing.R')}
-
-
-
-
-
