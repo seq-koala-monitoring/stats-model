@@ -587,8 +587,8 @@ if (!file.exists("input/covariates/output/hhunf.tif")) {
   writeRaster(UDRast, "input/covariates/output/hhunf.tif", overwrite = TRUE)
 }
 
-#{cat("\n","\n",
+#cat("\n","\n",
 #    "################################################################",
 #    "################  THIS CODE HAS FINISHED  ######################",
 #    "################################################################", sep = "\n")
-#file.edit('code/data_processing.R')}
+
