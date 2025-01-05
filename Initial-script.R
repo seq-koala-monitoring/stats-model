@@ -6,7 +6,7 @@
 # and configure the working directory to ensure that the analyses run properly.
 #
 # You also need to provide APIs - code that allows different software programs to communicate - to download
-# a few soil variables from TERN () and GitHub. Please, follow the steps below:
+# a few soil variables from TERN. Please, follow the steps below:
 #   1) Navigate to https://geonetwork.tern.org.au/geonetwork/srv/eng/new.account
 #   2) Create an account
 #
@@ -24,9 +24,9 @@
 #   Example 1) fcn_set_parameters(primary_grid_size = 250) modifies the primary grid size from 500m to 250m
 #   Example 2) fcn_set_parameters(primary_grid_size = 250, monitoring_units = "new_monit_units.shp") modifies the primary grid size from 500m to 250m AND the shapefile containing the boundaries of monitoring units
 #
-# Lastly, you will be redirected to a new tab with a file named covariate_processing.R. 
-# This file will gather and prepare all the information needed for the Bayesian state-space model 
-# that estimates densities and trends of koalas across South East Queensland.
+# Lastly, you will need to open the file named covariate_processing.R located within the code folder. 
+# This script will gather and prepare all the information needed for the Bayesian state-space model 
+# that estimates densities and trends of koalas across South East Queensland. For this, click File > Open file... > Open
 #
 # To get started, run the code below by pressing Ctrl + Enter on a Windows PC or Command + Return on a Mac.
 {source("code/download_code_github.R")
