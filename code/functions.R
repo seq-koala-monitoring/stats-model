@@ -1717,7 +1717,7 @@ fcn_all_tables_detect <- function(db_name = "integrated",
     set.seed(123)
     obs <- data.table::fread(path)[, ":="(start_date = as.POSIXct(start_date, format = "%d/%m/%Y"),
                                           end_date = as.POSIXct(end_date, format = "%d/%m/%Y"),
-                                          ObserverGroup = sample(nrow(obs), replace = F))]
+                                          ObserverGroup = sample(nrow(.SD), replace = F))]
     data.table::setkey(obs, start_date, end_date)
 
   # Process tables to include variables for koala detectability
