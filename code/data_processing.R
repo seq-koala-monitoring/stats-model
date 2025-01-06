@@ -16,8 +16,8 @@
 # Then, run these lines by pressing Ctrl + Enter on a Windows PC or Command + Return on a Mac.
 #
 # When you see "THIS CODE HAS FINISHED" in the Console panel (usually at the bottom left),
-# you're ready to the modelling stage. You will be automatically redirected to a new tab 
-# with a file named model_runs.R. This file will the Bayesian state-space models
+# you're ready to the modelling runs. Go to File > Open file... > locate the file named model_runs.R > Open.
+# This file will run the Bayesian state-space models.
 #
 # PS: 1) Disregard any warnings on the task bar about packages that are not installed 
 #     2) This code may take anywhere from a few minutes to days to run, 
@@ -47,13 +47,13 @@ library(rstudioapi)
 source("code/functions.R")
 
 # Load parameters
-parameters <- readRDS("code/parameters_data_processing.rds")
+source("code/set_parameters.R")
 
 # Update database? (default = TRUE)
 # This function integrates new survey data into the modelling database by performing data integrity checks, matching the Site_ID with the spatial locations of survey sites, assigning a monitoring unit (i.e., "genetic" population), estimating missing perpendicular distances, and formatting the data to meet modelling requirements. Optionally, the function can also incorporate the spatial representation of the new surveys into the existing spatial file containing all koala surveys (default is TRUE).
-parameters$update_database <- TRUE # change if not
+update_database <- TRUE # change if not
 
-if(parameters$update_database) {
+if(update_database) {
   fcn_update_db()
 }
 
@@ -75,7 +75,7 @@ fcn_set_db_path(list(
   `1996` = 'databases/SEQkoalaData.accdb',
   `2015` = 'databases/2015-2019 SEQKoalaDatabase DES_20231027.accdb',
   `2020` = 'databases/KoalaSurveyData2020_cur.accdb',
-  `integrated` = ifelse(parameters$update_database == T,
+  `integrated` = ifelse(update_database == T,
                         'databases/Integrated_SEQKoalaDatabase_updated.accdb',
                         'databases/Integrated_SEQKoalaDatabase.accdb')
 ))
@@ -83,23 +83,23 @@ fcn_set_db_path(list(
 # Set gdb path
 fcn_set_gdb_path(list(
   koala_survey_data = "KoalaSurveyData.gdb",
-  total_db = ifelse(parameters$update_database == T,
+  total_db = ifelse(update_database == T,
                     "transects_spatial_representation/Integrated_SEQKoalaDatabase_Spatial_updated.shp",
                     "transects_spatial_representation/Integrated_SEQKoalaDatabase_Spatial.shp"),
   koala_survey_sites = "survey_sites/KoalaSurveySites_231108.shp"
 ))
 
 # Grid size (in meters) - default 500m
-fcn_set_grid_size(grid_size = parameters$primary_grid_size)
+fcn_set_grid_size(grid_size = primary_grid_size)
 
 # Set line transect buffer width in meters (if generating transects using start and end coordinate information)
-fcn_set_line_transect_buffer(parameters$line_transect_buffer)
+fcn_set_line_transect_buffer(line_transect_buffer)
 
 # Set covariate impute buffer distance (within the data pipeline)
-fcn_set_cov_impute_buffer(parameters$cov_impute_buffer)
+fcn_set_cov_impute_buffer(cov_impute_buffer)
 
 # Set study area buffer
-fcn_set_study_area_buffer(parameters$area_buffer)
+fcn_set_study_area_buffer(area_buffer)
 
 # If it is incorrect, specify the correct path
 use_imputation <- FALSE
@@ -121,9 +121,6 @@ run_cov_extraction <- TRUE
 
 # Check whether the directory for where covariates are stored is correct
 print(fcn_get_raster_path()$covariates)
-
-# Set genetic population feature class file (relative to working directory)
-gen_pop_file_path <- parameters$gen_pop_file_path
 
 # Write to grid
 grid_raster <- fcn_get_grid()
@@ -198,7 +195,7 @@ cov_layer_df <- fcn_covariate_layer_df_detect()
 write.csv(cov_layer_df[,1:5], paste0(out_dir, '/covariate_info.csv'))
 
 # Produce and save the adjacency matrix
-adj_data <- fcn_adj_matrix(secondary_grid_size = parameters$secondary_grid_size)
+adj_data <- fcn_adj_matrix(secondary_grid_size = secondary_grid_size)
 saveRDS(adj_data, paste0(out_dir, "/adj_data_queen.rds"))
 terra::writeRaster(adj_data$grid_raster_sp, paste0(out_dir, "/grid_raster_secondary.tif"), overwrite = T)
 grid_vec_sp <- terra::as.polygons(adj_data$grid_raster_sp)
@@ -208,7 +205,7 @@ saveRDS(adj_data, paste0(out_dir, "/adj_data_rook.rds"))
 
 # Write lookup table of GridID to genetic populations
 gen_pop_file <- sf::st_read(gen_pop_file_path)
-gen_pop_lookup <- fcn_grid_intersect_feature(gen_pop_file, field = parameters$gen_pop_column_id)
+gen_pop_lookup <- fcn_grid_intersect_feature(gen_pop_file, field = gen_pop_column_id)
 saveRDS(gen_pop_lookup, paste0(out_dir, "/gen_pop_lookup.rds"))
 
 # End
@@ -356,3 +353,4 @@ cat("\n","\n",
      "################  THIS CODE HAS FINISHED  ######################",
      "################################################################", sep = "\n")
 
+# You can now close this script by clicking the X next to its name in the script tab.

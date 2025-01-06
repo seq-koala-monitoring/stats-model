@@ -16,8 +16,8 @@
 # Alternatively, click on the Source button near the top right corner of this script
 #
 # When you see "THIS CODE HAS FINISHED" in the Console panel (usually at the bottom left),
-# you're ready to the modelling stage. You will be automatically redirected to a new tab 
-# with a file named data_processing.R. This file prepare all the data for the Bayesian state-space model
+# you're ready to the modelling stage. Go to File > Open file... > locate the file named data_processing.R > Open.
+# This file prepares all the data for the Bayesian state-space model
 #
 # PS: 1) Disregard any warnings on the task bar about packages that are not installed 
 #     2) This code may take anywhere from a few minutes to days to run, 
@@ -592,3 +592,4 @@ if (!file.exists("input/covariates/output/hhunf.tif")) {
 #    "################  THIS CODE HAS FINISHED  ######################",
 #    "################################################################", sep = "\n")
 
+# You can now close this script by clicking the X next to its name in the script tab.
