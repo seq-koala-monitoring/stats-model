@@ -1646,8 +1646,8 @@ fcn_all_tables_detect <- function(db_name = "integrated",
                                   script_name = c("line_transect_detect",
                                                   "strip_transect_detect", 
                                                   "uaoa_detect",
-                                                  "perp_distance_detect"),
-                                  observers_file = "group_observers_lookup.csv",
+                                                  "perp_distance_detect",
+                                                  "names_to_code"),
                                   columns = c("Weather",
                                               "Wind",
                                               "Cloud_Cover",
@@ -1680,6 +1680,11 @@ fcn_all_tables_detect <- function(db_name = "integrated",
   # change column names of "perp_distance" to avoid issues with the "Date" column 
   colnames(table[["perp_distance"]]) <- c("TransectID", "SightingID", "Perp_Dist", "Date")
   
+  # change table names_to_code to allow the inclusion of group of observers from the historical data
+  code.change <- table[["names_to_code"]] |> 
+    mutate(Code = Code + 2)
+  table[["names_to_code"]] <- code.change
+  
   # close ODBC connection
   if (is.character(table)) {
     fcn_db_disconnect(conn)
@@ -1698,28 +1703,8 @@ fcn_all_tables_detect <- function(db_name = "integrated",
       max()
   }) |> unlist()
   if(max(max.year, na.rm = T) > 2023){
-    warning(sprintf("Please, update the % s file to include groups of observers from 2024 onward. Otherwise, they will be recorded as missing data.", observers_file))}
+    warning("Please, update the Names_to_code table in the Access database to include observers from 2024 onwards. Otherwise, they will be recorded as missing data (represented as GRNA).")}
   
-  path <- list.files(pattern = observers_file, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
-  if (length(path) == 0) {
-    stop(sprintf("No % s file found. Please, make sure you have a file named % s in this working directory",
-        observers_file, observers_file))} # close {} of error message
-  if(length(path) > 1){
-    message("Multiple files found:")
-    for (i in seq_along(path)) {
-      cat(i, ":", path[i], "\n")}
-    choice <- as.integer(readline("Enter the number corresponding to the file you want to use: "))
-    if (is.na(choice) || choice < 1 || choice > length(path)) {
-      stop("Invalid selection. Process terminated. Please, rerun this function and choose one of the provided options.")}
-    path <- path[choice]}
-  
-   # generate a random sequence for groups of observers to preserve privacy
-    set.seed(123)
-    obs <- data.table::fread(path)[, ":="(start_date = as.POSIXct(start_date, format = "%d/%m/%Y"),
-                                          end_date = as.POSIXct(end_date, format = "%d/%m/%Y"),
-                                          ObserverGroup = sample(nrow(.SD), replace = F))]
-    data.table::setkey(obs, start_date, end_date)
-
   # Process tables to include variables for koala detectability
   tables <- lapply(table[which(names(table) %in% c("line_transect", "strip_transect", "uaoa"))], function(df){
     
@@ -1794,20 +1779,43 @@ fcn_all_tables_detect <- function(db_name = "integrated",
     return(df2)
   }) # Close the lapply function
   
-  # add group of observers
-  tables <- lapply(tables, function(dt){
-    dt <- data.table::as.data.table(dt)[, ":="(start_date = as.POSIXct(Date),
-                                               end_date = as.POSIXct(Date))]
-    dt <- suppressWarnings({ 
-      data.table::foverlaps(dt, obs, by.x = c("start_date", "end_date"), type = "within") |> 
-        tidytable::select(-start_date, -start_date, -i.start_date, -i.end_date, -group_observers, -end_date) |> 
-        tidytable::relocate(ObserverGroup, .before = Weather) |> 
-        as.data.frame()
-      })
-        if("ObserverID" %in% names(dt)){
-        dt <- dt |> dplyr::select(-ObserverID)
-        return(dt)} else {return(dt)}
-    })
+  # add Observer_ID (i.e., group of observers) code to surveys between 1996 and 2019. Information provided by DESI via document Grouped Observers.docx and personal communication
+  # we categorised the historical data (from 1996 to 2020) into two groups to reflect DESI's organisational changes in the period. 
+  # the first spans from 1996 to 2013 when started a high turn over of staff. 
+  # the second group ranges from 2014 to 2020, when the department tried different survey methods and the ID of observers was not systematically recorded
+  tables <- lapply(tables, function(df){
+    df3 <- df |> 
+      dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ "GR1",
+                                                     lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ "GR2"))
+    
+    if("ObserverID" %in% names(df3)){
+      df3 <- df3 |> 
+        # add ObserverGroup to survey data from 2021 onwards
+        dplyr::left_join(table[["names_to_code"]], dplyr::join_by(ObserverID == Initials)) |> 
+        dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverID), ObserverGroup, paste0("GR", Code))) |> 
+        dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverGroup), paste0("GR", readr::parse_integer(ObserverID)), ObserverGroup)) |>
+        # this line needs to be updated if the Names_to_Code table in the Access database is not up-to-date
+        dplyr::mutate(ObserverGroup = ifelse(ObserverID %in% "BK", "GR78", ObserverGroup)) |>
+        dplyr::select(-Code, -ObserverID)
+    }
+    return(df3)
+  })
+  
+  # randomise to remove the temporal order presentent in the code assigned for groups of observers
+  set.seed(123)
+  # lookup table
+  obs <- purrr::map(tables, function(df){obs <- df |> dplyr::select(ObserverGroup)}) |> dplyr::bind_rows()
+  obs <- data.frame(init = unique(obs$ObserverGroup),
+                    new = sample(unique(obs$ObserverGroup)))
+  
+  # update ObserverGroup
+  tables <- lapply(tables, function(df){
+    df5 <- df |> 
+      dplyr::left_join(obs, join_by(ObserverGroup == init)) |> 
+      dplyr::select(-ObserverGroup) |> 
+      dplyr::rename(ObserverGroup = new)
+    return(df5)
+  })
   
   # process perpedincular distances
   table[["perp_distance"]] <- table[["perp_distance"]] |> 
