@@ -23,35 +23,47 @@ if(length(new.packages)) install.packages(new.packages, quiet = T)
   #                       jwt = jwt)
   
   
-  # list stats-model contents
-  repo_contents_stats <- gh(
-    "GET /repos/:owner/:repo/contents",
-    owner = "seq-koala-monitoring",
-    repo = "stats-model"
-  )
-  
-  # delete all files from the "code" directory except for initial_setup.R
-  file.path <- list.files(path = "code", include.dirs = T, full.names = T)
-  file.remove(file.path[!file.path %in% c("code/download_code_github.R")])
-  
-  
-  # download r scripts
-  for (file in repo_contents_stats) {
-    if (file$type == "file") {
-      file_extension <- tolower(tools::file_ext(file$name))
-      if (file_extension == "r") {
-        cat("Downloading:", file$name, "\n")
-        download.file(
-          url = file$download_url,
-          destfile = file.path("code", file$name),
-          mode = "wb"  # Binary mode to ensure proper file handling
-        )
-      }
-    }
-  }
-  
-  rm(list=ls())
-  gc()
+# list stats-model contents
+owner <- "seq-koala-monitoring"
+repo <- "stats-model"
+branch <- "main"
 
-    # end
+repo_contents_stats <- gh(
+  "GET /repos/:owner/:repo/git/trees/:branch?recursive=1",
+  owner = owner,
+  repo = repo,
+  branch = branch
+)
+  
+# delete all files from the "code" directory except for initial_setup.R
+file.path <- list.files(path = "code",
+                        include.dirs = T,
+                        full.names = T)
+file.remove(file.path[!file.path %in% c("code/download_code_github.R")])
+  
+# extract R script paths
+r.files <- repo_contents_stats$tree %>%
+  purrr::keep( ~ .x$type == "blob" && grepl("\\.R$", .x$path)) %>%
+  purrr::map_chr( ~ .x$path)
+  
+  
+# download r scripts
+for (file in r.files) {
+  cat("Downloading:", file, "\n")
+  raw_url <- sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s",
+                     owner,
+                     repo,
+                     branch,
+                     file)
+  download.file(
+    url = raw_url,
+    destfile = file.path(file),
+    mode = "wb"  # Binary mode to ensure proper file handling
+  )
+}
+  
+rm(list = ls())
+gc()
+
+# end
   
