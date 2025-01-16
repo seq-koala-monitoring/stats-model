@@ -45,10 +45,9 @@ if(length(gen_pop_file_path) > 1){
     stop("Invalid selection. Process terminated. Please, rerun this function and choose one of the provided options.")}
   gen_pop_file_path <- gen_pop_file_path[choice]}
 
-
 # gen_pop_column_id: A string (within quotation marks) specifying the column name that identifies each monitoring unit in the spatial layer.
 gen_pop_column_id <- "GENPOP_ID"
 
-
 # update_database: Should the koala survey database be updated with new data?
+# This function integrates new survey data into the modelling database by performing data integrity checks, matching the Site_ID with the spatial locations of survey sites, assigning a monitoring unit (i.e., "genetic" population), estimating missing perpendicular distances, and formatting the data to meet modelling requirements. Optionally, the function can also incorporate the spatial representation of the new surveys into the existing spatial file containing all koala surveys (default is TRUE).
 update_database <- TRUE
