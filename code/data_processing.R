@@ -136,7 +136,7 @@ lapply(seq_along(master_sf), \(i) sf::st_write(master_sf[[i]], paste0(out_dir, '
 if (run_cov_extraction) {
   dates <- fcn_get_date_intervals()
   cov_constant_array <- fcn_cov_array('constant', write_path = out_dir)
-  fcn_cov_temporal_array_parallel()
+  fcn_cov_array_detect()
   source('code/cov_temporal_array.R')
 }
 

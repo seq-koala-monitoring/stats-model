@@ -2203,7 +2203,7 @@ fcn_extract_cov_date_detect <- function(d, time_lag = NULL) {
 
 
 ### develop covariate array ###
-fcn_cov_array_detect <- function (cov_type = "temporal", dates = d, time_lag = NULL, write_path = paste0(out_dir, "/cov_raster")) 
+fcn_cov_array_detect <- function (cov_type = "temporal", dates = NULL, time_lag = NULL, write_path = paste0(out_dir, "/cov_raster")) 
 {
   compute_constant <- cov_type %in% c("constant", "both")
   compute_temporal <- cov_type %in% c("temporal", "both")
@@ -2226,7 +2226,7 @@ fcn_cov_array_detect <- function (cov_type = "temporal", dates = d, time_lag = N
     gc()
   }
   if (compute_temporal) {
-    dates <- list(dates)
+    # dates <- list(dates)
     if (!is.null(write_path)) {
       lapply(dates, function(d) {
         cov_temporal <- fcn_extract_cov_date_detect(d, time_lag = NULL)
