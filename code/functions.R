@@ -2248,7 +2248,7 @@ fcn_cov_array_detect <- function (cov_type = "temporal", dates = NULL, time_lag 
 }
 
 ### grid fraction ###
-fcn_all_transect_grid_fractions <- function (buffer = c(0), keep_all = FALSE, grid_id_vec = NULL) 
+fcn_all_transect_grid_fractions_detect <- function (buffer = c(0), keep_all = FALSE, grid_id_vec = NULL) 
 {
   fcn_extract_raster_buffer <- function(df, fishnet, buffer = 0) {
     if (buffer > 0) {
@@ -2257,7 +2257,7 @@ fcn_all_transect_grid_fractions <- function (buffer = c(0), keep_all = FALSE, gr
     res <- fcn_mixed_extract_raster(fishnet, df)
     return(res)
   }
-  
+
   fishnet <- fcn_get_grid()
   master <- fcn_all_tables_sf_detect()
   buffer <- sort(buffer)
@@ -2296,3 +2296,4 @@ fcn_all_transect_grid_fractions <- function (buffer = c(0), keep_all = FALSE, gr
   })
   return(master_grid)
 }
+
