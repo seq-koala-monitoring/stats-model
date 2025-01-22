@@ -6,7 +6,7 @@ primary_grid_size <- 500
 
 
 # secondary_grid_size: A numeric value that multiplies the primary grid size to create a coarser grid.
-secondary_grid_size <- 10
+secondary_grid_size <- primary_grid_size*10
 
 
 # line_transect_buffer: A numeric value (in metres) for the estimated width of line transects (i.e., one side from the line transect).
