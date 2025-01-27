@@ -47,24 +47,47 @@ library(rstudioapi)
 source("code/functions.R")
 
 # Load parameters
-source("code/set_parameters.R")
+source("parameters_init.txt")
+
+# Set secondary grid size
+secondary_grid_size <- primary_grid_size * secondary_grid_multiple
+
+# set genetic population units file path
+gen_pop_file_path <- list.files(
+  pattern = genetic_units,
+  recursive = T,
+  ignore.case = T,
+  full.names = F,
+  include.dirs = T
+)
+gen_pop_file_path <- gen_pop_file_path[
+  (substring(gen_pop_file_path, nchar(gen_pop_file_path) - 3 + 1) == "shp")]
+if (length(gen_pop_file_path) == 0) {
+  stop(sprintf("No % s file found. Please, make sure you have a file named % s in this working directory",
+               genetic_units, genetic_units))} # close {} of error message
+if(length(gen_pop_file_path) > 1){
+  message("Multiple files found:")
+  for (i in seq_along(gen_pop_file_path)) {
+    cat(i, ":", gen_pop_file_path[i], "\n")}
+  choice <- as.integer(readline("Enter the number corresponding to the file you want to use: "))
+  if (is.na(choice) || choice < 1 || choice > length(gen_pop_file_path)) {
+    stop("Invalid selection. Process terminated. Please, rerun this function and choose one of the provided options.")}
+  gen_pop_file_path <- gen_pop_file_path[choice]}
 
 # Update database if required
-# This function integrates new survey data into the modelling database by performing data integrity checks, matching the Site_ID with the spatial locations of survey sites, assigning a monitoring unit (i.e., "genetic" population), estimating missing perpendicular distances, and formatting the data to meet modelling requirements. Optionally, the function can also incorporate the spatial representation of the new surveys into the existing spatial file containing all koala surveys (default is TRUE).
-update_database <- F # for reporting only. By setting it as FALSE the code does not add surveys from 2024 onwards. Change if not
-
 if(update_database) {
   fcn_update_db()
 }
 
-# Run in parallel (requires RStudio API if true)
-use_parallel <- TRUE
-
-# Output path
+# Set output path
 state <- fcn_get_state()
 
+# Get current date
 current_date <- format(Sys.Date(), format="%Y%m%d")
-# prepare integration of survey data and covariate data
+
+# Prepare integration of survey data and covariate data
+
+# Set directories
 working_data_dir <- paste0(getwd(), "/input")
 target_dir <- paste0(getwd(), "/input/survey_data")
 fcn_set_home_dir(working_data_dir) # Home directory
@@ -88,38 +111,30 @@ fcn_set_gdb_path(list(
   koala_survey_sites = "survey_sites/KoalaSurveySites_231108.shp"
 ))
 
-# Grid size (in meters) - default 500m
+# Set grid size
 fcn_set_grid_size(grid_size = primary_grid_size)
 
 # Set line transect buffer width in meters (if generating transects using start and end coordinate information)
 fcn_set_line_transect_buffer(line_transect_buffer)
 
-# Set covariate impute buffer distance (within the data pipeline)
+# Set covariate impute buffer distance
 fcn_set_cov_impute_buffer(cov_impute_buffer)
 
 # Set study area buffer
 fcn_set_study_area_buffer(area_buffer)
 
-# If it is incorrect, specify the correct path
-use_imputation <- FALSE
-
+# Conduct imputaiton if needed
 if (use_imputation) {
   fcn_set_raster_path(list(covariates = 'covariates_impute/output'))
 } else {
   fcn_set_raster_path(list(covariates = 'covariates/output'))
 }
 
+# Set output directories
 out_dir <- target_dir     #paste0(target_dir, '/', paste0(current_date, "_", state$grid_size, ifelse(use_imputation, '_1500', '')))
-
 if (!dir.exists(out_dir)) dir.create(out_dir)
 if (!dir.exists(paste0(out_dir, '/cov_raster'))) dir.create(paste0(out_dir, '/cov_raster'))
 if (!dir.exists(paste0(out_dir, '/cov_csv'))) dir.create(paste0(out_dir, '/cov_csv'))
-
-# Run covariate extraction algorithm; if not, read from disc in the output folder (computationally intensive, 30 minute run)
-run_cov_extraction <- TRUE
-
-# Check whether the directory for where covariates are stored is correct
-print(fcn_get_raster_path()$covariates)
 
 # Write to grid
 grid_raster <- fcn_get_grid()
@@ -193,6 +208,9 @@ write.csv(fcn_date_interval_lookup(), paste0(out_dir, "/date_interval_lookup.csv
 cov_layer_df <- fcn_covariate_layer_df_detect()
 write.csv(cov_layer_df[,1:5], paste0(out_dir, '/covariate_info.csv'))
 
+# free up some memory
+gc()
+
 # Produce and save the adjacency matrix
 adj_data <- fcn_adj_matrix(secondary_grid_size = secondary_grid_size)
 saveRDS(adj_data, paste0(out_dir, "/adj_data_queen.rds"))
@@ -208,7 +226,7 @@ gen_pop_lookup <- fcn_grid_intersect_feature(gen_pop_file, field = gen_pop_colum
 saveRDS(gen_pop_lookup, paste0(out_dir, "/gen_pop_lookup.rds"))
 
 # End
-print("Data pipeline run complete")
+print("Data compilation step complete")
 
 # load input data
 Surveys <- readRDS("input/survey_data/master.rds")

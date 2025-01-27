@@ -1,0 +1,36 @@
+# We designed this project to give users flexibility to adjust parameters while still achieving reliable results.
+# If you need to modify any spatial parameter from the default, adjust the parameters below.
+
+# primary_grid_size: A numeric value representing the spatial dimensions (in metres) of each cell in the analysis and mapping grid. 
+primary_grid_size <- 500
+
+# secondary_grid_multiple: A numeric value that multiplies the primary grid size to create a coarser seocndary grid.
+secondary_grid_multiple <- 10
+
+# line_transect_buffer: A numeric value (in metres) for the estimated width of line transects (i.e., one side from the line transect).
+line_transect_buffer <- 28.7
+
+# cov_impute_buffer: A numeric value (in metres) for the buffer around areas for covariate imputation. 
+cov_impute_buffer <- 0
+
+# area_buffer: A numeric value (in metres) defining the buffer around the study area.
+area_buffer <- 0
+
+# genetic_units: The filename (with extension and within quotation marks) of the spatial layer containing boundaries of genetic populations.
+genetic_units <- "Population_boundaries_v2.shp"
+
+# gen_pop_column_id: A string (within quotation marks) specifying the column name that identifies each genetic unit in the spatial layer.
+gen_pop_column_id <- "GENPOP_ID"
+
+# update_database: Should the koala survey database be updated with new data?
+# This integrates new survey data into the modelling database by performing data integrity checks, matching the Site_ID with the spatial locations of survey sites, assigning a genetic unit (i.e., "genetic" population), estimating missing perpendicular distances, and formatting the data to meet modelling requirements. Optionally, the function can also incorporate the spatial representation of the new surveys into the existing spatial file containing all koala surveys (default is TRUE).
+update_database <- TRUE
+
+# specifies whether to run data processing in parallel (requires RStudio API if true)
+use_parallel <- TRUE
+
+# specify whether to run the covariate extraction algorithm; if not, read from disc in the output folder (computationally intensive, 30 minute run if TRUE)
+run_cov_extraction <- TRUE
+
+# specify wheher to use spatial data imputation (default = FALSE - unlikely to be needed)
+use_imputation <- FALSE
