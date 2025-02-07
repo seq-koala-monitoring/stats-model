@@ -1,6 +1,9 @@
 # We designed this project to give users flexibility to adjust parameters while still achieving reliable results.
 # If you need to modify any spatial parameter from the default, adjust the parameters below.
 
+# random number seed
+Seed <- 20
+
 # primary_grid_size: A numeric value representing the spatial dimensions (in metres) of each cell in the analysis and mapping grid. 
 primary_grid_size <- 500
 
@@ -34,3 +37,25 @@ run_cov_extraction <- TRUE
 
 # specify wheher to use spatial data imputation (default = FALSE - unlikely to be needed)
 use_imputation <- FALSE
+
+# list of static predictor variables
+# Variables removed due to high correlations (> 0.6 or < -0.6) for the 2025 report were:
+# elevation
+# terrain ruggedness index
+# persistent green
+# intensive land-use in a 2 km buffer
+# maximum temperature
+static_variables <- c("htslo", "hspc1", "hspc2", "hcltp", "hcltt", "hhgde")
+
+# list of time dynamic predictor variables
+# Variables removed due to high correlations (> 0.6 or < -0.6) for the 2025 report were:
+# elevation
+# terrain ruggedness index
+# persistent green
+# intensive land-use in a 2 km buffer
+# maximum temperature
+dynamic_variables <- c("hhfwc", "hhpgr2km", "htpls2km", "hcpre", "hctmn", "hseas", "hhkha", "htlus")  
+
+
+
+

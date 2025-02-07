@@ -89,7 +89,9 @@ fit_sel_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FA
   return(list(Samples = Samples, Data = Data, Code = Code))
 }
 
-get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateIntervals, GenPopLookup, Order, Lag, VarTrend, FirstDate, LastDate, StaticVars, DynamicVars) {
+
+# formats data and checks for multi-collinearity (also uses multiple imputation to impute missing values)
+format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateIntervals, GenPopLookup, FirstDate, LastDate, Order, Lag, VarTrend) {
 
   # reclassify genetic population IDs to three "populations"
   # 1 (Noosa) -> 1
@@ -285,6 +287,39 @@ get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterv
 
   # check for collinearity among continuous predictors
   CorrXY <- cor(XYData %>% dplyr::select(-hhgde, -htime, -hseas, -hhkha, -htlus), use = "complete.obs", method = "spearman")
+
+  # return data
+
+  return(list(Surveys = Surveys, GridFrac = GridFrac, FirstDate = FirstDate, LastDate = LastDate, CovTempSurv = CovTempSurv, CovConsSurv = CovConsSurv, NGPops = NGPops, Order = Order, Lag = Lag, FirstDateID = FirstDateID, LastDateID = LastDateID, VarTrend = VarTrend, NSGrids = NSGrids, GenPopID = GenPopID, X = X, ScaleParamsX = ScaleParamsX, Y_temp = Y_temp, ScaleParamsY = ScaleParamsY, Soil_PCA = Soil_PCA, CorrXY = CorrXY))
+}
+
+#get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateIntervals, GenPopLookup, Order, Lag, VarTrend, FirstDate, LastDate, StaticVars, DynamicVars) {
+
+# gets the fit data for the model
+# Data is an output from format_data()
+get_fit_data <- function(Data, StaticVars, DynamicVars) {
+
+  # extract variables from Data
+  Surveys = Data$Surveys
+  GridFrac = Data$GridFrac
+  FirstDate = Data$FirstDate
+  LastDate = Data$LastDate
+  CovTempSurv = Data$CovTempSurv
+  CovConsSurv = Data$CovConsSurv
+  NGPops = Data$NGPops
+  Order = Data$Order
+  Lag = Data$Lag
+  VarTrend = Data$VarTrend
+  FirstDateID = Data$FirstDateID
+  LastDateID = Data$LastDateID
+  NSGrids = Data$NSGrids
+  GenPopID = Data$GenPopID
+  X = Data$X
+  ScaleParamsX = Data$ScaleParamsX
+  Y_temp = Data$Y_temp
+  ScaleParamsY = Data$ScaleParamsY
+  rm(Data)
+  gc()
 
   # get the design matrix and remove collinear variables for X
   X <- model.matrix(as.formula(paste0("~ ", paste(StaticVars, collapse= " + "))), model.frame(as.formula(paste0("~ ", paste(StaticVars, collapse= " + "))), as.data.frame(X), na.action = "na.pass")) %>% as.data.frame()
@@ -697,7 +732,7 @@ get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterv
   NimbleConsts <- list(NGPops = NGPops, NGPopsAdjs = NGPopsAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, GenPopID = GenPopID, FirstDateID = FirstDateID, LastDateID = LastDateID, NX = NX, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine, NZ = NZ, NPDists = NPDists, PDLineIDs = PDLineIDs, Order = Order, Lag = Lag, VarTrend = VarTrend)
   NimbleData <- list(X = X, Y = Y, Z_Strip = Z_Strip, Z_AoA = Z_AoA, Z_Line = Z_Line, CntStrip = CntStrip, CntAoA = CntAoA, PDists = PDists, CntLine = CntLine)
 
-  return(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, SoilPCA = Soil_PCA, CorrXY = CorrXY, Order = Order, Lag = Lag, VarTrend = VarTrend, StaticVars = StaticVars, DynamicVars = DynamicVars))
+  return(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, Order = Order, Lag = Lag, VarTrend = VarTrend, StaticVars = StaticVars, DynamicVars = DynamicVars))
 }
 
 # function to get data for a particular year for a model to make predictions

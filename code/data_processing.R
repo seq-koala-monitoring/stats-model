@@ -225,7 +225,7 @@ gen_pop_file <- sf::st_read(gen_pop_file_path)
 gen_pop_lookup <- fcn_grid_intersect_feature(gen_pop_file, field = gen_pop_column_id)
 saveRDS(gen_pop_lookup, paste0(out_dir, "/gen_pop_lookup.rds"))
 
-# End
+# end
 print("Data compilation step complete")
 
 # load input data
@@ -238,36 +238,49 @@ GenPopLookup <- readRDS("input/survey_data/gen_pop_lookup.rds")
 FirstDate <- min(c(min(Surveys$line_transect$Date), min(Surveys$strip_transect$Date), min(Surveys$uaoa$Date)))
 LastDate <- max(c(max(Surveys$line_transect$Date), max(Surveys$strip_transect$Date), max(Surveys$uaoa$Date)))
 
-# create data for model fitting
-
-# Variables removed due to high correlations (> 0.6 or < -0.6) were:
-# elevation
-# terrain ruggedness index
-# persistent green
-# intensive land-use in a 2 km buffer
-# maximum temperature
+# format data and check for multi-collinearity
 
 # loop through order, lag, and vartrend values
 for (Order in 1:2) {
   for(Lag in 0:2) {
     for (VarTrend in 0:1) {
       # set seed
-      set.seed(20)
+      set.seed(Seed)
       
-      # generate data to fit models
-      FitData <- get_fit_data(Surveys = Surveys, GridFrac = GridFrac, CovConsSurv = CovConsSurv, CovTempSurv = CovTempSurv, DateIntervals = DateIntervals, GenPopLookup = GenPopLookup, Order = Order, Lag = Lag, VarTrend = VarTrend, FirstDate = FirstDate, LastDate = LastDate, StaticVars = c("htslo", "hspc1", "hspc2", "hcltp", "hcltt", "hhgde"), DynamicVars = c("hhfwc", "hhpgr2km", "htpls2km", "hcpre", "hctmn", "hseas", "hhkha", "htlus"))
-      
+      # generate formatted data
+      FormattedData <- format_data(Surveys = Surveys, GridFrac = GridFrac, CovConsSurv = CovConsSurv, CovTempSurv = CovTempSurv, DateIntervals = DateIntervals, GenPopLookup = GenPopLookup, FirstDate = FirstDate, LastDate = LastDate, Order = Order, Lag = Lag, VarTrend = VarTrend)
+     
       # save data
-      saveRDS(FitData, paste0("input/nimble_data/data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
+      saveRDS(FormattedData, paste0("input/nimble_data/format_data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
       
       # save continuous variable correlations
-      write.csv(FitData$CorrXY, paste0("input/nimble_data/correlations/cor_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
+      write.csv(FormattedData$CorrXY, paste0("input/nimble_data/correlations/cor_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
       
       # save PCA plots and PCAs
-      saveRDS(FitData$SoilPCA, paste0("input/nimble_data/pca/pca_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
-      ggsave(FitData$SoilScree1, file = paste0("input/nimble_data/pca/soilscree1_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
-      ggsave(FitData$SoilScree2, file = paste0("input/nimble_data/pca/soilscree2_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
-      ggsave(FitData$SoilBiPlot, file = paste0("input/nimble_data/pca/soilbiplot_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
+      saveRDS(FormattedData$SoilPCA, paste0("input/nimble_data/pca/pca_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
+      ggsave(FormattedData$SoilScree1, file = paste0("input/nimble_data/pca/soilscree1_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
+      ggsave(FormattedData$SoilScree2, file = paste0("input/nimble_data/pca/soilscree2_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
+      ggsave(FormattedData$SoilBiPlot, file = paste0("input/nimble_data/pca/soilbiplot_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
+    }
+  }
+}
+
+# create data for nimble
+
+# loop through order, lag, and vartrend values
+for (Order in 1:2) {
+  for(Lag in 0:2) {
+    for (VarTrend in 0:1) {
+            
+      # load formatted data
+      # save data
+      FormattedData <- readRDS(paste0("input/nimble_data/format_data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
+
+      # generate data to fit models
+      FitData <- get_fit_data(Data = FormattedData, StaticVars = static_variables, DynamicVars = dynamic_variables)
+      
+      # save data
+      saveRDS(FitData, paste0("input/nimble_data/data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))      
     }
   }
 }
