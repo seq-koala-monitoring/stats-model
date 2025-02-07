@@ -261,6 +261,10 @@ for (Order in 1:2) {
       ggsave(FormattedData$SoilScree1, file = paste0("input/nimble_data/pca/soilscree1_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
       ggsave(FormattedData$SoilScree2, file = paste0("input/nimble_data/pca/soilscree2_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
       ggsave(FormattedData$SoilBiPlot, file = paste0("input/nimble_data/pca/soilbiplot_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
+
+      # free memory
+      rm(FormattedData)
+      gc()
     }
   }
 }
@@ -280,7 +284,11 @@ for (Order in 1:2) {
       FitData <- get_fit_data(Data = FormattedData, StaticVars = static_variables, DynamicVars = dynamic_variables)
       
       # save data
-      saveRDS(FitData, paste0("input/nimble_data/data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))      
+      saveRDS(FitData, paste0("input/nimble_data/data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
+
+      # free memory
+      rm(FitData)
+      gc()
     }
   }
 }
