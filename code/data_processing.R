@@ -390,5 +390,3 @@ cat("\n","\n",
      "################################################################",
      "################  THIS CODE HAS FINISHED  ######################",
      "################################################################", sep = "\n")
-
-# You can now close this script by clicking the X next to its name in the script tab.
