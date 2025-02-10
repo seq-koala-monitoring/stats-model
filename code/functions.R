@@ -1820,17 +1820,17 @@ fcn_all_tables_detect <- function(db_name = "integrated",
   # the second group ranges from 2014 to 2020, when the department tried different survey methods and the ID of observers was not systematically recorded
   tables <- lapply(tables, function(df){
     df3 <- df |> 
-      dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ "GR1",
-                                                     lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ "GR2"))
+      dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ 1,
+                                                     lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2))
     
     if("ObserverID" %in% names(df3)){
       df3 <- df3 |> 
         # add ObserverGroup to survey data from 2021 onwards
         dplyr::left_join(table[["names_to_code"]], dplyr::join_by(ObserverID == Initials)) |> 
-        dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverID), ObserverGroup, paste0("GR", Code))) |> 
-        dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverGroup), paste0("GR", readr::parse_integer(ObserverID)), ObserverGroup)) |>
+        dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverID), ObserverGroup, Code)) |> 
+        dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverGroup), readr::parse_integer(ObserverID), ObserverGroup)) |>
         # this line needs to be updated if the Names_to_Code table in the Access database is not up-to-date
-        dplyr::mutate(ObserverGroup = ifelse(ObserverID %in% "BK", "GR78", ObserverGroup)) |>
+        dplyr::mutate(ObserverGroup = ifelse(ObserverID %in% "BK", 78, ObserverGroup)) |>
         dplyr::select(-Code, -ObserverID)
     }
     return(df3)
