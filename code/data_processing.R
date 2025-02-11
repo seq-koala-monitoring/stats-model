@@ -275,7 +275,9 @@ for (Order in 1:2) {
 for (Order in 1:2) {
   for(Lag in 0:2) {
     for (VarTrend in 0:1) {
-            
+      # set seed
+      set.seed(Seed)
+
       # load formatted data
       # save data
       FormattedData <- readRDS(paste0("input/nimble_data/format_data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))

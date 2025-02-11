@@ -89,8 +89,7 @@ fit_sel_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FA
   return(list(Samples = Samples, Data = Data, Code = Code))
 }
 
-
-# formats data and checks for multi-collinearity (also uses multiple imputation to impute missing values)
+# format data inputs and check for multi-collinearity (also uses multiple imputation to impute missing values)
 format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateIntervals, GenPopLookup, FirstDate, LastDate, Order, Lag, VarTrend) {
 
   # reclassify genetic population IDs to three "populations"
@@ -349,7 +348,7 @@ get_fit_data <- function(Data, StaticVars, DynamicVars) {
       Y[,,i] <- matrix(Y_temp[,i], nrow = dim(CovTempSurv)[1], ncol = dim(CovTempSurv)[3])
   }
 
-  # predictors for detectability (note at present these are static spatial variables)
+  # predictors for detectability
 
   # canopy height
   Z_hhcht <- as.vector(CovConsSurv[,"hhcht"]) %>% scale() %>% as.vector()
@@ -432,14 +431,15 @@ get_fit_data <- function(Data, StaticVars, DynamicVars) {
   }
 
   # compile into a tibble
-  Z_Strip <- tibble(hhcht = Z_Strip_hhcht, hhunf = Z_Strip_hhunf, hhchtunf = Z_Strip_hhchtunf)
+  
+  Z_Strip <- tibble(hhcht = Z_Strip_hhcht, hhunf = Z_Strip_hhunf, hhchtunf = Z_Strip_hhchtunf, hdmon = StripJoinGroupFrac$Month %>% as.vector() %>% as.integer(), hdobs = StripJoinGroupFrac$ObserverGroup %>% as.vector())
   # impute any missing values
   if (any(is.na(Z_Strip))) {
       Z_Strip <- complete(mice(Z_Strip, m = 1)) %>% as_tibble()
   }
 
   # get the design matrix
-  Z_Strip <- model.matrix(~ hhcht + hhunf + hhchtunf, model.frame(~ hhcht + hhunf + hhchtunf, as.data.frame(Z_Strip), na.action = "na.pass"))
+  Z_Strip <- model.matrix(~ hhcht + hhunf + hhchtunf + hdmon + hdobs, model.frame(~ hhcht + hhunf + hhchtunf + hdmon + hdobs, as.data.frame(Z_Strip), na.action = "na.pass"))
 
   # all of area search data
 
@@ -509,14 +509,14 @@ get_fit_data <- function(Data, StaticVars, DynamicVars) {
   }
 
   # compile into a tibble
-  Z_AoA <- tibble(hhcht = Z_AoA_hhcht, hhunf = Z_AoA_hhunf, hhchtunf = Z_AoA_hhchtunf)
+  Z_AoA <- tibble(hhcht = Z_AoA_hhcht, hhunf = Z_AoA_hhunf, hhchtunf = Z_AoA_hhchtunf, hdmon = AoAJoinGroupFrac$Month %>% as.vector() %>% as.integer(), hdobs = AoAJoinGroupFrac$ObserverGroup %>% as.vector())
   # impute any missing values
   if (any(is.na(Z_AoA))) {
       Z_AoA <- complete(mice(Z_AoA, m = 1)) %>% as_tibble()
   }
 
   # get the design matrix
-  Z_AoA <- model.matrix(~ hhcht + hhunf + hhchtunf, model.frame(~ hhcht + hhunf + hhchtunf, as.data.frame(Z_AoA), na.action = "na.pass"))
+  Z_AoA <- model.matrix(~ hhcht + hhunf + hhchtunf + hdmon + hdobs, model.frame(~ hhcht + hhunf + hhchtunf + hdmon + hdobs, as.data.frame(Z_AoA), na.action = "na.pass"))
 
   # line transect data
 
@@ -583,14 +583,14 @@ get_fit_data <- function(Data, StaticVars, DynamicVars) {
   }
 
   # compile into a tibble
-  Z_Line <- tibble(hhcht = Z_Line_hhcht, hhunf = Z_Line_hhunf, hhchtunf = Z_Line_hhchtunf)
+  Z_Line <- tibble(hhcht = Z_Line_hhcht, hhunf = Z_Line_hhunf, hhchtunf = Z_Line_hhchtunf, hdmon = LineJoinGroupFrac$Month %>% as.vector() %>% as.integer(), hdobs = LineJoinGroupFrac$ObserverGroup %>% as.vector())
   # impute any missing values
   if (any(is.na(Z_Line))) {
       Z_Line <- complete(mice(Z_Line, m = 1)) %>% as_tibble()
   }
 
   # get the design matrix
-  Z_Line <- model.matrix(~ hhcht + hhunf + hhchtunf, model.frame(~ hhcht + hhunf + hhchtunf, as.data.frame(Z_Line), na.action = "na.pass"))
+  Z_Line <- model.matrix(~ hhcht + hhunf + hhchtunf + hdmon + hdobs, model.frame(~ hhcht + hhunf + hhchtunf + hdmon + hdobs, as.data.frame(Z_Line), na.action = "na.pass"))
 
   # get number of variables in Z
   NZ <- ncol(Z_Line)
