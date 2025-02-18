@@ -57,11 +57,16 @@
 # CntLine = koala count for each line transect
 # PI = pi
 
-# MODEL WITH NO VARIABLE SELECTION - SATURATED MODEL
+# MODEL WITH NO VARIABLE SELECTION - SATURATED MODEL (CAN ALSO BE USED TO DO VARIABLE SELECTION VIA RJMCMC)
 
 nimble_sat_model <- nimbleCode({
 
 	# process model
+	
+	# spatially correlated random-effects for genetic populations
+	sd[1:NGPops] ~ dcar_normal(adj = AdjS[1:NGPopsAdjs], weights = WeightsAdjS[1:NGPopsAdjs], num = NumAdjS[1:NGPops], tau = tau_sd)
+
+	# temporal random effects
 	if (Order == 2) {
 		# time-step temporally structured random-effect for densities (based on second order intrisic CAR model) and the same among genetic populations
 		# note here weights are taken from Breslow & Clayton (1993)
@@ -70,10 +75,10 @@ nimble_sat_model <- nimbleCode({
 		# if spatially variable trend
 		if (VarTrend == 1) {
 			for (i in 1:NGPops) {
-				std[i, 1:NTime2] ~ dcar_normal(adj = AdjT2[1:NTimeAdjs2], weights = WeightsAdjT2[1:NTimeAdjs2], num = NumAdjT2[1:NTime2], tau = tau_td, c = 2)
+				std[i, 1:NTime2] ~ dcar_normal(adj = AdjT2[1:NTimeAdjs2], weights = WeightsAdjT2[1:NTimeAdjs2], num = NumAdjT2[1:NTime2], tau = tau_td, c = 2, zero_mean = 1)
 			}
 		} else {
-			td[1:NTime2] ~ dcar_normal(adj = AdjT2[1:NTimeAdjs2], weights = WeightsAdjT2[1:NTimeAdjs2], num = NumAdjT2[1:NTime2], tau = tau_td, c = 2)
+			td[1:NTime2] ~ dcar_normal(adj = AdjT2[1:NTimeAdjs2], weights = WeightsAdjT2[1:NTimeAdjs2], num = NumAdjT2[1:NTime2], tau = tau_td, c = 2, zero_mean = 1)
 		}
 	} else {
 		# time-step temporally structured random-effect for densities (based on first order intrisic CAR model) and the same among genetic populations
@@ -81,13 +86,13 @@ nimble_sat_model <- nimbleCode({
 		# annual time step
 
 		# if spatially variable trend
-		if (VarTrend == 1) {
+		if (VarTrend == 1) {			
 			for (i in 1:NGPops) {
-			std[i, 1:NTime] ~ dcar_normal(adj = AdjT[1:NTimeAdjs], weights = WeightsAdjT[1:NTimeAdjs], num = NumAdjT[1:NTime], tau = tau_std)
+			std[i, 1:NTime] ~ dcar_normal(adj = AdjT[1:NTimeAdjs], weights = WeightsAdjT[1:NTimeAdjs], num = NumAdjT[1:NTime], tau = tau_std, zero_mean = 1)
 
 			}
 		} else {
-			td[1:NTime] ~ dcar_normal(adj = AdjT[1:NTimeAdjs], weights = WeightsAdjT[1:NTimeAdjs], num = NumAdjT[1:NTime], tau = tau_td)
+			td[1:NTime] ~ dcar_normal(adj = AdjT[1:NTimeAdjs], weights = WeightsAdjT[1:NTimeAdjs], num = NumAdjT[1:NTime], tau = tau_td, zero_mean = 1)
 		}
 	}
 
@@ -102,9 +107,9 @@ nimble_sat_model <- nimbleCode({
 			# linear predictor including time-constant predictors, time-varying predictors, spatial random effect
 			# and temporal random effect
 			if (VarTrend == 1) {
-				log(d[i, t]) <- a[i] + std[GenPopID[i], floor((t - 1) / 2) + 1] + inprod(beta_d[(NX + 1):(NX + NY)], Y[i, FirstDateID - 1 + t - Lag, 1:NY])
+				log(d[i, t]) <- a[i] + sd[GenPopID[i]] + std[GenPopID[i], floor((t - 1) / 2) + 1] + inprod(beta_d[(NX + 1):(NX + NY)], Y[i, FirstDateID - 1 + t - Lag, 1:NY])
 			} else {
-				log(d[i, t]) <- a[i] + td[floor((t - 1) / 2) + 1] + inprod(beta_d[(NX + 1):(NX + NY)], Y[i, FirstDateID - 1 + t - Lag, 1:NY])
+				log(d[i, t]) <- a[i] + sd[GenPopID[i]] + td[floor((t - 1) / 2) + 1] + inprod(beta_d[(NX + 1):(NX + NY)], Y[i, FirstDateID - 1 + t - Lag, 1:NY])
 			}
 		}
 	}
@@ -112,6 +117,11 @@ nimble_sat_model <- nimbleCode({
 	# observation models
 
 	# likelihoods
+
+	# observation group random effects
+	for (i in 1:NObsGps) {
+		o[i] ~ dnorm(0, sd = sigma_o)
+	}
 
 	# strip transects
 	for (i in 1:NStrips) {
@@ -132,7 +142,7 @@ nimble_sat_model <- nimbleCode({
 		# f(x) is the half-normal distribution. Since two observers are observing each 15m gap between then the
 		# probability of detection is pStrip = 1 - ((1 - P) ^ 2)
 		# first simulate sd for the half-normal detection function for this transect
-		log(sigma_hn_strip[i]) <- inprod(beta_shn[1:NZ], Z_Strip[i, 1:NZ])
+		log(sigma_hn_strip[i]) <- inprod(beta_shn[1:NZ], Z_Strip[i, 1:NZ]) + o[StripObsGrp[i]]
 		# get f0
 		f0_strip[i] <- sqrt(2 / (PI * (sigma_hn_strip[i] ^ 2)))
 		# get area under f(x) for half-normal detection function out to 15 m
@@ -168,7 +178,7 @@ nimble_sat_model <- nimbleCode({
 		# f(x) is the half-normal distribution. Since two observers are observing each 15m gap between them the
 		# probability of detection is pAoA = 1 - ((1 - P) ^ 2)
 		# first simulate sd for the half-normal detection function for this transect
-		log(sigma_hn_aoa[i]) <- inprod(beta_shn[1:NZ], Z_AoA[i, 1:NZ])
+		log(sigma_hn_aoa[i]) <- inprod(beta_shn[1:NZ], Z_AoA[i, 1:NZ]) + o[AoAObsGrp[i]]
 		# get f0
 		f0_aoa[i] <- sqrt(2 / (PI * (sigma_hn_aoa[i] ^ 2)))
 		# get area under f(x) for half-normal detection function out to 15 m
@@ -189,7 +199,7 @@ nimble_sat_model <- nimbleCode({
 
 	# perpendicular distances
 	for (i in 1:NPDists) {
-		log(sigma_hn[i]) <- inprod(beta_shn[1:NZ], Z_Line[PDLineIDs[i], 1:NZ])
+		log(sigma_hn[i]) <- inprod(beta_shn[1:NZ], Z_Line[PDLineIDs[i], 1:NZ]) + o[LineObsGrp[PDLineIDs[i]]]
 
 		# likelihood function for half-normal detection function
 		PDists[i] ~ T(dnorm(0, sd = sigma_hn[i]), 0, )
@@ -207,7 +217,7 @@ nimble_sat_model <- nimbleCode({
 		dLine[i] <- sum(dFracLine[i, 1:NMaxSGridsLine])
 
 		# simulate sd for the half-normal detection function for this transect
-		log(sigma_hn_line[i]) <- inprod(beta_shn[1:NZ], Z_Line[i, 1:NZ])
+		log(sigma_hn_line[i]) <- inprod(beta_shn[1:NZ], Z_Line[i, 1:NZ]) + o[LineObsGrp[i]]
 		# get f0
 		f0_line[i] <- sqrt(2 / (PI * (sigma_hn_line[i] ^ 2)))
 
@@ -223,27 +233,30 @@ nimble_sat_model <- nimbleCode({
 	}
 
 	# priors
+	
+	# process model
+	tau_sd <- sigma_sd ^ -2
+	sigma_sd ~ T(dnorm(0, sd = 0.75), 0, ) # mildly informative prior restricting random effects to roughly within an 80% population density difference among genetic populations with probability ~0.66. Chosen sd = 0.6*sqrt(pi)/sqrt(2)
 	if (VarTrend == 1) {
 		tau_std <- sigma_std ^ -2
-		sigma_std ~ T(dnorm(0, sd = 0.75), 0, ) # mildly informative prior restricting random effects to roughly within an 80% population density change with probability ~0.66. Chosen sd = 0.6*sqrt(pi)/sqrt(2)
+		sigma_std ~ T(dnorm(0, sd = 0.75), 0, ) # mildly informative prior restricting random effects to roughly within an 80% population density change per unit time with probability ~0.66. Chosen sd = 0.6*sqrt(pi)/sqrt(2)
 	} else {
 		tau_td <- sigma_td ^ -2
-		sigma_td ~ T(dnorm(0, sd = 0.75), 0, ) # mildly informative prior restricting random effects to roughly within an 80% population density change with probability ~0.66. Chosen sd = 0.6*sqrt(pi)/sqrt(2)
+		sigma_td ~ T(dnorm(0, sd = 0.75), 0, ) # mildly informative prior restricting random effects to roughly within an 80% population density change per unit time with probability ~0.66. Chosen sd = 0.6*sqrt(pi)/sqrt(2)
 	}
  	for (i in 1:(NX + NY)) {
 		beta_d[i] ~ dnorm(0, sd = 100)
 	}
+	
+	# observation model
 	for (i in 1:NZ) {
 		beta_shn[i] ~ dnorm(0, sd = 100)
 	}
+	sigma_o ~ dunif(0, 100)
 	nbrst ~ dunif(0, 50)
 	nbraa ~ dunif(0, 50)
 	nbrli ~ dunif(0, 50)
 })
-
-# MODEL FOR VARIABLE SELECTION WITH INDICATOR VARIABLES
-
-
 
 # MODEL FOR DOING POSTERIOR PREDICTIVE CHECKS ON A SATURATED MODEL
 
@@ -320,7 +333,7 @@ nimble_sat_model_check <- nimbleCode({
 		# f(x) is the half-normal distribution. Since two observers are observing each 15m gap between then the
 		# probability of detection is pStrip = 1 - ((1 - P) ^ 2)
 		# first simulate sd for the half-normal detection function for this transect
-		log(sigma_hn_strip[i]) <- inprod(beta_shn[1:NZ], Z_Strip[i, 1:NZ])
+		log(sigma_hn_strip[i]) <- inprod(beta_shn[1:(NZ - 2)], Z_Strip[i, 1:(NZ - 2)])
 		# get f0
 		f0_strip[i] <- sqrt(2 / (PI * (sigma_hn_strip[i] ^ 2)))
 		# get area under f(x) for half-normal detection function out to 15 m
@@ -365,7 +378,7 @@ nimble_sat_model_check <- nimbleCode({
 		# f(x) is the half-normal distribution. Since two observers are observing each 15m gap between them the
 		# probability of detection is pAoA = 1 - ((1 - P) ^ 2)
 		# first simulate sd for the half-normal detection function for this transect
-		log(sigma_hn_aoa[i]) <- inprod(beta_shn[1:NZ], Z_AoA[i, 1:NZ])
+		log(sigma_hn_aoa[i]) <- inprod(beta_shn[1:(NZ - 2)], Z_AoA[i, 1:(NZ - 2)])
 		# get f0
 		f0_aoa[i] <- sqrt(2 / (PI * (sigma_hn_aoa[i] ^ 2)))
 		# get area under f(x) for half-normal detection function out to 15 m
@@ -395,7 +408,7 @@ nimble_sat_model_check <- nimbleCode({
 
 	# perpendicular distances
 	for (i in 1:NPDists) {
-		log(sigma_hn[i]) <- inprod(beta_shn[1:NZ], Z_Line[PDLineIDs[i], 1:NZ])
+		log(sigma_hn[i]) <- inprod(beta_shn[1:(NZ - 2)], Z_Line[PDLineIDs[i], 1:(NZ - 2)])
 
 		# likelihood function for half-normal detection function
 		PDists[i] ~ T(dnorm(0, sd = sigma_hn[i]), 0, )
@@ -413,7 +426,7 @@ nimble_sat_model_check <- nimbleCode({
 		dLine[i] <- sum(dFracLine[i, 1:NMaxSGridsLine])
 
 		# simulate sd for the half-normal detection function for this transect
-		log(sigma_hn_line[i]) <- inprod(beta_shn[1:NZ], Z_Line[i, 1:NZ])
+		log(sigma_hn_line[i]) <- inprod(beta_shn[1:(NZ - 2)], Z_Line[i, 1:(NZ - 2)])
 		# get f0
 		f0_line[i] <- sqrt(2 / (PI * (sigma_hn_line[i] ^ 2)))
 
@@ -448,7 +461,7 @@ nimble_sat_model_check <- nimbleCode({
  	for (i in 1:(NX + NY)) {
 		beta_d[i] ~ dnorm(0, sd = 100)
 	}
-	for (i in 1:NZ) {
+	for (i in 1:(NZ - 2)) {
 		beta_shn[i] ~ dnorm(0, sd = 100)
 	}
 	nbrst ~ dunif(0, 50)

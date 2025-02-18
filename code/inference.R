@@ -1,4 +1,4 @@
-# THIS SCRIPT DOES THE INFERENCE BY SELECTING THE BEST MODEL AND GENERATES PREDICTIONS 
+# THIS SCRIPT DOES THE INFERENCE BY SELECTING THE BEST MODEL, CHECKS MODEL ADEQUACY, AND GENERATES PREDICTIONS 
 
 # load libraries
 library(tidyverse)
@@ -364,7 +364,7 @@ Change_2015_2023 <- readRDS(paste0("output/predictions/change_order1_lag", Model
 Change_2018_2023 <- readRDS(paste0("output/predictions/change_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2018, "_", 2023, ".rds"))
 Change_2020_2023 <- readRDS(paste0("output/predictions/change_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2020, "_", 2023, ".rds"))
 
-# change 2020 -2023
+# change 2020 - 2023
 ChTotal <- as_tibble(Change_2020_2023$DistTot) %>% rename(Change = value) %>% mutate(Region = "Total", Change = (Change - 1) * 100)
 ChNC <- as_tibble(Change_2020_2023$DistNC) %>% rename(Change = value) %>% mutate(Region = "Northern Coast", Change = (Change - 1) * 100)
 ChWI <- as_tibble(Change_2020_2023$DistWI) %>% rename(Change = value) %>% mutate(Region = "Western Inland", Change = (Change - 1) * 100)

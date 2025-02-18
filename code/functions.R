@@ -17,18 +17,21 @@ fit_sat_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FA
   # get VarTrend
   VarTrend <- Data$VarTrend
 
+  # set seed
+  set.seed(Seeds[1])
+
   # set up initial values
   if (Order == 2) {
     if (VarTrend == 1) {
-      Inits <- list(sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
+      Inits <- list(sigma_sd = runif(n = 1, 0, 5), sd = rep(0, Data$Constants$NGPops), sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1, 0, 5), nbraa = runif(n = 1, 0, 5), nbrli = runif(n = 1, 0, 5), sigma_o = runif(n = 1, 0, 5), o = rep(0, Data$Constants$NObsGrps))
     } else {
-      Inits <- list(sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
+      Inits <- list(sigma_sd = runif(n = 1, 0, 5), sd = rep(0, Data$Constants$NGPops), sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5), sigma_o = runif(n = 1, 0, 5), o = rep(0, Data$Constants$NObsGrps))
     }
   } else {
     if (VarTrend == 1) {
-      Inits <- list(sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
+      Inits <- list(sigma_sd = runif(n = 1, 0, 5), sd = rep(0, Data$Constants$NGPops), sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5), sigma_o = runif(n = 1, 0, 5), o = rep(0, Data$Constants$NObsGrps))
     } else {
-      Inits <- list(sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
+      Inits <- list(sigma_sd = runif(n = 1, 0, 5), sd = rep(0, Data$Constants$NGPops), sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5), sigma_o = runif(n = 1, 0, 5), o = rep(0, Data$Constants$NObsGrps))
     }
   }
 
@@ -56,18 +59,21 @@ fit_sel_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FA
   # get VarTrend
   VarTrend <- Data$VarTrend
 
+  # set seed
+  set.seed(Seeds[1])
+
   # set up initial values
   if (Order == 2) {
     if (VarTrend == 1) {
-      Inits <- list(sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
+      Inits <- list(sigma_sd = runif(n = 1, 0, 5), sd = rep(0, Data$Constants$NGPops), sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), , nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5), sigma_o = runif(n = 1, 0, 5), o = rep(0, Data$Constants$NObsGrps))
     } else {
-      Inits <- list(sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
+      Inits <- list(sigma_sd = runif(n = 1, 0, 5), sd = rep(0, Data$Constants$NGPops), sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime2), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5), sigma_o = runif(n = 1, 0, 5), o = rep(0, Data$Constants$NObsGrps))
     }
   } else {
     if (VarTrend == 1) {
-      Inits <- list(sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
+      Inits <- list(sigma_sd = runif(n = 1, 0, 5), sd = rep(0, Data$Constants$NGPops), sigma_std = runif(n = 1,0, 5), std = matrix(0, nrow = Data$Constants$NGPops, ncol = Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5), sigma_o = runif(n = 1, 0, 5), o = rep(0, Data$Constants$NObsGrps))
     } else {
-      Inits <- list(sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbr = runif(n = 1,0, 5))
+      Inits <- list(sigma_sd = runif(n = 1, 0, 5), sd = rep(0, Data$Constants$NGPops), sigma_td = runif(n = 1,0, 5), td = rep(0, Data$Constants$NTime), beta_d = runif(n = (Data$Constants$NX + Data$Constants$NY), -2, 2), PDists = ifelse(is.na(Data$Data$PDists), 15, NA), beta_shn = runif(n = Data$Constants$NZ, -2, 2), nbrst = runif(n = 1,0, 5), nbraa = runif(n = 1,0, 5), nbrli = runif(n = 1,0, 5), sigma_o = runif(n = 1, 0, 5), o = rep(0, Data$Constants$NObsGrps))
     }
   }
 
@@ -90,18 +96,24 @@ fit_sel_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FA
 }
 
 # format data inputs and check for multi-collinearity (also uses multiple imputation to impute missing values)
-format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateIntervals, GenPopLookup, FirstDate, LastDate, Order, Lag, VarTrend) {
+format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateIntervals, GenPopLookup, AggGenPop, FirstDate, LastDate, Order, Lag, VarTrend) {
 
-  # reclassify genetic population IDs to three "populations"
-  # 1 (Noosa) -> 1
-  # 2 (North Coast) -> 1
-  # 3 (North West) -> 2
-  # 4 (Toowoomba)-> 2
-  # 5 (South West) -> 2
-  # 6 (Koala Coast) -> 3
-  # 7 (Minjerribah) -> 3
-  # 8 (Gold Coast) -> 3
-  GenPopLookup <- GenPopLookup %>% as_tibble() %>% mutate(GENPOP_ID = case_match(GENPOP_ID, 1~1, 2~1, 3~2, 4~2, 5~2, 6~3, 7~3, 8~3) %>% as.integer())
+  # check if need to aggregate genetic populations
+  if (AggGenPop) {
+    # reclassify genetic population IDs to three "populations"
+    # 1 (Noosa) -> 1
+    # 2 (North Coast) -> 1
+    # 3 (North West) -> 2
+    # 4 (Toowoomba)-> 2
+    # 5 (South West) -> 2
+    # 6 (Koala Coast) -> 3
+    # 7 (Minjerribah) -> 3
+    # 8 (Gold Coast) -> 3
+    GenPopLookup <- GenPopLookup %>% as_tibble() %>% mutate(GENPOP_ID = case_match(GENPOP_ID, 1~1, 2~1, 3~2, 4~2, 5~2, 6~3, 7~3, 8~3) %>% as.integer())
+  } else {
+    # do not reclassify genetic population IDs 
+    GenPopLookup <- GenPopLookup %>% as_tibble() %>% mutate(GENPOP_ID = case_match(GENPOP_ID, 1~1, 2~2, 3~3, 4~4, 5~5, 6~6, 7~7, 8~8) %>% as.integer())
+  }
 
   # get first and last date index values
   FirstDateID <- filter(DateIntervals, start_date <= FirstDate & end_date >= FirstDate) %>% pull(TimePeriodID)
@@ -289,14 +301,12 @@ format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterva
 
   # return data
 
-  return(list(Surveys = Surveys, GridFrac = GridFrac, FirstDate = FirstDate, LastDate = LastDate, CovTempSurv = CovTempSurv, CovConsSurv = CovConsSurv, NGPops = NGPops, Order = Order, Lag = Lag, FirstDateID = FirstDateID, LastDateID = LastDateID, VarTrend = VarTrend, NSGrids = NSGrids, GenPopID = GenPopID, X = X, ScaleParamsX = ScaleParamsX, Y_temp = Y_temp, ScaleParamsY = ScaleParamsY, Soil_PCA = Soil_PCA, CorrXY = CorrXY))
+  return(list(Surveys = Surveys, GridFrac = GridFrac, FirstDate = FirstDate, LastDate = LastDate, CovTempSurv = CovTempSurv, CovConsSurv = CovConsSurv, AggGenPop = AggGenPop, NGPops = NGPops, Order = Order, Lag = Lag, FirstDateID = FirstDateID, LastDateID = LastDateID, VarTrend = VarTrend, NSGrids = NSGrids, GenPopID = GenPopID, X = X, ScaleParamsX = ScaleParamsX, Y_temp = Y_temp, ScaleParamsY = ScaleParamsY, Soil_PCA = Soil_PCA, CorrXY = CorrXY))
 }
-
-#get_fit_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateIntervals, GenPopLookup, Order, Lag, VarTrend, FirstDate, LastDate, StaticVars, DynamicVars) {
 
 # gets the fit data for the model
 # Data is an output from format_data()
-get_fit_data <- function(Data, StaticVars, DynamicVars) {
+get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
 
   # extract variables from Data
   Surveys = Data$Surveys
@@ -305,6 +315,7 @@ get_fit_data <- function(Data, StaticVars, DynamicVars) {
   LastDate = Data$LastDate
   CovTempSurv = Data$CovTempSurv
   CovConsSurv = Data$CovConsSurv
+  AggGenPop = Data$AggGenPop
   NGPops = Data$NGPops
   Order = Data$Order
   Lag = Data$Lag
@@ -320,7 +331,7 @@ get_fit_data <- function(Data, StaticVars, DynamicVars) {
   rm(Data)
   gc()
 
-  # get the design matrix and remove collinear variables for X
+  # get the design matrix
   X <- model.matrix(as.formula(paste0("~ ", paste(StaticVars, collapse= " + "))), model.frame(as.formula(paste0("~ ", paste(StaticVars, collapse= " + "))), as.data.frame(X), na.action = "na.pass")) %>% as.data.frame()
 
   # remove the intercept term
@@ -348,7 +359,7 @@ get_fit_data <- function(Data, StaticVars, DynamicVars) {
       Y[,,i] <- matrix(Y_temp[,i], nrow = dim(CovTempSurv)[1], ncol = dim(CovTempSurv)[3])
   }
 
-  # predictors for detectability
+  # spatial predictors for detectability
 
   # canopy height
   Z_hhcht <- as.vector(CovConsSurv[,"hhcht"]) %>% scale() %>% as.vector()
@@ -430,16 +441,25 @@ get_fit_data <- function(Data, StaticVars, DynamicVars) {
           Z_Strip_hhchtunf[i] <- sum(Z_Strip_hhchtunf_Mat[i, ] * FracStrip[i, ], na.rm = TRUE)
   }
 
-  # compile into a tibble
+  # compile into a tibble and add weather variables
+  # hdwea = Weather
+  # hdclc = Cloud cover
+  # hdwin = Wind
+  # hdcco = Canopy cover
+  # hdscc = Subcanopy cover
+  # hdobs = Observer group
+  Z_Strip <- tibble(hhcht = Z_Strip_hhcht, hhunf = Z_Strip_hhunf, hhchtunf = Z_Strip_hhchtunf, hdwea = StripJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = StripJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = StripJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = StripJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = StripJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = StripJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer())
   
-  Z_Strip <- tibble(hhcht = Z_Strip_hhcht, hhunf = Z_Strip_hhunf, hhchtunf = Z_Strip_hhchtunf, hdmon = StripJoinGroupFrac$Month %>% as.vector() %>% as.integer(), hdobs = StripJoinGroupFrac$ObserverGroup %>% as.vector())
   # impute any missing values
   if (any(is.na(Z_Strip))) {
       Z_Strip <- complete(mice(Z_Strip, m = 1)) %>% as_tibble()
   }
 
+  # get the survey observer group number
+  StripObsGrp <- Z_Strip$hdobs %>% as.vector()
+
   # get the design matrix
-  Z_Strip <- model.matrix(~ hhcht + hhunf + hhchtunf + hdmon + hdobs, model.frame(~ hhcht + hhunf + hhchtunf + hdmon + hdobs, as.data.frame(Z_Strip), na.action = "na.pass"))
+  Z_Strip <- model.matrix(as.formula(paste0("~ ", paste(ObsVars, collapse= " + "))), model.frame(as.formula(paste0("~ ", paste(ObsVars, collapse= " + "))), as.data.frame(Z_Strip), na.action = "na.pass")) %>% as.data.frame()
 
   # all of area search data
 
@@ -508,15 +528,26 @@ get_fit_data <- function(Data, StaticVars, DynamicVars) {
           Z_AoA_hhchtunf[i] <- sum(Z_AoA_hhchtunf_Mat[i, ] * FracAoA[i, ], na.rm = TRUE)
   }
 
-  # compile into a tibble
-  Z_AoA <- tibble(hhcht = Z_AoA_hhcht, hhunf = Z_AoA_hhunf, hhchtunf = Z_AoA_hhchtunf, hdmon = AoAJoinGroupFrac$Month %>% as.vector() %>% as.integer(), hdobs = AoAJoinGroupFrac$ObserverGroup %>% as.vector())
+
+  # compile into a tibble and add weather variables
+  # hdwea = Weather
+  # hdclc = Cloud cover
+  # hdwin = Wind
+  # hdcco = Canopy cover
+  # hdscc = Subcanopy cover
+  # hdobs = Observer group
+  Z_AoA <- tibble(hhcht = Z_AoA_hhcht, hhunf = Z_AoA_hhunf, hhchtunf = Z_AoA_hhchtunf, hdwea = AoAJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = AoAJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = AoAJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = AoAJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = AoAJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = AoAJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer())
+  
   # impute any missing values
   if (any(is.na(Z_AoA))) {
       Z_AoA <- complete(mice(Z_AoA, m = 1)) %>% as_tibble()
   }
 
+  # get the survey observer group number
+  AoAObsGrp <- Z_AoA$hdobs %>% as.vector()
+
   # get the design matrix
-  Z_AoA <- model.matrix(~ hhcht + hhunf + hhchtunf + hdmon + hdobs, model.frame(~ hhcht + hhunf + hhchtunf + hdmon + hdobs, as.data.frame(Z_AoA), na.action = "na.pass"))
+  Z_AoA <- model.matrix(as.formula(paste0("~ ", paste(ObsVars, collapse= " + "))), model.frame(as.formula(paste0("~ ", paste(ObsVars, collapse= " + "))), as.data.frame(Z_AoA), na.action = "na.pass")) %>% as.data.frame()  
 
   # line transect data
 
@@ -582,18 +613,31 @@ get_fit_data <- function(Data, StaticVars, DynamicVars) {
           Z_Line_hhchtunf[i] <- sum(Z_Line_hhchtunf_Mat[i, ] * FracLine[i, ], na.rm = TRUE)
   }
 
-  # compile into a tibble
-  Z_Line <- tibble(hhcht = Z_Line_hhcht, hhunf = Z_Line_hhunf, hhchtunf = Z_Line_hhchtunf, hdmon = LineJoinGroupFrac$Month %>% as.vector() %>% as.integer(), hdobs = LineJoinGroupFrac$ObserverGroup %>% as.vector())
+  # compile into a tibble and add weather variables
+  # hdwea = Weather
+  # hdclc = Cloud cover
+  # hdwin = Wind
+  # hdcco = Canopy cover
+  # hdscc = Subcanopy cover
+  # hdobs = Observer group
+  Z_Line <- tibble(hhcht = Z_Line_hhcht, hhunf = Z_Line_hhunf, hhchtunf = Z_Line_hhchtunf, hdwea = LineJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = LineJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = LineJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = LineJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = LineJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = LineJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer())
+  
   # impute any missing values
   if (any(is.na(Z_Line))) {
       Z_Line <- complete(mice(Z_Line, m = 1)) %>% as_tibble()
   }
 
+  # get the survey observer group number
+  LineObsGrp <- Z_Line$hdobs %>% as.vector()
+
   # get the design matrix
-  Z_Line <- model.matrix(~ hhcht + hhunf + hhchtunf + hdmon + hdobs, model.frame(~ hhcht + hhunf + hhchtunf + hdmon + hdobs, as.data.frame(Z_Line), na.action = "na.pass"))
+  Z_Line <- model.matrix(as.formula(paste0("~ ", paste(ObsVars, collapse= " + "))), model.frame(as.formula(paste0("~ ", paste(ObsVars, collapse= " + "))), as.data.frame(Z_Line), na.action = "na.pass")) %>% as.data.frame()
 
   # get number of variables in Z
   NZ <- ncol(Z_Line)
+
+  # get the number of observer groups 
+  NObsGrps <- max(c(StripObsGrp, AoAObsGrp, LineObsGrp))
 
   # get transect IDs for each perpendicular distance
   PDLineIDs <- match(Surveys$perp_distance$TransectID, LineJoinGroupFrac$TransectID.x)
@@ -613,52 +657,77 @@ get_fit_data <- function(Data, StaticVars, DynamicVars) {
   LastDateID <- LastDateID - FirstDateID + 1 + Lag
   FirstDateID <- Lag + 1
 
-  # set up data for spatial CAR process (1st order with equal weights) for genetic populations
-  # assumes the following first-order spatial connections among genetic populations:
-  # 1 (Noosa) -> 2
-  # 2 (North Coast) -> 1, 3, 5, 6
-  # 3 (North West) -> 2, 5, 4
-  # 4 (Toowoomba)-> 3, 5
-  # 5 (South West) -> 2, 3, 4, 6, 8
-  # 6 (Koala Coast) -> 2, 5, 8
-  # 7 (Minjerribah) -> disconnected
-  # 8 (Gold Coast) -> 5, 6
-  AdjS <- c()
-  WeightsAdjS <- c()
-  NumAdjS <- c()
-  NumAdjS[1] <- 1
-  NumAdjS[2] <- 4
-  NumAdjS[3] <- 3
-  NumAdjS[4] <- 2
-  NumAdjS[5] <- 5
-  NumAdjS[6] <- 3
-  NumAdjS[7] <- 0
-  NumAdjS[8] <- 2
-  AdjS[1] <- 2
-  AdjS[2] <- 1
-  AdjS[3] <- 3
-  AdjS[4] <- 5
-  AdjS[5] <- 6
-  AdjS[6] <- 2
-  AdjS[7] <- 5
-  AdjS[8] <- 4
-  AdjS[9] <- 3
-  AdjS[10] <- 5
-  AdjS[11] <- 2
-  AdjS[12] <- 3
-  AdjS[13] <- 4
-  AdjS[14] <- 6
-  AdjS[15] <- 8
-  AdjS[16] <- 2
-  AdjS[17] <- 5
-  AdjS[18] <- 8
-  AdjS[19] <- 5
-  AdjS[20] <- 6
-  for (i in 1:20) {
-      WeightsAdjS[i] <- 1
+  # set up spatial adjacency data
+  if (AggGenPop) {
+    # set up data for spatial CAR process (1st order with equal weights) for genetic populations
+    # assumes the following first-order spatial connections among aggregated genetic populations:
+    # 1 (North Coast) -> 2, 3
+    # 2 (West Inland) -> 1, 3
+    # 3 (South Coast) -> 1, 2
+    AdjS <- c()
+    WeightsAdjS <- c()
+    NumAdjS <- c()
+    NumAdjS[1] <- 2
+    NumAdjS[2] <- 2
+    NumAdjS[3] <- 2
+    AdjS[1] <- 2
+    AdjS[2] <- 3
+    AdjS[3] <- 1
+    AdjS[4] <- 3
+    AdjS[5] <- 1
+    AdjS[6] <- 2
+    for (i in 1:6) {
+        WeightsAdjS[i] <- 1
+    }
+    NGPopsAdjs <- length(AdjS)
+  } else {
+    # set up data for spatial CAR process (1st order with equal weights) for genetic populations
+    # assumes the following first-order spatial connections among genetic populations:
+    # 1 (Noosa) -> 2
+    # 2 (North Coast) -> 1, 3, 5, 6
+    # 3 (North West) -> 2, 5, 4
+    # 4 (Toowoomba)-> 3, 5
+    # 5 (South West) -> 2, 3, 4, 6, 8
+    # 6 (Koala Coast) -> 2, 5, 8
+    # 7 (Minjerribah) -> disconnected
+    # 8 (Gold Coast) -> 5, 6
+    AdjS <- c()
+    WeightsAdjS <- c()
+    NumAdjS <- c()
+    NumAdjS[1] <- 1
+    NumAdjS[2] <- 4
+    NumAdjS[3] <- 3
+    NumAdjS[4] <- 2
+    NumAdjS[5] <- 5
+    NumAdjS[6] <- 3
+    NumAdjS[7] <- 0
+    NumAdjS[8] <- 2
+    AdjS[1] <- 2
+    AdjS[2] <- 1
+    AdjS[3] <- 3
+    AdjS[4] <- 5
+    AdjS[5] <- 6
+    AdjS[6] <- 2
+    AdjS[7] <- 5
+    AdjS[8] <- 4
+    AdjS[9] <- 3
+    AdjS[10] <- 5
+    AdjS[11] <- 2
+    AdjS[12] <- 3
+    AdjS[13] <- 4
+    AdjS[14] <- 6
+    AdjS[15] <- 8
+    AdjS[16] <- 2
+    AdjS[17] <- 5
+    AdjS[18] <- 8
+    AdjS[19] <- 5
+    AdjS[20] <- 6
+    for (i in 1:20) {
+        WeightsAdjS[i] <- 1
+    }
+    NGPopsAdjs <- length(AdjS)
   }
-  NGPopsAdjs <- length(AdjS)
-
+ 
   # set up data for temporal CAR process (1st order with equal weights)
   # annual time steps
   AdjT <- c()
@@ -729,10 +798,10 @@ get_fit_data <- function(Data, StaticVars, DynamicVars) {
   NTimeAdjs2 <- length(AdjT2)
 
   # set up nimble constants and data inputs for model with temporal CAR process order = 1
-  NimbleConsts <- list(NGPops = NGPops, NGPopsAdjs = NGPopsAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, GenPopID = GenPopID, FirstDateID = FirstDateID, LastDateID = LastDateID, NX = NX, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine, NZ = NZ, NPDists = NPDists, PDLineIDs = PDLineIDs, Order = Order, Lag = Lag, VarTrend = VarTrend)
-  NimbleData <- list(X = X, Y = Y, Z_Strip = Z_Strip, Z_AoA = Z_AoA, Z_Line = Z_Line, CntStrip = CntStrip, CntAoA = CntAoA, PDists = PDists, CntLine = CntLine)
+  NimbleConsts <- list(NGPops = NGPops, NGPopsAdjs = NGPopsAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, GenPopID = GenPopID, FirstDateID = FirstDateID, LastDateID = LastDateID, NX = NX, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine, NZ = NZ, NObsGrps = NObsGrps, NPDists = NPDists, PDLineIDs = PDLineIDs, Order = Order, Lag = Lag, VarTrend = VarTrend)
+  NimbleData <- list(X = X, Y = Y, Z_Strip = Z_Strip, Z_AoA = Z_AoA, Z_Line = Z_Line, StripObsGrp = StripObsGrp, AoAObsGrp = AoAObsGrp, LineObsGrp = LineObsGrp, CntStrip = CntStrip, CntAoA = CntAoA, PDists = PDists, CntLine = CntLine)
 
-  return(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, Order = Order, Lag = Lag, VarTrend = VarTrend, StaticVars = StaticVars, DynamicVars = DynamicVars))
+  return(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), NamesZ = names(Z_Line), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, Order = Order, Lag = Lag, VarTrend = VarTrend, StaticVars = StaticVars, DynamicVars = DynamicVars, ObsVars = ObsVars))
 }
 
 # function to get data for a particular year for a model to make predictions
@@ -1000,7 +1069,6 @@ get_predictions <- function(MCMC, Data) {
 
   return(Output)
 }
-
 
 fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
                           db.integrated = "Integrated_SEQKoalaDatabase.accdb",

@@ -43,11 +43,11 @@ library(SEQKoalaDataPipeline)
 library(readr)
 library(rstudioapi)
 
+# load parameters
+source("parameters_init.txt")
+
 # read utility functions
 source("code/functions.R")
-
-# Load parameters
-source("parameters_init.txt")
 
 # Set secondary grid size
 secondary_grid_size <- primary_grid_size * secondary_grid_multiple
@@ -245,10 +245,10 @@ for (Order in 1:2) {
   for(Lag in 0:2) {
     for (VarTrend in 0:1) {
       # set seed
-      set.seed(Seed)
+      set.seed(seed)
       
       # generate formatted data
-      FormattedData <- format_data(Surveys = Surveys, GridFrac = GridFrac, CovConsSurv = CovConsSurv, CovTempSurv = CovTempSurv, DateIntervals = DateIntervals, GenPopLookup = GenPopLookup, FirstDate = FirstDate, LastDate = LastDate, Order = Order, Lag = Lag, VarTrend = VarTrend)
+      FormattedData <- format_data(Surveys = Surveys, GridFrac = GridFrac, CovConsSurv = CovConsSurv, CovTempSurv = CovTempSurv, DateIntervals = DateIntervals, GenPopLookup = GenPopLookup, AggGenPop = gen_pop_agg, FirstDate = FirstDate, LastDate = LastDate, Order = Order, Lag = Lag, VarTrend = VarTrend)
      
       # save data
       saveRDS(FormattedData, paste0("input/nimble_data/format_data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
@@ -276,14 +276,14 @@ for (Order in 1:2) {
   for(Lag in 0:2) {
     for (VarTrend in 0:1) {
       # set seed
-      set.seed(Seed)
+      set.seed(seed)
 
       # load formatted data
       # save data
       FormattedData <- readRDS(paste0("input/nimble_data/format_data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
 
       # generate data to fit models
-      FitData <- get_fit_data(Data = FormattedData, StaticVars = static_variables, DynamicVars = dynamic_variables)
+      FitData <- get_fit_data(Data = FormattedData, StaticVars = static_variables, DynamicVars = dynamic_variables, ObsVars = obs_variables)
       
       # save data
       saveRDS(FitData, paste0("input/nimble_data/data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
@@ -388,7 +388,5 @@ gc()
 # save the mask matrix
 saveRDS(lu.mask.matrix, "input/covariates/output/mask/lu_mask_matrix.rds")
 
-cat("\n","\n",
-     "################################################################",
-     "################  THIS CODE HAS FINISHED  ######################",
-     "################################################################", sep = "\n")
+# end
+print("Data formatting for nimble complete")

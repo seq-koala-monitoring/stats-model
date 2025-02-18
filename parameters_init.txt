@@ -2,7 +2,7 @@
 # If you need to modify any spatial parameter from the default, adjust the parameters below.
 
 # random number seed
-Seed <- 20
+seed <- 20
 
 # primary_grid_size: A numeric value representing the spatial dimensions (in metres) of each cell in the analysis and mapping grid. 
 primary_grid_size <- 500
@@ -25,6 +25,9 @@ genetic_units <- "Population_boundaries_v2.shp"
 # gen_pop_column_id: A string (within quotation marks) specifying the column name that identifies each genetic unit in the spatial layer.
 gen_pop_column_id <- "GENPOP_ID"
 
+# whether to aggregate the genetic population into three regions or not
+gen_pop_agg <- TRUE 
+
 # update_database: Should the koala survey database be updated with new data?
 # This integrates new survey data into the modelling database by performing data integrity checks, matching the Site_ID with the spatial locations of survey sites, assigning a genetic unit (i.e., "genetic" population), estimating missing perpendicular distances, and formatting the data to meet modelling requirements. Optionally, the function can also incorporate the spatial representation of the new surveys into the existing spatial file containing all koala surveys (default is TRUE).
 update_database <- TRUE
@@ -38,8 +41,8 @@ run_cov_extraction <- TRUE
 # specify wheher to use spatial data imputation (default = FALSE - unlikely to be needed)
 use_imputation <- FALSE
 
-# list of static predictor variables
-# Variables removed due to high correlations (> 0.6 or < -0.6) for the 2025 report were:
+# list of static predictor variables to use
+# Variables removed by default due to high correlations (> 0.6 or < -0.6) were:
 # elevation
 # terrain ruggedness index
 # persistent green
@@ -47,8 +50,8 @@ use_imputation <- FALSE
 # maximum temperature
 static_variables <- c("htslo", "hspc1", "hspc2", "hcltp", "hcltt", "hhgde")
 
-# list of time dynamic predictor variables
-# Variables removed due to high correlations (> 0.6 or < -0.6) for the 2025 report were:
+# list of time dynamic predictor variables to use
+# Variables removed by default due to high correlations (> 0.6 or < -0.6) were:
 # elevation
 # terrain ruggedness index
 # persistent green
@@ -56,6 +59,11 @@ static_variables <- c("htslo", "hspc1", "hspc2", "hcltp", "hcltt", "hhgde")
 # maximum temperature
 dynamic_variables <- c("hhfwc", "hhpgr2km", "htpls2km", "hcpre", "hctmn", "hseas", "hhkha", "htlus")  
 
-
-
-
+# list of observer error predictor variables
+# Variables removed by default due to too much missing data were:
+# weather
+# cloud cover
+# wind
+# canopy cover
+# subcanopy cover
+obs_variables <- c("hhcht", "hhunf", "hhchtunf")
