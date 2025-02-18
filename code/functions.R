@@ -1887,12 +1887,17 @@ fcn_all_tables_detect <- function(db_name = "integrated",
   # the first spans from 1996 to 2013 when started a high turn over of staff. 
   # the second group ranges from 2014 to 2020, when the department tried different survey methods and the ID of observers was not systematically recorded
   tables <- lapply(tables, function(df){
-    df3 <- df |> 
+    df3 <- df2 |> 
       dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ 1,
                                                      lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2))
     
     if("ObserverID" %in% names(df3)){
       df3 <- df3 |> 
+        dplyr::rowwise() |> 
+        # keep only the first observer in cases when SOL or DOL were recorded with multiple
+        dplyr::mutate(ObserverID = ifelse(nchar(ObserverID) > 3, substr(ObserverID, start = 1, stop = 2), ObserverID)) |>
+        # manually fix a record
+        dplyr::mutate(ObserverID = ifelse(ObserverID %in% "J_K", "J", ObserverID)) |> 
         # add ObserverGroup to survey data from 2021 onwards
         dplyr::left_join(table[["names_to_code"]], dplyr::join_by(ObserverID == Initials)) |> 
         dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverID), ObserverGroup, Code)) |> 
@@ -1904,12 +1909,10 @@ fcn_all_tables_detect <- function(db_name = "integrated",
     return(df3)
   })
   
-  # randomise to remove the temporal order presentent in the code assigned for groups of observers
-  set.seed(123)
   # lookup table
   obs <- purrr::map(tables, function(df){obs <- df |> dplyr::select(ObserverGroup)}) |> dplyr::bind_rows()
   obs <- data.frame(init = unique(obs$ObserverGroup),
-                    new = sample(unique(obs$ObserverGroup)))
+                    new = 1:length(unique(obs$ObserverGroup)))
   
   # update ObserverGroup
   tables <- lapply(tables, function(df){
