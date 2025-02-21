@@ -2404,7 +2404,7 @@ fcn_all_transect_grid_fractions_detect <- function (buffer = c(0), keep_all = FA
 }
 
 
-# Download grids rerading mean maximum temperature and mean total precipitation for observation process
+# Download grids regarding mean maximum temperature and mean total precipitation for observation process
 download_temp_precip <- function(data){
   # Extract the date of each survey
   dat.bom <- lapply(data, function(df){
