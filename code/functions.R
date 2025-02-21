@@ -2409,9 +2409,9 @@ download_temp_precip <- function(data){
   # Extract the date of each survey
   dat.bom <- lapply(data, function(df){
     dat <- df |> 
-      select(TransectID, Date) |> 
+      dplyr::select(TransectID, Date) |> 
       # format to make it compatible with BOM files
-      mutate(date_chr = gsub("\\-", "", as.character(Date)))
+      dplyr::mutate(date_chr = gsub("\\-", "", as.character(Date)))
   }) |> 
     bind_rows()
   
