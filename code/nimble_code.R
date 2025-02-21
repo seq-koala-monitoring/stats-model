@@ -119,7 +119,7 @@ nimble_sat_model <- nimbleCode({
 	# likelihoods
 
 	# observation group random effects
-	for (i in 1:NObsGps) {
+	for (i in 1:NObsGrps) {
 		o[i] ~ dnorm(0, sd = sigma_o)
 	}
 
@@ -236,13 +236,13 @@ nimble_sat_model <- nimbleCode({
 	
 	# process model
 	tau_sd <- sigma_sd ^ -2
-	sigma_sd ~ T(dnorm(0, sd = 0.75), 0, ) # mildly informative prior restricting random effects to roughly within an 80% population density difference among genetic populations with probability ~0.66. Chosen sd = 0.6*sqrt(pi)/sqrt(2)
+	sigma_sd ~ T(dnorm(0, sd = 0.78), 0, ) # mildly informative prior restricting random effects to roughly within an 30% population density difference between populations with probability ~0.66. A 30% change either side of 1 on the log scale = log(1.3) - log(0.7) = 0.62 so want to set the expected value for sigma to 0.62 (i.e., roughly within 1 sd of the mean for a 66% probability for a normal random effect). Since expected value of half-normal = sigma * srt(2) / sqrt(pi), then chosen expected value of sigma = 0.62*sqrt(pi)/sqrt(2) = 0.78
 	if (VarTrend == 1) {
 		tau_std <- sigma_std ^ -2
-		sigma_std ~ T(dnorm(0, sd = 0.75), 0, ) # mildly informative prior restricting random effects to roughly within an 80% population density change per unit time with probability ~0.66. Chosen sd = 0.6*sqrt(pi)/sqrt(2)
+		sigma_std ~ T(dnorm(0, sd = 0.78), 0, ) # mildly informative prior restricting random effects to roughly within an 30% population density change per unit time with probability ~0.66. A 30% change either side of 1 on the log scale = log(1.3) - log(0.7) = 0.62 so want to set the expected value for sigma to 0.62 (i.e., roughly within 1 sd of the mean for a 66% probability for a normal random effect). Since expected value of half-normal = sigma * srt(2) / sqrt(pi), then chosen expected value of sigma = 0.62*sqrt(pi)/sqrt(2) = 0.78
 	} else {
 		tau_td <- sigma_td ^ -2
-		sigma_td ~ T(dnorm(0, sd = 0.75), 0, ) # mildly informative prior restricting random effects to roughly within an 80% population density change per unit time with probability ~0.66. Chosen sd = 0.6*sqrt(pi)/sqrt(2)
+		sigma_td ~ T(dnorm(0, sd = 0.78), 0, ) # mildly informative prior restricting random effects to roughly within an 30% population density change per unit time with probability ~0.66. A 30% change either side of 1 on the log scale = log(1.3) - log(0.7) = 0.62 so want to set the expected value for sigma to 0.62 (i.e., roughly within 1 sd of the mean for a 66% probability for a normal random effect). Since expected value of half-normal = sigma * srt(2) / sqrt(pi), then chosen expected value of sigma = 0.62*sqrt(pi)/sqrt(2) = 0.78
 	}
  	for (i in 1:(NX + NY)) {
 		beta_d[i] ~ dnorm(0, sd = 100)
@@ -252,7 +252,7 @@ nimble_sat_model <- nimbleCode({
 	for (i in 1:NZ) {
 		beta_shn[i] ~ dnorm(0, sd = 100)
 	}
-	sigma_o ~ dunif(0, 100)
+	sigma_o ~ T(dnorm(0, sd = 1.38), 0, ) # mildly informative prior restricting random effects to roughly within an 50% difference in detectability from the mean for observer groups with probability ~0.66. A 50% change either side of 1 on the log scale = log(1.5) - log(0.5) = 1.10 so want to set the expected value for sigma to 1.10 (i.e., roughly within 1 sd of the mean for a 66% probability for a normal random effect). Since expected value of half-normal = sigma * srt(2) / sqrt(pi), then chosen expected value of sigma = 1.10*sqrt(pi)/sqrt(2) = 1.38
 	nbrst ~ dunif(0, 50)
 	nbraa ~ dunif(0, 50)
 	nbrli ~ dunif(0, 50)
