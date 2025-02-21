@@ -2404,6 +2404,7 @@ fcn_all_transect_grid_fractions_detect <- function (buffer = c(0), keep_all = FA
 }
 
 
+# Download grids rerading mean maximum temperature and mean total precipitation for observation process
 download_temp_precip <- function(data){
   # Extract the date of each survey
   dat.bom <- lapply(data, function(df){
@@ -2521,12 +2522,3 @@ extract_temp_precip <- function(data){
   
   return(data)
 }
-
-
-sample <- list(data[[1]][1:10, ],
-               data[[2]][1:10, ],
-               data[[3]][1:10, ])
-
-sample <- lapply(sample, extract_temp_precip)
-
-data <- sample[[1]]
