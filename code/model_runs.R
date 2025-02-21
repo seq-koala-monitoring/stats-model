@@ -49,9 +49,9 @@ for (Order in 1:1) {
 
       # fit model
       if (VarTrend == 1) {
-        Samples <- parLapply(cl = cl, X = 1:3, fun = fit_sat_model, Seeds = c(seed, seed + 20, seed + 40), Iter = 15000, Burnin = 5000, Thin = 1, Monitors = c("beta_d", "beta_shn", "sigma_sd", "sd", "sigma_std", "std", "nbrst", "nbraa", "nbrli", "o", "sigma_o"), Calculate = FALSE, EnableWAIC = TRUE, Data = FitData, Code = nimble_sat_model)
+        Samples <- parLapply(cl = cl, X = 1:3, fun = fit_sat_model, Seeds = c(seed, seed + 20, seed + 40), Iter = 15000, Burnin = 5000, Thin = 1, Monitors = c("beta_d", "beta_shn", "sigma_sd", "sd", "sigma_std", "std", "nbrst", "nbraa", "nbrli", "sigma_o"), Calculate = FALSE, EnableWAIC = TRUE, Data = FitData, Code = nimble_sat_model)
       } else {
-        Samples <- parLapply(cl = cl, X = 1:3, fun = fit_sat_model, Seeds = c(seed, seed + 20, seed + 40), Iter = 15000, Burnin = 5000, Thin = 1, Monitors = c("beta_d", "beta_shn", "sigma_sd", "sd", "sigma_td", "td", "nbrst", "nbraa", "nbrli", "o", "sigma_o"), Calculate = FALSE, EnableWAIC = TRUE, Data = FitData, Code = nimble_sat_model)
+        Samples <- parLapply(cl = cl, X = 1:3, fun = fit_sat_model, Seeds = c(seed, seed + 20, seed + 40), Iter = 15000, Burnin = 5000, Thin = 1, Monitors = c("beta_d", "beta_shn", "sigma_sd", "sd", "sigma_td", "td", "nbrst", "nbraa", "nbrli", "sigma_o"), Calculate = FALSE, EnableWAIC = TRUE, Data = FitData, Code = nimble_sat_model)
       }
 
       #stop cluster
@@ -73,7 +73,7 @@ for (Order in 1:1) {
 # fit the variable selection models
 
 for (Order in 1:1) {
-  for (Lag in 0:2) {
+  for (Lag in 0:0) {
     for (VarTrend in 0:1) {
       # get the data for fitting models
       FitData <- readRDS(paste0("input/nimble_data/data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))

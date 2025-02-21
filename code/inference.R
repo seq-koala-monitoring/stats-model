@@ -14,47 +14,58 @@ library(foreach)
 library(doParallel)
 library(patchwork)
 
+# load parameters
+source("parameters_init.txt")
+
 # get functions
-source("functions.r")
+source("code/functions.r")
 
 # read nimble code
-source("nimble_code.R")
+source("code/nimble_code.R")
 
 # load input data
-Surveys <- readRDS("input/survey_data_500/master.rds")
-DateIntervals <- read_csv("input/survey_data_500/date_interval_lookup.csv") %>% mutate(end_date = as.Date(end_date))
-GenPopLookup <- readRDS("input/survey_data_500/gen_pop_lookup.rds")
+Surveys <- readRDS("input/survey_data/master.rds")
+DateIntervals <- read_csv("input/survey_data/date_interval_lookup.csv") %>% mutate(end_date = as.Date(end_date))
+GenPopLookup <- readRDS("input/survey_data/gen_pop_lookup.rds")
 FirstDate <- min(c(min(Surveys$line_transect$Date), min(Surveys$strip_transect$Date), min(Surveys$uaoa$Date)))
 LastDate <- max(c(max(Surveys$line_transect$Date), max(Surveys$strip_transect$Date), max(Surveys$uaoa$Date)))
-CovCons <- readRDS("input/survey_data_500/cov_constant_array.rds")
-CovTemp <- readRDS("input/survey_data_500/cov_temporal_array.rds")
+CovCons <- readRDS("input/survey_data/cov_constant_array.rds")
+CovTemp <- readRDS("input/survey_data/cov_temporal_array.rds")
 Mask <- readRDS("input/mask/lu_mask_matrix.rds")
 PredData <- list(CovCons = CovCons, CovTemp = CovTemp, DateIntervals = DateIntervals, GenPopLookup = GenPopLookup, Mask = Mask)
 rm(CovCons, CovTemp, DateIntervals, GenPopLookup, Mask)
 gc()
 
+# set orders, lags, and vartrends want to consider
+Orders <- c(1, 2)
+Lags <- c(0, 1, 2)
+VarTrends <- c(0, 1)
+
 # set up data frame to store model selection results
-ModelWAICs <- tibble(Order = rep(1, 6), Lag = rep(NA, 6), VarTrend = rep(NA, 6), WAIC = rep(NA, 6))
+ModelWAICs <- tibble(Order = rep(NA, length(Orders) * length(Lags) * length(VarTrends)), Lag = rep(NA, length(Orders) * length(Lags) * length(VarTrends)), VarTrend = rep(NA, length(Orders) * length(Lags) * length(VarTrends)), WAIC = rep(NA, length(Orders) * length(Lags) * length(VarTrends)))
+
 
 # loop through models
-for (Lag in c(0, 1, 2)) {
-  for (VarTrend in c(0,1)) {
-
-    # get model
-    Model <- readRDS(paste0("output/mcmc/sat_order1_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
-    ModelWAICs[Lag * 2 + VarTrend + 1, "Lag"] <- Lag
-    ModelWAICs[Lag * 2 + VarTrend + 1, "VarTrend"] <- VarTrend
-    ModelWAICs[Lag * 2 + VarTrend + 1, "WAIC"] <- lapply(Model$WAIC, FUN = function(x) {return(x$WAIC)}) %>% unlist() %>% mean()
+for (Order in Orders) {
+  for (Lag in Lags) {
+    for (VarTrend in VarTrends) {
+      # get model
+      Model <- readRDS(paste0("output/mcmc/sat_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
+      ModelWAICs[(Order - 1) * length(Orders) * length(Lags) + Lag * length(VarTrends) + VarTrend + 1, "Order"] <- Order
+      ModelWAICs[(Order - 1) * length(Orders) * length(Lags) + Lag * length(VarTrends) + VarTrend + 1, "Lag"] <- Lag
+      ModelWAICs[(Order - 1) * length(Orders) * length(Lags) + Lag * length(VarTrends) + VarTrend + 1, "VarTrend"] <- VarTrend
+      ModelWAICs[(Order - 1) * length(Orders) * length(Lags) + Lag * length(VarTrends) + VarTrend + 1, "WAIC"] <- lapply(Model$WAIC, FUN = function(x) {return(x$WAIC)}) %>% unlist() %>% mean()
+    }
   }
 }
 
 # write table
-write_csv(ModelWAICs, paste0("output/inference/waics_order1", "_firstdate", FirstDate, ".csv"))
+write_csv(ModelWAICs, paste0("output/inference/waics", "_firstdate", FirstDate, ".csv"))
 
 # get the best model
 BestIndex <- which(ModelWAICs$WAIC == min(ModelWAICs$WAIC))
-BestModelSat <- readRDS(paste0("output/mcmc/sat_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
-BestModelSel <- readRDS(paste0("output/mcmc/sel_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
+BestModelSat <- readRDS(paste0("output/mcmc/sat_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
+BestModelSel <- readRDS(paste0("output/mcmc/sel_order", ModelWAICs$Order[BestIndex], "lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
 
 # check for convergence
 MCMCsummary(BestModelSat$MCMC)
@@ -65,16 +76,16 @@ MCMCtrace(BestModelSel$MCMC, filename = "output/mcmc/figures/best_sel_trace.jpg"
 # do posterior predictive checks for the best model
 
 # get the data for fitting models
-FitData <- readRDS(paste0("input/nimble_data/data_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
+FitData <- readRDS(paste0("input/nimble_data/data_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
 
 # fit the model for posterior predictive checks
 PostCheck <- get_mcmc(FitData = FitData, Type = "sat_check", Iter = 15000, Burnin = 5000, Thin = 10)
 
 # save posterior predictive checks model
-saveRDS(PostCheck, paste0("output/assessment/postcheck_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
+saveRDS(PostCheck, paste0("output/assessment/postcheck_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
 
 # load posterior predictive checks model if necessary
-PostCheck <- readRDS(paste0("output/assessment/postcheck_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
+PostCheck <- readRDS(paste0("output/assessment/postcheck_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
 
 # get the MCMC runs for the posterior predictive checks
 PostCheckMCMC <- rbind(PostCheck$MCMC[[1]], PostCheck$MCMC[[2]], PostCheck$MCMC[[3]])  
@@ -136,8 +147,8 @@ QQPlots <- PlotQQStrip + PlotQQAoA + PlotQQLine + plot_layout(nrow = 2, ncol = 2
 # NEED TO ADD A LEGEND TO THE PLOTS - TO DO
 
 # save plots
-ggsave(QQPlots, file = paste0("output/assessment/qqplots_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".jpg"), width = 40, height = 40, units = "cm", dpi = 300)
-ggsave(QQPlots, file = paste0("output/assessment/qqplots_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".pdf"), width = 40, height = 40, units = "cm", dpi = 300)
+ggsave(QQPlots, file = paste0("output/assessment/qqplots_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".jpg"), width = 40, height = 40, units = "cm", dpi = 300)
+ggsave(QQPlots, file = paste0("output/assessment/qqplots_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".pdf"), width = 40, height = 40, units = "cm", dpi = 300)
 
 # generate table of parameter estimates and variable selection frequences from best model
 
@@ -152,7 +163,7 @@ MCMC <- rbind(BestModelSel$MCMC[[1]], BestModelSel$MCMC[[2]], BestModelSel$MCMC[
 
 # get the names of the variables
 DensPredNames <- c(BestModelSel$Data$NamesX, BestModelSel$Data$NamesY)
-ObsPredNames <- c("hhcht", "hhunf", "hhchthhunf")
+ObsPredNames <- c(BestModelSel$Data$NamesZ[2:length(BestModelSel$Data$NamesZ)])
 AllPredNames <- c(DensPredNames, ObsPredNames)
 
 # get the variables from the MCMC chains
@@ -172,18 +183,18 @@ SelFreq <- AllPred_MCMC %>% summarise_all(function(x) {mean(ifelse(x == 0, 0, 1)
 colnames(SelFreq) <- "SelFreq"
 Summary_Stats <- bind_cols(Mean, Lower, Upper, SelFreq) %>% mutate(Param = AllPredNames) %>% select(Param, Mean, Lower, Upper, SelFreq)
 # write table
-write_csv(Summary_Stats, paste0("output/inference/estimates_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".csv"))
+write_csv(Summary_Stats, paste0("output/inference/estimates_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".csv"))
 
 # generate predictions
 
 # set the seed
-set.seed(300)
+set.seed(seed)
 
 # sub sample MCMC chains if needed
 MCMC <- MCMC[sample(1:dim(MCMC)[1], 10000), ]
 
 # load feature class of small grids
-Grid <- vect("input/survey_data_500/grid_vec.shp")
+Grid <- vect("input/survey_data/grid_vec.shp")
 
 # spatio-temporal predictions masking out rainforest
 
@@ -224,7 +235,7 @@ Predictions <- foreach(i = year(FirstDate):year(LastDate)) %do% {
   PredsGrid <- PredsGrid %>% filter(!is.na(Expected))
 
   # save vector
-  writeVector(PredsGrid, paste0("output/predictions/sel_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, "_year", i, ".shp"), overwrite = TRUE)
+  writeVector(PredsGrid, paste0("output/predictions/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, "_year", i, ".shp"), overwrite = TRUE)
   
   # append newe predictions to list
   PredsList <- append(PredsList, list(Preds))
@@ -235,16 +246,16 @@ Predictions <- foreach(i = year(FirstDate):year(LastDate)) %do% {
 }
 
 # save predictions
-saveRDS(PredsList, paste0("output/predictions/sel_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
+saveRDS(PredsList, paste0("output/predictions/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
 
 # get the change between two dates
 
-# 2015 to 2023
+# 2015 to end
 
 # specify dates
 
 Year1 <- 2015
-Year2 <- 2023
+Year2 <- year(LastDate)
 
 # get prediction data for the two years
 Data1 <- get_prediction_data(Year = Year1, BestModelSel$Data, PredData, RainForestMask = RainMask)
@@ -254,18 +265,18 @@ Data2 <- get_prediction_data(Year = Year2, BestModelSel$Data, PredData, RainFore
 Change <- get_change(MCMC, Data1, Data2)
 
 # save change
-saveRDS(Change, paste0("output/predictions/change_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", Year1, "_", Year2, ".rds")) 
+saveRDS(Change, paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", Year1, "_", Year2, ".rds")) 
 
 # free up memory
 rm(Change)
 gc()
 
-# 2018 to 2023
+# 2018 to end
 
 # specify dates
 
 Year1 <- 2018
-Year2 <- 2023
+Year2 <- year(LastDate)
 
 # get prediction data for the two years
 Data1 <- get_prediction_data(Year = Year1, BestModelSel$Data, PredData, RainForestMask = RainMask)
@@ -275,18 +286,18 @@ Data2 <- get_prediction_data(Year = Year2, BestModelSel$Data, PredData, RainFore
 Change <- get_change(MCMC, Data1, Data2)
 
 # save change
-saveRDS(Change, paste0("output/predictions/change_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", Year1, "_", Year2, ".rds")) 
+saveRDS(Change, paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", Year1, "_", Year2, ".rds")) 
 
 # free up memory
 rm(Change)
 gc()
 
-# 2020 to 2023
+# 2020 to end
 
 # specify dates
 
 Year1 <- 2020
-Year2 <- 2023
+Year2 <- year(LastDate)
 
 # get prediction data for the two years
 Data1 <- get_prediction_data(Year = Year1, BestModelSel$Data, PredData, RainForestMask = RainMask)
@@ -296,7 +307,7 @@ Data2 <- get_prediction_data(Year = Year2, BestModelSel$Data, PredData, RainFore
 Change <- get_change(MCMC, Data1, Data2)
 
 # save change
-saveRDS(Change, paste0("output/predictions/change_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", Year1, "_", Year2, ".rds")) 
+saveRDS(Change, paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", Year1, "_", Year2, ".rds")) 
 
 # free up memory
 rm(Change)
@@ -304,12 +315,12 @@ gc()
 
 # create some plots
 
-# trend plots 2020 - 2023
+# trend plots 2020 to end
 
 # load outputs if necessary
-PredsList <- readRDS(paste0("output/predictions/sel_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
+PredsList <- readRDS(paste0("output/predictions/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
 
-Years <- 2020:2023
+Years <- 2020:year(LastDate)
 Expected <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$Total$Mean)}) %>% unlist()
 Lower <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$Total$Lower)}) %>% unlist()
 Upper <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$Total$Upper)}) %>% unlist()
@@ -340,14 +351,14 @@ PlotSC <- ggplot(AbundancesSC, aes(x = Year, y = Expected, ymin = Lower, ymax = 
 
 TrendPlot_2020_2023 <- PlotT + PlotNC + PlotWI + PlotSC + plot_layout(nrow = 2, ncol = 2, guides = "collect") & theme(legend.position = 'bottom')
 
-ggsave(TrendPlot_2020_2023, file = "output/inference/figures/trend_2020_2023.jpg", width = 40, height = 30, units = "cm", dpi = 300)
+ggsave(TrendPlot_2020_2023, file = paste0("output/inference/figures/trend_2020_", year(LastDate), ".jpg"), width = 40, height = 30, units = "cm", dpi = 300)
 
-# trend plots 1996 - 2023
+# trend plots 1996 to end
 
 # load outputs if necessary
-PredsList <- readRDS(paste0("output/predictions/sel_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
+PredsList <- readRDS(paste0("output/predictions/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
 
-Years <- 1996:2023
+Years <- 1996:year(LastDate)
 Expected <- lapply(PredsList[1:length(PredsList)], FUN = function(x){return(x$Total$Mean)}) %>% unlist()
 Lower <- lapply(PredsList[1:length(PredsList)], FUN = function(x){return(x$Total$Lower)}) %>% unlist()
 Upper <- lapply(PredsList[1:length(PredsList)], FUN = function(x){return(x$Total$Upper)}) %>% unlist()
@@ -355,14 +366,14 @@ Abundances <- tibble(Year = Years, Expected = Expected, Lower = Lower, Upper = U
 
 PlotT <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Total") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18), legend.position = "bottom")
 
-ggsave(PlotT, file = "output/inference/figures/trend_all_1996_2023.jpg", width = 40, height = 30, units = "cm", dpi = 300)
+ggsave(PlotT, file = paste0("output/inference/figures/trend_1996_", year(LastDate), ".jpg"), width = 40, height = 30, units = "cm", dpi = 300)
 
 # violin plots of change
 
 # load outputs if needed
-Change_2015_2023 <- readRDS(paste0("output/predictions/change_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2015, "_", 2023, ".rds"))
-Change_2018_2023 <- readRDS(paste0("output/predictions/change_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2018, "_", 2023, ".rds"))
-Change_2020_2023 <- readRDS(paste0("output/predictions/change_order1_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2020, "_", 2023, ".rds"))
+Change_2015_2023 <- readRDS(paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2015, "_", 2023, ".rds"))
+Change_2018_2023 <- readRDS(paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2018, "_", 2023, ".rds"))
+Change_2020_2023 <- readRDS(paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2020, "_", 2023, ".rds"))
 
 # change 2020 - 2023
 ChTotal <- as_tibble(Change_2020_2023$DistTot) %>% rename(Change = value) %>% mutate(Region = "Total", Change = (Change - 1) * 100)
