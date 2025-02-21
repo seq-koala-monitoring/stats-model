@@ -149,8 +149,11 @@ master_sf <- fcn_all_tables_sf_detect()
 lapply(seq_along(master_sf), \(i) sf::st_write(master_sf[[i]], paste0(out_dir, '/master_', names(master_sf)[i], '.shp'), append=F))
 
 # Include mean max temperature and mean total precipitation to each transect
-download_temp_precip(master)
-master <- extract_temp_precip(master)
+master.sub <- master[c("line_transect", "strip_transect", "uaoa")]
+download_temp_precip(master.sub)
+master.sub <- extract_temp_precip(master.sub)
+master <- append(master.sub, master["perp_distance"])
+saveRDS(master, paste0(out_dir, '/master.rds'))
 
 # Load covariates from the directory
 
