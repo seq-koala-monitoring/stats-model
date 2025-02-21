@@ -148,6 +148,10 @@ saveRDS(master, paste0(out_dir, '/master.rds'))
 master_sf <- fcn_all_tables_sf_detect()
 lapply(seq_along(master_sf), \(i) sf::st_write(master_sf[[i]], paste0(out_dir, '/master_', names(master_sf)[i], '.shp'), append=F))
 
+# Include mean max temperature and mean total precipitation to each transect
+download_temp_precip(master)
+master <- extract_temp_precip(master)
+
 # Load covariates from the directory
 
 # Extract covariates

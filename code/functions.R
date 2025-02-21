@@ -2403,3 +2403,130 @@ fcn_all_transect_grid_fractions_detect <- function (buffer = c(0), keep_all = FA
   return(master_grid)
 }
 
+
+download_temp_precip <- function(data){
+  # Extract the date of each survey
+  dat.bom <- lapply(data, function(df){
+    dat <- df |> 
+      select(TransectID, Date) |> 
+      # format to make it compatible with BOM files
+      mutate(date_chr = gsub("\\-", "", as.character(Date)))
+  }) |> 
+    bind_rows()
+  
+  # retrieve unique dates
+  dates <- unique(dat.bom$date_chr)
+  
+  # Download data from BOM 
+  ## Temperature 
+  if(!dir.exists("input/covariates/raw_data/max_temp")){dir.create("input/covariates/raw_data/max_temp_for_observation_error")}
+  
+  for(i in 1:length(dates)){
+    year <- lubridate::year(as.POSIXct(dates[i], format = "%Y%m%d"))
+    if(!file.exists(paste0("input/covariates/raw_data/max_temp_for_observation_error/max_temp_", dates[i], ".nc"))){
+      download.file(url =  paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/tmax/mean/r005/01day/",
+                                  year, "/tmax_mean_r005_", dates[i], "_", dates[i], ".nc"),
+                    destfile = paste0("input/covariates/raw_data/max_temp_for_observation_error/max_temp_", dates[i], ".nc"),
+                    mode = "wb")
+    }
+  }
+  
+  ## Precipitation 
+  if(!dir.exists("input/covariates/raw_data/precipitation_total")){dir.create("input/covariates/raw_data/precipitation_total_for_observation_error")}
+  
+  for(i in 1:length(dates)){
+    year <- lubridate::year(as.POSIXct(dates[i], format = "%Y%m%d"))
+    if(!file.exists(paste0("input/covariates/raw_data/precipitation_total_for_observation_error/precipitation_total", dates[i], ".nc"))){
+      download.file(url =  paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/precip/total/r005/01day/",
+                                  year, "/precip_total_r005_", dates[i], "_", dates[i], ".nc"),
+                    destfile = paste0("input/covariates/raw_data/precipitation_total_for_observation_error/precipitation_total_", dates[i], ".nc"),
+                    mode = "wb")
+    }
+  }
+}
+
+
+# Extract mean maximum temperature and mean total precipitation for observation process
+# data has to be a list
+extract_temp_precip <- function(data){
+  # add date as character
+  dat <- data |> 
+    select(TransectID, Date) |> 
+    # format to make it compatible with BOM files
+    mutate(date_chr = gsub("\\-", "", as.character(Date)))
+  
+  # Load spatial representation
+  if(all(grepl("SOL|DOL", data$TransectID))){
+    surveys <- sf::st_read("input/survey_data/master_line_transect.shp")
+  }
+  
+  if(all(grepl("ST", data$TransectID))){
+    surveys <- sf::st_read("input/survey_data/master_strip_transect.shp")
+  }
+  
+  if(all(grepl("UAoA", data$TransectID))){
+    surveys <- sf::st_read("input/survey_data/master_uaoa.shp")
+  }
+  
+  # wrangle
+  surveys <- surveys |> 
+    dplyr::mutate(date_chr = gsub("\\-", "", as.character(Date))) |> 
+    dplyr::select(TransectID = TrnscID, date_chr, SiteID, geometry)
+  
+  # check if every survey has a spatial representation
+  check <- dat |> 
+    filter(!TransectID %in% unique(surveys$TransectID)) 
+  if(nrow(check) > 0){stop("Some surveys do not have a spatial representation")}
+  
+  # filter
+  surveys.sub <- surveys |> 
+    filter(TransectID %in% unique(data$TransectID)) 
+  
+  # Extract mean values 
+  ## Temperature 
+  filepath <- list.files(path = "input/covariates/raw_data/max_temp_for_observation_error",
+                         pattern = ".nc",
+                         full.names = T)
+  
+  data$temp_mean <- NA
+  
+  for(i in 1:nrow(dat)){
+    cat(paste0(i, " "))
+    data[i, "temp_mean"] <- local({
+      s <- surveys.sub[which(surveys.sub$TransectID %in% unique(dat[i,]$TransectID)), ]
+      r.path <-  filepath[which(grepl(unique(s$date_chr), filepath))] 
+      r <- suppressWarnings(rast(r.path))
+      r <- suppressWarnings(project(r, "EPSG:7856"))
+      mean <- exactextractr::exact_extract(r, s, fun = "mean")
+    })
+  }
+  
+  ## Precipitation 
+  filepath <- list.files(path = "input/covariates/raw_data/precipitation_total_for_observation_error",
+                         pattern = ".nc",
+                         full.names = T)
+  
+  data$precip_mean <- NA
+  
+  for(i in 1:nrow(dat)){
+    cat(paste0(i, " "))
+    data[i, "precip_mean"] <- local({
+      s <- surveys.sub[which(surveys.sub$TransectID %in% unique(dat[i,]$TransectID)), ]
+      r.path <-  filepath[which(grepl(unique(s$date_chr), filepath))] 
+      r <- suppressWarnings(rast(r.path))
+      r <- suppressWarnings(project(r, "EPSG:7856"))
+      mean <- exactextractr::exact_extract(r, s, fun = "mean")
+    })
+  }
+  
+  return(data)
+}
+
+
+sample <- list(data[[1]][1:10, ],
+               data[[2]][1:10, ],
+               data[[3]][1:10, ])
+
+sample <- lapply(sample, extract_temp_precip)
+
+data <- sample[[1]]
