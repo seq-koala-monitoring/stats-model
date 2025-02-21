@@ -1887,7 +1887,7 @@ fcn_all_tables_detect <- function(db_name = "integrated",
   # the first spans from 1996 to 2013 when started a high turn over of staff. 
   # the second group ranges from 2014 to 2020, when the department tried different survey methods and the ID of observers was not systematically recorded
   tables <- lapply(tables, function(df){
-    df3 <- df2 |> 
+    df3 <- df |> 
       dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ 1,
                                                      lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2))
     
