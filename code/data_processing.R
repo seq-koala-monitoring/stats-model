@@ -123,7 +123,7 @@ fcn_set_cov_impute_buffer(cov_impute_buffer)
 # Set study area buffer
 fcn_set_study_area_buffer(area_buffer)
 
-# Conduct imputaiton if needed
+# Conduct imputation if needed
 if (use_imputation) {
   fcn_set_raster_path(list(covariates = 'covariates_impute/output'))
 } else {
@@ -148,11 +148,14 @@ saveRDS(master, paste0(out_dir, '/master.rds'))
 master_sf <- fcn_all_tables_sf_detect()
 lapply(seq_along(master_sf), \(i) sf::st_write(master_sf[[i]], paste0(out_dir, '/master_', names(master_sf)[i], '.shp'), append=F))
 
-# Include mean max temperature and mean total precipitation to each transect
+# Include max temperature and total precipitation to each transect
 master.sub <- master[c("line_transect", "strip_transect", "uaoa")]
 download_temp_precip(master.sub)
-master.sub <- extract_temp_precip(master.sub)
-master <- append(master.sub, master["perp_distance"])
+# extract value for line transets
+master$line_transect <- extract_temp_precip(master.sub$line_transect, "line")
+master$strip_transect <- extract_temp_precip(master.sub$strip_transect, "strip")
+master$uaoa <- extract_temp_precip(master.sub$uaoa, "uaoa")
+#master <- append(master.sub, master["perp_distance"])
 saveRDS(master, paste0(out_dir, '/master.rds'))
 
 # Load covariates from the directory

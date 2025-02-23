@@ -2420,7 +2420,7 @@ download_temp_precip <- function(data){
   
   # Download data from BOM 
   ## Temperature 
-  if(!dir.exists("input/covariates/raw_data/max_temp")){dir.create("input/covariates/raw_data/max_temp_for_observation_error")}
+  if(!dir.exists("input/covariates/raw_data/max_temp_for_observation_error")){dir.create("input/covariates/raw_data/max_temp_for_observation_error")}
   
   for(i in 1:length(dates)){
     year <- lubridate::year(as.POSIXct(dates[i], format = "%Y%m%d"))
@@ -2433,11 +2433,11 @@ download_temp_precip <- function(data){
   }
   
   ## Precipitation 
-  if(!dir.exists("input/covariates/raw_data/precipitation_total")){dir.create("input/covariates/raw_data/precipitation_total_for_observation_error")}
+  if(!dir.exists("input/covariates/raw_data/precipitation_total_for_observation_error")){dir.create("input/covariates/raw_data/precipitation_total_for_observation_error")}
   
   for(i in 1:length(dates)){
     year <- lubridate::year(as.POSIXct(dates[i], format = "%Y%m%d"))
-    if(!file.exists(paste0("input/covariates/raw_data/precipitation_total_for_observation_error/precipitation_total", dates[i], ".nc"))){
+    if(!file.exists(paste0("input/covariates/raw_data/precipitation_total_for_observation_error/precipitation_total_", dates[i], ".nc"))){
       download.file(url =  paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/precip/total/r005/01day/",
                                   year, "/precip_total_r005_", dates[i], "_", dates[i], ".nc"),
                     destfile = paste0("input/covariates/raw_data/precipitation_total_for_observation_error/precipitation_total_", dates[i], ".nc"),
@@ -2446,10 +2446,10 @@ download_temp_precip <- function(data){
   }
 }
 
-
 # Extract mean maximum temperature and mean total precipitation for observation process
 # data has to be a list
-extract_temp_precip <- function(data){
+# type is the type of survey ("line", "strip", "uaoa")
+extract_temp_precip <- function(data, type){
   # add date as character
   dat <- data |> 
     select(TransectID, Date) |> 
@@ -2457,15 +2457,15 @@ extract_temp_precip <- function(data){
     mutate(date_chr = gsub("\\-", "", as.character(Date)))
   
   # Load spatial representation
-  if(all(grepl("SOL|DOL", data$TransectID))){
+  if(type == "line"){
     surveys <- sf::st_read("input/survey_data/master_line_transect.shp")
   }
   
-  if(all(grepl("ST", data$TransectID))){
+  if(type == "strip"){
     surveys <- sf::st_read("input/survey_data/master_strip_transect.shp")
   }
   
-  if(all(grepl("UAoA", data$TransectID))){
+  if(type == "uaoa"){
     surveys <- sf::st_read("input/survey_data/master_uaoa.shp")
   }
   
@@ -2483,17 +2483,18 @@ extract_temp_precip <- function(data){
   surveys.sub <- surveys |> 
     filter(TransectID %in% unique(data$TransectID)) 
   
-  # Extract mean values 
+  # Extract values 
+  
   ## Temperature 
   filepath <- list.files(path = "input/covariates/raw_data/max_temp_for_observation_error",
                          pattern = ".nc",
                          full.names = T)
   
-  data$temp_mean <- NA
+  data$temp_max <- NA
   
   for(i in 1:nrow(dat)){
     cat(paste0(i, " "))
-    data[i, "temp_mean"] <- local({
+    data[i, "temp_max"] <- local({
       s <- surveys.sub[which(surveys.sub$TransectID %in% unique(dat[i,]$TransectID)), ]
       r.path <-  filepath[which(grepl(unique(s$date_chr), filepath))] 
       r <- suppressWarnings(rast(r.path))
@@ -2507,11 +2508,11 @@ extract_temp_precip <- function(data){
                          pattern = ".nc",
                          full.names = T)
   
-  data$precip_mean <- NA
+  data$precip_tot <- NA
   
   for(i in 1:nrow(dat)){
     cat(paste0(i, " "))
-    data[i, "precip_mean"] <- local({
+    data[i, "precip_tot"] <- local({
       s <- surveys.sub[which(surveys.sub$TransectID %in% unique(dat[i,]$TransectID)), ]
       r.path <-  filepath[which(grepl(unique(s$date_chr), filepath))] 
       r <- suppressWarnings(rast(r.path))
