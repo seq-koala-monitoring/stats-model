@@ -149,12 +149,11 @@ master_sf <- fcn_all_tables_sf_detect()
 lapply(seq_along(master_sf), \(i) sf::st_write(master_sf[[i]], paste0(out_dir, '/master_', names(master_sf)[i], '.shp'), append=F))
 
 # Include max temperature and total precipitation to each transect
-master.sub <- master[c("line_transect", "strip_transect", "uaoa")]
-download_temp_precip(master.sub)
+download_temp_precip(master[c("line_transect", "strip_transect", "uaoa")])
 # extract value for line transets
-master$line_transect <- extract_temp_precip(master.sub$line_transect, "line")
-master$strip_transect <- extract_temp_precip(master.sub$strip_transect, "strip")
-master$uaoa <- extract_temp_precip(master.sub$uaoa, "uaoa")
+master$line_transect <- extract_temp_precip(master$line_transect, "line")
+master$strip_transect <- extract_temp_precip(master$strip_transect, "strip")
+master$uaoa <- extract_temp_precip(master$uaoa, "uaoa")
 #master <- append(master.sub, master["perp_distance"])
 saveRDS(master, paste0(out_dir, '/master.rds'))
 
