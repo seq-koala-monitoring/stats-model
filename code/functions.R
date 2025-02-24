@@ -1877,7 +1877,8 @@ fcn_all_tables_detect <- function(db_name = "integrated",
                                                          Subcanopy_Cover > 40 & Subcanopy_Cover <= 60 ~ 3,
                                                          Subcanopy_Cover > 60 & Subcanopy_Cover <= 80 ~ 4,
                                                          Subcanopy_Cover > 80 & Subcanopy_Cover <= 100 ~ 5,
-                                                         .default = Subcanopy_Cover))
+                                                         .default = Subcanopy_Cover)) |> 
+      dplyr::ungroup()
     }
     return(df2)
   }) # Close the lapply function
@@ -1889,7 +1890,7 @@ fcn_all_tables_detect <- function(db_name = "integrated",
   tables <- lapply(tables, function(df){
     df3 <- df |> 
       dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ 1,
-                                                     lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2))
+                                                     lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2)) 
     
     if("ObserverID" %in% names(df3)){
       df3 <- df3 |> 
@@ -1904,7 +1905,8 @@ fcn_all_tables_detect <- function(db_name = "integrated",
         dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverGroup), readr::parse_integer(ObserverID), ObserverGroup)) |>
         # this line needs to be updated if the Names_to_Code table in the Access database is not up-to-date
         dplyr::mutate(ObserverGroup = ifelse(ObserverID %in% "BK", 78, ObserverGroup)) |>
-        dplyr::select(-Code, -ObserverID)
+        dplyr::select(-Code, -ObserverID) |> 
+        dplyr::ungroup()
     }
     return(df3)
   })
@@ -2452,9 +2454,9 @@ download_temp_precip <- function(data){
 extract_temp_precip <- function(data, type){
   # add date as character
   dat <- data |> 
-    select(TransectID, Date) |> 
+    dplyr::select(TransectID, SiteID, Date) |>  
     # format to make it compatible with BOM files
-    mutate(date_chr = gsub("\\-", "", as.character(Date)))
+    dplyr::mutate(date_chr = gsub("\\-", "", as.character(Date)))
   
   # Load spatial representation
   if(type == "line"){
@@ -2475,6 +2477,39 @@ extract_temp_precip <- function(data, type){
     dplyr::select(TransectID = TrnscID, date_chr, SiteID, geometry)
   
   # check if every survey has a spatial representation
+    check <- dat |> 
+    filter(!TransectID %in% unique(surveys$TransectID)) 
+  
+  # add survey site representation if required
+  if(nrow(check) > 0){
+    sites <- sf::st_read(paste0("input/", state$gdb_path$koala_survey_sites))
+    
+    dat.check <- dat |> 
+      dplyr::filter(TransectID %in% unique(check$TransectID) & !is.na(SiteID)) |> 
+      dplyr::left_join(dplyr::select(sites, Site, geometry), dplyr::join_by(SiteID == Site)) |> 
+      select(TransectID, SiteID, date_chr, geometry)
+    
+    if(sum(duplicated(dat.check$TransectID)) > 0){
+      dat.check <- dat.check |> 
+        dplyr::group_by(TransectID) |> 
+        dplyr::reframe(
+          geometry = first(geometry),
+          date_chr = dplyr::unique(date_chr),
+          SiteID = dplyr::unique(SiteID)
+        )
+    }
+    surveys <- dplyr::bind_rows(surveys, dat.check)
+    
+    # remove surveys without spatial representation and SiteID identifier
+    surveys.to.remove <- data |> 
+      dplyr::filter(TransectID %in% unique(check$TransectID) & is.na(SiteID)) |> 
+      dplyr::pull(TransectID)
+    data <- data |> 
+      dplyr::filter(!TransectID %in% surveys.to.remove)
+    dat <- dat |> 
+      dplyr::filter(!TransectID %in% surveys.to.remove)
+  }
+
   check <- dat |> 
     filter(!TransectID %in% unique(surveys$TransectID)) 
   if(nrow(check) > 0){stop("Some surveys do not have a spatial representation")}
