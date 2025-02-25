@@ -2537,7 +2537,7 @@ extract_temp_precip <- function(data, type){
 
   check <- dat |> 
     filter(!TransectID %in% unique(surveys$TransectID)) 
-  if(nrow(check) > 0){stop("Some surveys do not have a spatial representation")}
+  if(nrow(check) > 0){warning("Some surveys do not have a spatial representation")}
   
   # filter
   surveys.sub <- surveys |> 
