@@ -207,6 +207,10 @@ format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterva
 
   # compile into a tibble
   X <- tibble(hhgde = X_hhgde, htele = X_htele, htslo = X_htslo, htrug = X_htrug, hspc1 = X_hspc1, hspc2 = X_hspc2, hcltp = X_hcltp, hcltt = X_hcltt)
+
+  # get amount of missing data
+  MissX <- (sapply(X, function(y) sum(is.na(y))) / nrow(X)) %>% t() %>% as_tibble()
+
   # impute any missing values
   if (any(is.na(X))) {
       X <- complete(mice(X, m = 1)) %>% as_tibble()
@@ -288,6 +292,9 @@ format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterva
   # compile into a tibble
   Y_temp <- tibble(htime = Y_htime, hseas = Y_hseas, hhpgr = Y_hhpgr, hhpgr2km = Y_hhpgr2km, hhkha = Y_hhkha, hhfwc = Y_hhfwc, hcpre = Y_hcpre, hctmn = Y_hctmn, hctma = Y_hctma, htlus = Y_htlus, htilu2km = Y_htilu2km, htpls2km = Y_htpls2km)
 
+  # get amount of missing data
+  MissY <- (sapply(Y, function(y) sum(is.na(y))) / nrow(Y)) %>% t() %>% as_tibble()
+
   # impute any missing values
   if (any(is.na(Y_temp))) {
       Y_temp <- complete(mice(Y_temp, m = 1)) %>% as_tibble()
@@ -300,8 +307,7 @@ format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterva
   CorrXY <- cor(XYData %>% dplyr::select(-hhgde, -htime, -hseas, -hhkha, -htlus), use = "complete.obs", method = "spearman")
 
   # return data
-
-  return(list(Surveys = Surveys, GridFrac = GridFrac, FirstDate = FirstDate, LastDate = LastDate, CovTempSurv = CovTempSurv, CovConsSurv = CovConsSurv, AggGenPop = AggGenPop, NGPops = NGPops, Order = Order, Lag = Lag, FirstDateID = FirstDateID, LastDateID = LastDateID, VarTrend = VarTrend, NSGrids = NSGrids, GenPopID = GenPopID, X = X, ScaleParamsX = ScaleParamsX, Y_temp = Y_temp, ScaleParamsY = ScaleParamsY, Soil_PCA = Soil_PCA, CorrXY = CorrXY))
+  return(list(Surveys = Surveys, GridFrac = GridFrac, FirstDate = FirstDate, LastDate = LastDate, CovTempSurv = CovTempSurv, CovConsSurv = CovConsSurv, AggGenPop = AggGenPop, NGPops = NGPops, Order = Order, Lag = Lag, FirstDateID = FirstDateID, LastDateID = LastDateID, VarTrend = VarTrend, NSGrids = NSGrids, GenPopID = GenPopID, X = X, ScaleParamsX = ScaleParamsX, Y_temp = Y_temp, ScaleParamsY = ScaleParamsY, Soil_PCA = Soil_PCA, CorrXY = CorrXY, MissX))
 }
 
 # gets the fit data for the model
@@ -372,6 +378,14 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
 
   # get lookup table to convert original grid IDs to IDs ordered from 1:number of small grids in the survey areas (to match the order in CovConsSurv and CovTempSurv)
   SGridIDsLookUp <- CovConsSurv$GridID %>% as_tibble() %>% mutate(GridID = value, OrderedID = seq_len(nrow(.))) %>% select(GridID, OrderedID)
+
+  # get the mean and sd of the daily weather variables for standardisation in the observation error model
+  MeanTemp <- c(Surveys$strip_transect$temp_max %>% as.vector(), Surveys$line_transect$temp_max %>% as.vector(), Surveys$uaoa$temp_max %>% as.vector()) %>% mean(na.rm = TRUE)
+  SDTemp <- c(Surveys$strip_transect$temp_max %>% as.vector(), Surveys$line_transect$temp_max %>% as.vector(), Surveys$uaoa$temp_max %>% as.vector()) %>% sd(na.rm = TRUE)
+  MeanPrec <- c(Surveys$strip_transect$precip_tot %>% as.vector(), Surveys$line_transect$precip_tot %>% as.vector(), Surveys$uaoa$precip_tot %>% as.vector()) %>% mean(na.rm = TRUE)
+  SDPrec <- c(Surveys$strip_transect$precip_tot %>% as.vector(), Surveys$line_transect$precip_tot %>% as.vector(), Surveys$uaoa$precip_tot %>% as.vector()) %>% sd(na.rm = TRUE)
+  MeanTempPrec <- c((Surveys$strip_transect$temp_max * Surveys$strip_transect$precip_tot) %>% as.vector(), (Surveys$line_transect$temp_max * Surveys$line_transect$precip_tot) %>% as.vector(), (Surveys$uaoa$temp_max * Surveys$uaoa$precip_tot) %>% as.vector()) %>% mean(na.rm = TRUE)
+  SDTempPrec <- c((Surveys$strip_transect$temp_max * Surveys$strip_transect$precip_tot) %>% as.vector(), (Surveys$line_transect$temp_max * Surveys$line_transect$precip_tot) %>% as.vector(), (Surveys$uaoa$temp_max * Surveys$uaoa$precip_tot) %>% as.vector()) %>% sd(na.rm = TRUE)
 
   # strip transect data
 
@@ -447,9 +461,14 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
   # hdwin = Wind
   # hdcco = Canopy cover
   # hdscc = Subcanopy cover
+  # hdtma = daily max temperature
+  # hdpre = daily precipitation
   # hdobs = Observer group
-  Z_Strip <- tibble(hhcht = Z_Strip_hhcht, hhunf = Z_Strip_hhunf, hhchtunf = Z_Strip_hhchtunf, hdwea = StripJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = StripJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = StripJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = StripJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = StripJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = StripJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer())
+  Z_Strip <- tibble(hhcht = Z_Strip_hhcht, hhunf = Z_Strip_hhunf, hhchtunf = Z_Strip_hhchtunf, hdwea = StripJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = StripJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = StripJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = StripJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = StripJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = StripJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer(), hdtma = ((StripJoinGroupFrac$temp_max - MeanTemp) / SDTemp) %>% as.vector(), hdpre = ((StripJoinGroupFrac$precip_tot - MeanPrec) / SDPrec) %>% as.vector(), hdtmpre = (((StripJoinGroupFrac$temp_max * StripJoinGroupFrac$precip_tot) - MeanTempPrec) / SDTempPrec) %>% as.vector())
   
+  # get amount of missing data
+  MissZ_Strip <- (sapply(Z_Strip, function(y) sum(is.na(y))) / nrow(Z_Strip)) %>% t() %>% as_tibble()
+
   # impute any missing values
   if (any(is.na(Z_Strip))) {
       Z_Strip <- complete(mice(Z_Strip, m = 1)) %>% as_tibble()
@@ -536,8 +555,11 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
   # hdcco = Canopy cover
   # hdscc = Subcanopy cover
   # hdobs = Observer group
-  Z_AoA <- tibble(hhcht = Z_AoA_hhcht, hhunf = Z_AoA_hhunf, hhchtunf = Z_AoA_hhchtunf, hdwea = AoAJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = AoAJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = AoAJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = AoAJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = AoAJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = AoAJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer())
+  Z_AoA <- tibble(hhcht = Z_AoA_hhcht, hhunf = Z_AoA_hhunf, hhchtunf = Z_AoA_hhchtunf, hdwea = AoAJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = AoAJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = AoAJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = AoAJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = AoAJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = AoAJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer(), hdtma = ((AoAJoinGroupFrac$temp_max - MeanTemp) / SDTemp) %>% as.vector(), hdpre = ((AoAJoinGroupFrac$precip_tot - MeanPrec) / SDPrec) %>% as.vector(), hdtmpre = (((AoAJoinGroupFrac$temp_max * AoAJoinGroupFrac$precip_tot) - MeanTempPrec) / SDTempPrec) %>% as.vector())
   
+  # get amount of missing data
+  MissZ_AoA <- (sapply(Z_AoA, function(y) sum(is.na(y))) / nrow(Z_AoA)) %>% t() %>% as_tibble()
+
   # impute any missing values
   if (any(is.na(Z_AoA))) {
       Z_AoA <- complete(mice(Z_AoA, m = 1)) %>% as_tibble()
@@ -620,8 +642,11 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
   # hdcco = Canopy cover
   # hdscc = Subcanopy cover
   # hdobs = Observer group
-  Z_Line <- tibble(hhcht = Z_Line_hhcht, hhunf = Z_Line_hhunf, hhchtunf = Z_Line_hhchtunf, hdwea = LineJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = LineJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = LineJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = LineJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = LineJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = LineJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer())
+  Z_Line <- tibble(hhcht = Z_Line_hhcht, hhunf = Z_Line_hhunf, hhchtunf = Z_Line_hhchtunf, hdwea = LineJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = LineJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = LineJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = LineJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = LineJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = LineJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer(), hdtma = ((LineJoinGroupFrac$temp_max - MeanTemp) / SDTemp) %>% as.vector(), hdpre = ((LineJoinGroupFrac$precip_tot - MeanPrec) / SDPrec) %>% as.vector(), hdtmpre = (((LineJoinGroupFrac$temp_max * LineJoinGroupFrac$precip_tot) - MeanTempPrec) / SDTempPrec) %>% as.vector())
   
+  # get amount of missing data
+  MissZ_Line <- (sapply(Z_Line, function(y) sum(is.na(y))) / nrow(Z_Line)) %>% t() %>% as_tibble()
+
   # impute any missing values
   if (any(is.na(Z_Line))) {
       Z_Line <- complete(mice(Z_Line, m = 1)) %>% as_tibble()
@@ -801,7 +826,7 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
   NimbleConsts <- list(NGPops = NGPops, NGPopsAdjs = NGPopsAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, GenPopID = GenPopID, FirstDateID = FirstDateID, LastDateID = LastDateID, NX = NX, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine, NZ = NZ, NObsGrps = NObsGrps, NPDists = NPDists, PDLineIDs = PDLineIDs, Order = Order, Lag = Lag, VarTrend = VarTrend)
   NimbleData <- list(X = X, Y = Y, Z_Strip = Z_Strip, Z_AoA = Z_AoA, Z_Line = Z_Line, StripObsGrp = StripObsGrp, AoAObsGrp = AoAObsGrp, LineObsGrp = LineObsGrp, CntStrip = CntStrip, CntAoA = CntAoA, PDists = PDists, CntLine = CntLine)
 
-  return(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), NamesZ = names(Z_Line), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, Order = Order, Lag = Lag, VarTrend = VarTrend, StaticVars = StaticVars, DynamicVars = DynamicVars, ObsVars = ObsVars))
+  return(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), NamesZ = names(Z_Line), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, Order = Order, Lag = Lag, VarTrend = VarTrend, StaticVars = StaticVars, DynamicVars = DynamicVars, ObsVars = ObsVars, MissZ_Strip = MissZ_Strip, MissZ_AoA = MissZ_AoA, MissZ_Line = MissZ_Line))
 }
 
 # function to get data for a particular year for a model to make predictions

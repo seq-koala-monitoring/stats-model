@@ -271,6 +271,10 @@ for (Order in 1:2) {
       ggsave(FormattedData$SoilScree2, file = paste0("input/nimble_data/pca/soilscree2_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
       ggsave(FormattedData$SoilBiPlot, file = paste0("input/nimble_data/pca/soilbiplot_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".jpg"), width = 20, height = 20, units = "cm", dpi = 300)
 
+      # save proportion missing data reports
+      write.csv(FormattedData$MissX, paste0("input/nimble_data/missing_data/missingX", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
+      write.csv(FormattedData$MissY, paste0("input/nimble_data/missing_data/missingY", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
+
       # free memory
       rm(FormattedData)
       gc()
@@ -296,6 +300,11 @@ for (Order in 1:2) {
       
       # save data
       saveRDS(FitData, paste0("input/nimble_data/data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
+
+      # save proportion missing data reports
+      write.csv(FitData$MissZ_Strip, paste0("input/nimble_data/missing_data/missingZ_strip", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
+      write.csv(FitData$MissZ_AoA, paste0("input/nimble_data/missing_data/missingZ_uaoa", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
+      write.csv(FitData$MissZ_Line, paste0("input/nimble_data/missing_data/missingZ_line", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
 
       # free memory
       rm(FitData)

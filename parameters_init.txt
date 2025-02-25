@@ -66,4 +66,4 @@ dynamic_variables <- c("hhfwc", "hhpgr2km", "htpls2km", "hcpre", "hctmn", "hseas
 # wind
 # canopy cover
 # subcanopy cover
-obs_variables <- c("hhcht", "hhunf", "hhchtunf")
+obs_variables <- c("hhcht", "hhunf", "hhchtunf", "hdtma", "hdpre", "hdtmapre")
