@@ -1102,7 +1102,7 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
                           spatial_transects = "transects_v240517.shp",
                           line_transect_width = 28.69,
                           site.info = "site_info.csv",
-                          monitoring.units = "Population_boundaries_v2.shp"){
+                          monitoring.units = genetic_units){
   
   
   # load function to create line transects as line feature
@@ -1138,11 +1138,11 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
   # retrieve survey data table only
   dat <- RODBC::sqlFetch(channel, "tblKoalaSurveyData2020_cur")
   
+  # retrieve observer names to code table
+  obs <- RODBC::sqlFetch(channel, "ObserverName_Codes")
+  
   # close odbc connection
   RODBC::odbcClose(channel)
-  
-  # include number of sightings
-  
   
   # adding the 2018 Daisy Hill Line Transects
   # create a temporary dataframe for merging
@@ -1501,7 +1501,6 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
   # This code follows the same logic applied to extract Site ID
   path <- list.files(pattern = monitoring.units, recursive = T, ignore.case = T, full.names = F, include.dirs = T) 
   path <- path[(substring(path, nchar(path) - 3 + 1) == "shp")]
-  
   if (length(path) == 0) {
     stop(sprintf("No % s file found. Please, make sure you have a file named % s in this working directory",
                  monitoring.units, monitoring.units))} # close {} of error message
@@ -1725,8 +1724,14 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
   
   # update db
   path <- list.files(pattern = db.integrated, recursive = T, ignore.case = T, full.names = F, include.dirs = T)
-  if (length(path) > 1) {
-    stop(sprintf("There are multiple files named %s. Please, make sure to keep only the most up-to-date koala survey database in this working directory. Databases found in: %s", db.integrated))} # close {} of error message
+  if (length(path) == 0) {
+    stop(sprintf("No % s file found. Please, make sure you have a file named % s in this working directory",
+                 db.integrated, db.integrated))} # close {} of error message
+  if(length(path) > 1){
+    message("Multiple files found:")
+    for (i in seq_along(path)) {
+      cat(i, ":", path[i], "\n")}
+    choice <- as.integer(readline("Enter the number corresponding to the file you want to use: "))
   
   # create a copy the database to avoid modifying the original
   if(!file.exists("output/integrated_database")){
@@ -1746,7 +1751,7 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
   # establish odbc connection
   channel <- RODBC::odbcDriverConnect(db_path)
   
-  # remove old SOL table survey data table only
+  # replace old SOL table survey data table only
   RODBC::sqlDrop(channel, "SOL_Compiled")
   
   RODBC::sqlSave(
@@ -1758,6 +1763,19 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
     rownames = F, 
     colnames = F,
     varTypes = c("\"Date\"" = "date")
+  )
+  
+  # replace old Names_to_Code table 
+  RODBC::sqlDrop(channel, "Names_to_Code")
+  
+  RODBC::sqlSave(
+    channel,
+    dat = obs,
+    tablename = "Names_to_Code",
+    fast = F, 
+    safer = F, 
+    rownames = F, 
+    colnames = F
   )
   
   # close odbc connection
@@ -1918,7 +1936,12 @@ fcn_all_tables_detect <- function(db_name = "integrated",
                                                      lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2)) 
     
     if("ObserverID" %in% names(df3)){
-      df3 <- df3 |> 
+      # to handle changes in how DESI recorded the observer ID from 2024 onwards, it is needed to treat the data by period
+      df.2020 <- df3 |> 
+        dplyr::filter(lubridate::year(Date) <= 2020)
+      
+      df.2023 <- df3 |> 
+        dplyr::filter(lubridate::year(Date) > 2020 & lubridate::year(Date) <= 2023) |> 
         dplyr::rowwise() |> 
         # keep only the first observer in cases when SOL or DOL were recorded with multiple
         dplyr::mutate(ObserverID = ifelse(nchar(ObserverID) > 3, substr(ObserverID, start = 1, stop = 2), ObserverID)) |>
@@ -1926,34 +1949,53 @@ fcn_all_tables_detect <- function(db_name = "integrated",
         dplyr::mutate(ObserverID = ifelse(ObserverID %in% "J_K", "J", ObserverID)) |> 
         # add ObserverGroup to survey data from 2021 onwards
         dplyr::left_join(table[["names_to_code"]], dplyr::join_by(ObserverID == Initials)) |> 
-        dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverID), ObserverGroup, Code)) |> 
-        dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverGroup), readr::parse_integer(ObserverID), ObserverGroup)) |>
+        dplyr::mutate(obs.code = ifelse(is.na(ObserverID), obs.code, Code)) |> 
+        dplyr::mutate(obs.code = ifelse(is.na(obs.code), suppressWarnings(readr::parse_integer(ObserverID)), obs.code)) |>
         # this line needs to be updated if the Names_to_Code table in the Access database is not up-to-date
-        dplyr::mutate(ObserverGroup = ifelse(ObserverID %in% "BK", 78, ObserverGroup)) |>
-        dplyr::select(-Code, -ObserverID) |> 
+        dplyr::mutate(obs.code = ifelse(ObserverID %in% "BK", 1000, obs.code)) |>
+        dplyr::select(-Code) |> 
         dplyr::ungroup()
+      
+      df.current <- df3 |> 
+        dplyr::filter(lubridate::year(Date) >= 2024) |> 
+        dplyr::mutate(obs.code = as.integer(ObserverID) + 2)
+      
+      df4 <- bind_rows(df.2020, df.2023, df.current) |> 
+        dplyr::select(-ObserverID)
       
       # group observers based in the organisation they work for
       message("Make sure to keep the file group_observers_lookup.csv in 'input/group_observers' updated. Any observers from 2020 without an assigned group will be grouped together.")
-      obs.lookup <- read.csv("input/group_observers/group_observers_lookup.csv")
+      obs.lookup <- read.csv("input/group_observers/group_observers_lookup.csv") |> 
+        dplyr::mutate(code = code + 2)
+      obs.index <- data.frame(group = unique(obs.lookup$group),
+                              obs.index = 3:(length(unique(obs.lookup$group))+3-1))
+      obs.lookup <- obs.lookup |> 
+        dplyr::left_join(obs.index, by = "group") |> 
+        dplyr::select(-group)
       
       # join
-      df3 <- df3 |> 
-        dplyr::left_join(obs.lookup, join_by(ObserverGroup == code)) |> 
-        dplyr::mutate(ObserverGroup = dplyr:::case_when(
-          lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ 1,
-          lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2,
-          group %in% "KRAM" ~ 3,
-          group %in% "TSO" ~ 4,
-          group %in% "DETSI" ~ 5,
-          group %in% "EXTERNAL" ~ 6,
-          group %in% "STUDENT" ~ 7,
-          # group observers not assigned in the lookup table
-          is.na(group) ~ 8
-        )) |> 
-        dplyr::select(-group)
+      df5 <- df4 |> 
+        dplyr::left_join(obs.lookup, join_by(obs.code == code)) |> 
+        dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ 1,
+                                                       lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2,
+                                                       obs.code == 1000 ~ max(obs.index, na.rm = T) + 1, 
+                                                       .default = obs.index))
+      if(sum(is.na(df5$ObserverGroup)) > 0){
+        obs.na <- df5 |> 
+          dplyr::filter(is.na(ObserverGroup)) |> 
+          dplyr::pull(obs.code) - 2 |> 
+          unique()
+        obs.na <- paste(obs.na, collapse = " ")
+        
+        warning(sprintf("Observer code(s) % s is not found in the file group_observers_lookup.csv, so it will either be grouped with others in multiple cases or assigned to a separate group if alone.",
+                        obs.na))
+      }
+      
+      df5 <- df5 |> 
+        dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverGroup), max(ObserverGroup, na.rm = T) + 1, ObserverGroup)) |> 
+        dplyr::select(-obs.index, -obs.code)
     }
-    return(df3)
+    return(df5)
   })
   
   # create a lookup table to guarantee sequential numbers assigning the group of observers
