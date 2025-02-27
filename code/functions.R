@@ -293,7 +293,7 @@ format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterva
   Y_temp <- tibble(htime = Y_htime, hseas = Y_hseas, hhpgr = Y_hhpgr, hhpgr2km = Y_hhpgr2km, hhkha = Y_hhkha, hhfwc = Y_hhfwc, hcpre = Y_hcpre, hctmn = Y_hctmn, hctma = Y_hctma, htlus = Y_htlus, htilu2km = Y_htilu2km, htpls2km = Y_htpls2km)
 
   # get amount of missing data
-  MissY <- (sapply(Y, function(y) sum(is.na(y))) / nrow(Y)) %>% t() %>% as_tibble()
+  MissY <- (sapply(Y_temp, function(y) sum(is.na(y))) / nrow(Y_temp)) %>% t() %>% as_tibble()
 
   # impute any missing values
   if (any(is.na(Y_temp))) {
@@ -307,7 +307,7 @@ format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterva
   CorrXY <- cor(XYData %>% dplyr::select(-hhgde, -htime, -hseas, -hhkha, -htlus), use = "complete.obs", method = "spearman")
 
   # return data
-  return(list(Surveys = Surveys, GridFrac = GridFrac, FirstDate = FirstDate, LastDate = LastDate, CovTempSurv = CovTempSurv, CovConsSurv = CovConsSurv, AggGenPop = AggGenPop, NGPops = NGPops, Order = Order, Lag = Lag, FirstDateID = FirstDateID, LastDateID = LastDateID, VarTrend = VarTrend, NSGrids = NSGrids, GenPopID = GenPopID, X = X, ScaleParamsX = ScaleParamsX, Y_temp = Y_temp, ScaleParamsY = ScaleParamsY, Soil_PCA = Soil_PCA, CorrXY = CorrXY, MissX))
+  return(list(Surveys = Surveys, GridFrac = GridFrac, FirstDate = FirstDate, LastDate = LastDate, CovTempSurv = CovTempSurv, CovConsSurv = CovConsSurv, AggGenPop = AggGenPop, NGPops = NGPops, Order = Order, Lag = Lag, FirstDateID = FirstDateID, LastDateID = LastDateID, VarTrend = VarTrend, NSGrids = NSGrids, GenPopID = GenPopID, X = X, ScaleParamsX = ScaleParamsX, Y_temp = Y_temp, ScaleParamsY = ScaleParamsY, Soil_PCA = Soil_PCA, CorrXY = CorrXY, MissX = MissX, MissY = MissY))
 }
 
 # gets the fit data for the model
@@ -464,7 +464,7 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
   # hdtma = daily max temperature
   # hdpre = daily precipitation
   # hdobs = Observer group
-  Z_Strip <- tibble(hhcht = Z_Strip_hhcht, hhunf = Z_Strip_hhunf, hhchtunf = Z_Strip_hhchtunf, hdwea = StripJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = StripJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = StripJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = StripJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = StripJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = StripJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer(), hdtma = ((StripJoinGroupFrac$temp_max - MeanTemp) / SDTemp) %>% as.vector(), hdpre = ((StripJoinGroupFrac$precip_tot - MeanPrec) / SDPrec) %>% as.vector(), hdtmpre = (((StripJoinGroupFrac$temp_max * StripJoinGroupFrac$precip_tot) - MeanTempPrec) / SDTempPrec) %>% as.vector())
+  Z_Strip <- tibble(hhcht = Z_Strip_hhcht, hhunf = Z_Strip_hhunf, hhchtunf = Z_Strip_hhchtunf, hdwea = StripJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = StripJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = StripJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = StripJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = StripJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = StripJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer(), hdtma = ((StripJoinGroupFrac$temp_max - MeanTemp) / SDTemp) %>% as.vector(), hdpre = ((StripJoinGroupFrac$precip_tot - MeanPrec) / SDPrec) %>% as.vector(), hdtmapre = (((StripJoinGroupFrac$temp_max * StripJoinGroupFrac$precip_tot) - MeanTempPrec) / SDTempPrec) %>% as.vector())
   
   # get amount of missing data
   MissZ_Strip <- (sapply(Z_Strip, function(y) sum(is.na(y))) / nrow(Z_Strip)) %>% t() %>% as_tibble()
@@ -555,7 +555,7 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
   # hdcco = Canopy cover
   # hdscc = Subcanopy cover
   # hdobs = Observer group
-  Z_AoA <- tibble(hhcht = Z_AoA_hhcht, hhunf = Z_AoA_hhunf, hhchtunf = Z_AoA_hhchtunf, hdwea = AoAJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = AoAJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = AoAJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = AoAJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = AoAJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = AoAJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer(), hdtma = ((AoAJoinGroupFrac$temp_max - MeanTemp) / SDTemp) %>% as.vector(), hdpre = ((AoAJoinGroupFrac$precip_tot - MeanPrec) / SDPrec) %>% as.vector(), hdtmpre = (((AoAJoinGroupFrac$temp_max * AoAJoinGroupFrac$precip_tot) - MeanTempPrec) / SDTempPrec) %>% as.vector())
+  Z_AoA <- tibble(hhcht = Z_AoA_hhcht, hhunf = Z_AoA_hhunf, hhchtunf = Z_AoA_hhchtunf, hdwea = AoAJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = AoAJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = AoAJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = AoAJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = AoAJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = AoAJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer(), hdtma = ((AoAJoinGroupFrac$temp_max - MeanTemp) / SDTemp) %>% as.vector(), hdpre = ((AoAJoinGroupFrac$precip_tot - MeanPrec) / SDPrec) %>% as.vector(), hdtmapre = (((AoAJoinGroupFrac$temp_max * AoAJoinGroupFrac$precip_tot) - MeanTempPrec) / SDTempPrec) %>% as.vector())
   
   # get amount of missing data
   MissZ_AoA <- (sapply(Z_AoA, function(y) sum(is.na(y))) / nrow(Z_AoA)) %>% t() %>% as_tibble()
@@ -642,7 +642,7 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
   # hdcco = Canopy cover
   # hdscc = Subcanopy cover
   # hdobs = Observer group
-  Z_Line <- tibble(hhcht = Z_Line_hhcht, hhunf = Z_Line_hhunf, hhchtunf = Z_Line_hhchtunf, hdwea = LineJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = LineJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = LineJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = LineJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = LineJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = LineJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer(), hdtma = ((LineJoinGroupFrac$temp_max - MeanTemp) / SDTemp) %>% as.vector(), hdpre = ((LineJoinGroupFrac$precip_tot - MeanPrec) / SDPrec) %>% as.vector(), hdtmpre = (((LineJoinGroupFrac$temp_max * LineJoinGroupFrac$precip_tot) - MeanTempPrec) / SDTempPrec) %>% as.vector())
+  Z_Line <- tibble(hhcht = Z_Line_hhcht, hhunf = Z_Line_hhunf, hhchtunf = Z_Line_hhchtunf, hdwea = LineJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = LineJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = LineJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = LineJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = LineJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = LineJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer(), hdtma = ((LineJoinGroupFrac$temp_max - MeanTemp) / SDTemp) %>% as.vector(), hdpre = ((LineJoinGroupFrac$precip_tot - MeanPrec) / SDPrec) %>% as.vector(), hdtmapre = (((LineJoinGroupFrac$temp_max * LineJoinGroupFrac$precip_tot) - MeanTempPrec) / SDTempPrec) %>% as.vector())
   
   # get amount of missing data
   MissZ_Line <- (sapply(Z_Line, function(y) sum(is.na(y))) / nrow(Z_Line)) %>% t() %>% as_tibble()
