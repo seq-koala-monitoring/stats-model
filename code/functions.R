@@ -1732,6 +1732,9 @@ fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
     for (i in seq_along(path)) {
       cat(i, ":", path[i], "\n")}
     choice <- as.integer(readline("Enter the number corresponding to the file you want to use: "))
+    if (is.na(choice) || choice < 1 || choice > length(path)) {
+      stop("Invalid selection. Process terminated. Please, rerun this function and choose one of the provided options.")}
+    path <- path[choice]}
   
   # create a copy the database to avoid modifying the original
   if(!file.exists("output/integrated_database")){
