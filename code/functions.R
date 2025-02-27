@@ -1932,11 +1932,31 @@ fcn_all_tables_detect <- function(db_name = "integrated",
         dplyr::mutate(ObserverGroup = ifelse(ObserverID %in% "BK", 78, ObserverGroup)) |>
         dplyr::select(-Code, -ObserverID) |> 
         dplyr::ungroup()
+      
+      # group observers based in the organisation they work for
+      message("Make sure to keep the file group_observers_lookup.csv in 'input/group_observers' updated. Any observers from 2020 without an assigned group will be grouped together.")
+      obs.lookup <- read.csv("input/group_observers/group_observers_lookup.csv")
+      
+      # join
+      df3 <- df3 |> 
+        dplyr::left_join(obs.lookup, join_by(ObserverGroup == code)) |> 
+        dplyr::mutate(ObserverGroup = dplyr:::case_when(
+          lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ 1,
+          lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2,
+          group %in% "KRAM" ~ 3,
+          group %in% "TSO" ~ 4,
+          group %in% "DETSI" ~ 5,
+          group %in% "EXTERNAL" ~ 6,
+          group %in% "STUDENT" ~ 7,
+          # group observers not assigned in the lookup table
+          is.na(group) ~ 8
+        )) |> 
+        dplyr::select(-group)
     }
     return(df3)
   })
   
-  # lookup table
+  # create a lookup table to guarantee sequential numbers assigning the group of observers
   obs <- purrr::map(tables, function(df){obs <- df |> dplyr::select(ObserverGroup)}) |> dplyr::bind_rows()
   obs <- data.frame(init = unique(obs$ObserverGroup),
                     new = 1:length(unique(obs$ObserverGroup)))
