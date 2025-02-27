@@ -1963,7 +1963,7 @@ fcn_all_tables_detect <- function(db_name = "integrated",
         dplyr::filter(lubridate::year(Date) >= 2024) |> 
         dplyr::mutate(obs.code = as.integer(ObserverID) + 2)
       
-      df4 <- bind_rows(df.2020, df.2023, df.current) |> 
+      df3 <- bind_rows(df.2020, df.2023, df.current) |> 
         dplyr::select(-ObserverID)
       
       # group observers based in the organisation they work for
@@ -1977,14 +1977,14 @@ fcn_all_tables_detect <- function(db_name = "integrated",
         dplyr::select(-group)
       
       # join
-      df5 <- df4 |> 
+      df3 <- df3 |> 
         dplyr::left_join(obs.lookup, join_by(obs.code == code)) |> 
         dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ 1,
                                                        lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2,
                                                        obs.code == 1000 ~ max(obs.index, na.rm = T) + 1, 
                                                        .default = obs.index))
-      if(sum(is.na(df5$ObserverGroup)) > 0){
-        obs.na <- df5 |> 
+      if(sum(is.na(df3$ObserverGroup)) > 0){
+        obs.na <- df3 |> 
           dplyr::filter(is.na(ObserverGroup)) |> 
           dplyr::pull(obs.code) - 2 |> 
           unique()
@@ -1994,11 +1994,11 @@ fcn_all_tables_detect <- function(db_name = "integrated",
                         obs.na))
       }
       
-      df5 <- df5 |> 
+      df3 <- df3 |> 
         dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverGroup), max(ObserverGroup, na.rm = T) + 1, ObserverGroup)) |> 
         dplyr::select(-obs.index, -obs.code)
     }
-    return(df5)
+    return(df3)
   })
   
   # create a lookup table to guarantee sequential numbers assigning the group of observers
