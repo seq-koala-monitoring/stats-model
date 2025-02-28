@@ -1938,10 +1938,11 @@ fcn_all_tables_detect <- function(db_name = "integrated",
       dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ 1,
                                                      lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2)) 
     
-    if("ObserverID" %in% names(df3)){
+        if("ObserverID" %in% names(df3)){
       # to handle changes in how DESI recorded the observer ID from 2024 onwards, it is needed to treat the data by period
       df.2020 <- df3 |> 
-        dplyr::filter(lubridate::year(Date) <= 2020)
+        dplyr::filter(lubridate::year(Date) <= 2020) |> 
+        dplyr::ungroup()
       
       df.2023 <- df3 |> 
         dplyr::filter(lubridate::year(Date) > 2020 & lubridate::year(Date) <= 2023) |> 
@@ -1950,24 +1951,28 @@ fcn_all_tables_detect <- function(db_name = "integrated",
         dplyr::mutate(ObserverID = ifelse(nchar(ObserverID) > 3, substr(ObserverID, start = 1, stop = 2), ObserverID)) |>
         # manually fix a record
         dplyr::mutate(ObserverID = ifelse(ObserverID %in% "J_K", "J", ObserverID)) |> 
+        # manually fix an observer who has two sets of initials recorded before 2024
+        dplyr::mutate(ObserverID = ifelse(ObserverID %in% "BK", "BC", ObserverID)) |> 
         # add ObserverGroup to survey data from 2021 onwards
         dplyr::left_join(table[["names_to_code"]], dplyr::join_by(ObserverID == Initials)) |> 
         dplyr::mutate(obs.code = ifelse(is.na(ObserverID), obs.code, Code)) |> 
         dplyr::mutate(obs.code = ifelse(is.na(obs.code), suppressWarnings(readr::parse_integer(ObserverID)), obs.code)) |>
-        # this line needs to be updated if the Names_to_Code table in the Access database is not up-to-date
-        dplyr::mutate(obs.code = ifelse(ObserverID %in% "BK", 1000, obs.code)) |>
         dplyr::select(-Code) |> 
         dplyr::ungroup()
       
       df.current <- df3 |> 
         dplyr::filter(lubridate::year(Date) >= 2024) |> 
-        dplyr::mutate(obs.code = as.integer(ObserverID) + 2)
+        # manually fix a typo based on previous personal communication with DETSI
+        dplyr::mutate(ObserverID = ifelse((ObserverID == 76 & Date == as.POSIXct("2024-08-20")), 67, ObserverID)) |> 
+        dplyr::mutate(obs.code = as.integer(ObserverID) + 2) |> 
+        dplyr::ungroup()
       
       df3 <- bind_rows(df.2020, df.2023, df.current) |> 
-        dplyr::select(-ObserverID)
+        dplyr::select(-ObserverID) |> 
+        dplyr::ungroup()
       
       # group observers based in the organisation they work for
-      message("Make sure to keep the file group_observers_lookup.csv in 'input/group_observers' updated. Any observers from 2020 without an assigned group will be grouped together.")
+      message("Always make sure to keep the file group_observers_lookup.csv in 'input/group_observers' updated. Any observers from 2020 without an assigned group will be grouped together.")
       obs.lookup <- read.csv("input/group_observers/group_observers_lookup.csv") |> 
         dplyr::mutate(code = code + 2)
       obs.index <- data.frame(group = unique(obs.lookup$group),
@@ -1992,12 +1997,12 @@ fcn_all_tables_detect <- function(db_name = "integrated",
         
         warning(sprintf("Observer code(s) % s is not found in the file group_observers_lookup.csv, so it will either be grouped with others in multiple cases or assigned to a separate group if alone.",
                         obs.na))
-      }
+      } # close conditional related to missing data in ObserverGroup
       
       df3 <- df3 |> 
         dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverGroup), max(ObserverGroup, na.rm = T) + 1, ObserverGroup)) |> 
         dplyr::select(-obs.index, -obs.code)
-    }
+    } # close conditional of ObserverID %in% names(df3)
     return(df3)
   })
   
