@@ -37,13 +37,12 @@ rm(CovCons, CovTemp, DateIntervals, GenPopLookup, Mask)
 gc()
 
 # set orders, lags, and vartrends want to consider
-Orders <- c(1, 2)
+Orders <- c(1)
 Lags <- c(0, 1, 2)
 VarTrends <- c(0, 1)
 
 # set up data frame to store model selection results
 ModelWAICs <- tibble(Order = rep(NA, length(Orders) * length(Lags) * length(VarTrends)), Lag = rep(NA, length(Orders) * length(Lags) * length(VarTrends)), VarTrend = rep(NA, length(Orders) * length(Lags) * length(VarTrends)), WAIC = rep(NA, length(Orders) * length(Lags) * length(VarTrends)))
-
 
 # loop through models
 for (Order in Orders) {
@@ -65,7 +64,7 @@ write_csv(ModelWAICs, paste0("output/inference/waics", "_firstdate", FirstDate, 
 # get the best model
 BestIndex <- which(ModelWAICs$WAIC == min(ModelWAICs$WAIC))
 BestModelSat <- readRDS(paste0("output/mcmc/sat_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
-BestModelSel <- readRDS(paste0("output/mcmc/sel_order", ModelWAICs$Order[BestIndex], "lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
+BestModelSel <- readRDS(paste0("output/mcmc/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
 
 # check for convergence
 MCMCsummary(BestModelSat$MCMC)
@@ -79,10 +78,33 @@ MCMCtrace(BestModelSel$MCMC, filename = "output/mcmc/figures/best_sel_trace.jpg"
 FitData <- readRDS(paste0("input/nimble_data/data_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
 
 # fit the model for posterior predictive checks
-PostCheck <- get_mcmc(FitData = FitData, Type = "sat_check", Iter = 15000, Burnin = 5000, Thin = 10)
+
+# make cluster
+cl <- makeCluster(3)
+
+# export packages and nimble functions to cluster
+clusterEvalQ(cl,{
+  library(tidyverse)
+  library(nimble)
+  library(coda)
+  library(extraDistr)})
+clusterExport(cl, {"cdfhnorm"})
+
+Samples <- parLapply(cl = cl, X = 1:3, fun = fit_sat_model, Seeds = c(seed, seed + 20, seed + 40), Iter = 15000, Burnin = 5000, Thin = 1, Monitors = c("Strip_res_obs", "Strip_res_sim", "Strip_var", "AoA_res_obs", "AoA_res_sim", "AoA_var", "Line_res_obs", "Line_res_sim", "Line_var") , Calculate = FALSE, EnableWAIC = TRUE, Data = FitData, Code = nimble_sat_model_check)
+
+#stop cluster
+stopCluster(cl)
+
+# combine samples and save
+PostCheck <- list(MCMC = list(Samples[[1]]$Samples$samples, Samples[[2]]$Samples$samples, Samples[[3]]$Samples$samples), WAIC = list(Samples[[1]]$Samples$WAIC, Samples[[2]]$Samples$WAIC, Samples[[3]]$Samples$WAIC), Data = Samples[[1]]$Data, Code = Samples[[1]]$Code)
 
 # save posterior predictive checks model
 saveRDS(PostCheck, paste0("output/assessment/postcheck_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
+
+# free up memory
+rm(FitData)
+rm(Samples)
+gc()
 
 # load posterior predictive checks model if necessary
 PostCheck <- readRDS(paste0("output/assessment/postcheck_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
@@ -191,7 +213,7 @@ write_csv(Summary_Stats, paste0("output/inference/estimates_order", ModelWAICs$O
 set.seed(seed)
 
 # sub sample MCMC chains if needed
-MCMC <- MCMC[sample(1:dim(MCMC)[1], 10000), ]
+MCMC <- MCMC[sample(1:dim(MCMC)[1], 1000), ]
 
 # load feature class of small grids
 Grid <- vect("input/survey_data/grid_vec.shp")
@@ -213,20 +235,17 @@ Grid <- vect("input/survey_data/grid_vec.shp")
 # set up list to store predictions
 PredsList <- list()
 
-# set whether to mask rainforest
-RainMask <- TRUE
-
 # loop through years to generate predictions
 Predictions <- foreach(i = year(FirstDate):year(LastDate)) %do% {
-      
+
   # format data for predictions
   Data <- get_prediction_data(Year = i, BestModelSel$Data, PredData, RainForestMask = RainMask)
 
   # generate predictions
   Preds <- get_predictions(MCMC, Data)
 
-  # set masked grid cells to NA
-  PredsShp <- Preds$Spatial %>% mutate(Expected = ifelse((Expected == 0) & (LowerCI == 0) & (UpperCI == 0), NA, Expected), LowerCI = ifelse((Expected == 0) & (LowerCI == 0) & (UpperCI == 0), NA, LowerCI), UpperCI = ifelse((Expected == 0) & (LowerCI == 0) & (UpperCI == 0), NA, UpperCI), SD = ifelse((Expected == 0) & (LowerCI == 0) & (UpperCI == 0), NA, SD), CV = ifelse((Expected == 0) & (LowerCI == 0) & (UpperCI == 0), NA, CV))
+  # set masked grid cells to NA (-9999 so it can be recognised in a shapefile)
+  PredsShp <- Preds$Spatial %>% mutate(Expected = ifelse((Expected == 0) & (LowerCI == 0) & (UpperCI == 0), -9999, Expected), LowerCI = ifelse((Expected == 0) & (LowerCI == 0) & (UpperCI == 0), -9999, LowerCI), UpperCI = ifelse((Expected == 0) & (LowerCI == 0) & (UpperCI == 0), -9999, UpperCI), SD = ifelse((Expected == 0) & (LowerCI == 0) & (UpperCI == 0), -9999, SD), CV = ifelse((Expected == 0) & (LowerCI == 0) & (UpperCI == 0), -9999, CV))
 
   # merge predictions with spatial grid
   PredsGrid <- Grid %>% merge(PredsShp, all.x = TRUE, by.x = "GridID", by.y = "GridID")
@@ -237,7 +256,7 @@ Predictions <- foreach(i = year(FirstDate):year(LastDate)) %do% {
   # save vector
   writeVector(PredsGrid, paste0("output/predictions/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, "_year", i, ".shp"), overwrite = TRUE)
   
-  # append newe predictions to list
+  # append new predictions to list
   PredsList <- append(PredsList, list(Preds))
 
   # free up memory
@@ -246,6 +265,7 @@ Predictions <- foreach(i = year(FirstDate):year(LastDate)) %do% {
 }
 
 # save predictions
+
 saveRDS(PredsList, paste0("output/predictions/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
 
 # get the change between two dates
@@ -368,21 +388,21 @@ PlotT <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upp
 
 ggsave(PlotT, file = paste0("output/inference/figures/trend_1996_", year(LastDate), ".jpg"), width = 40, height = 30, units = "cm", dpi = 300)
 
-# violin plots of change
+# violin plots of change since 2020
 
 # load outputs if needed
-Change_2015_2023 <- readRDS(paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2015, "_", 2023, ".rds"))
-Change_2018_2023 <- readRDS(paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2018, "_", 2023, ".rds"))
-Change_2020_2023 <- readRDS(paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2020, "_", 2023, ".rds"))
+Change_2015_end <- readRDS(paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2015, "_", year(LastDate), ".rds"))
+Change_2018_end <- readRDS(paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2018, "_", year(LastDate), ".rds"))
+Change_2020_end <- readRDS(paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2020, "_", year(LastDate), ".rds"))
 
-# change 2020 - 2023
-ChTotal <- as_tibble(Change_2020_2023$DistTot) %>% rename(Change = value) %>% mutate(Region = "Total", Change = (Change - 1) * 100)
-ChNC <- as_tibble(Change_2020_2023$DistNC) %>% rename(Change = value) %>% mutate(Region = "Northern Coast", Change = (Change - 1) * 100)
-ChWI <- as_tibble(Change_2020_2023$DistWI) %>% rename(Change = value) %>% mutate(Region = "Western Inland", Change = (Change - 1) * 100)
-ChSC <- as_tibble(Change_2020_2023$DistSC) %>% rename(Change = value) %>% mutate(Region = "Southern Coast", Change = (Change - 1) * 100)
+# change 2020 - end
+ChTotal <- as_tibble(Change_2020_end$DistTot) %>% rename(Change = value) %>% mutate(Region = "Total", Change = (Change - 1) * 100)
+ChNC <- as_tibble(Change_2020_end$DistNC) %>% rename(Change = value) %>% mutate(Region = "Northern Coast", Change = (Change - 1) * 100)
+ChWI <- as_tibble(Change_2020_end$DistWI) %>% rename(Change = value) %>% mutate(Region = "Western Inland", Change = (Change - 1) * 100)
+ChSC <- as_tibble(Change_2020_end$DistSC) %>% rename(Change = value) %>% mutate(Region = "Southern Coast", Change = (Change - 1) * 100)
 ChAll <- bind_rows(ChTotal, ChNC, ChWI, ChSC) %>% mutate(Region = factor(Region, levels = c("Total", "Northern Coast", "Western Inland", "Southern Coast")))
 
 # Cat 1 and Cat 2 scenario
 Plot <- ggplot(ChAll, aes(x = Region, y = Change, fill = Region)) + geom_violin(color = NA) + theme_minimal() + theme(legend.position = "none") + geom_hline(yintercept = 0) + labs(x = "Sub-region", y = "Percentage Change") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(limits = c(-100, 250), breaks = seq(-100, 250, by = 25))
 
-ggsave(Plot, file = "output/inference/figures/change_violin_2020_2023.jpg", width = 40, height = 30, units = "cm", dpi = 300)
+ggsave(Plot, file = "output/inference/figures/change_violin_2020_end.jpg", width = 40, height = 30, units = "cm", dpi = 300)

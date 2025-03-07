@@ -263,7 +263,7 @@ for (Order in 1:2) {
       saveRDS(FormattedData, paste0("input/nimble_data/format_data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
       
       # save continuous variable correlations
-      write.csv(FormattedData$CorrXY, paste0("input/nimble_data/correlations/cor_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
+      write.csv(FormattedData$CorrXY, paste0("input/nimble_data/correlations/corXY_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
       
       # save PCA plots and PCAs
       saveRDS(FormattedData$SoilPCA, paste0("input/nimble_data/pca/pca_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
@@ -300,6 +300,11 @@ for (Order in 1:2) {
       
       # save data
       saveRDS(FitData, paste0("input/nimble_data/data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
+
+      # save continuous variable correlations
+      write.csv(FitData$CorrZ_Strip, paste0("input/nimble_data/correlations/corZ_Strip_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
+      write.csv(FitData$CorrZ_AoA, paste0("input/nimble_data/correlations/corZ_AoA_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
+      write.csv(FitData$CorrZ_Line, paste0("input/nimble_data/correlations/corZ_Line_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
 
       # save proportion missing data reports
       write.csv(FitData$MissZ_Strip, paste0("input/nimble_data/missing_data/missingZ_strip_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".csv"))
