@@ -73,7 +73,7 @@ for (Order in 1:1) {
 # fit the variable selection models
 
 for (Order in 1:1) {
-  for (Lag in 0:0) {
+  for (Lag in 1:1) {
     for (VarTrend in 0:0) {
       # get the data for fitting models
       FitData <- readRDS(paste0("input/nimble_data/data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
