@@ -67,10 +67,10 @@ BestModelSat <- readRDS(paste0("output/mcmc/sat_order", ModelWAICs$Order[BestInd
 BestModelSel <- readRDS(paste0("output/mcmc/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
 
 # check for convergence
-MCMCsummary(BestModelSat$MCMC)
-MCMCtrace(BestModelSat$MCMC, filename = "output/mcmc/figures/best_sat_trace.jpg")
-MCMCsummary(BestModelSel$MCMC)
-MCMCtrace(BestModelSel$MCMC, filename = "output/mcmc/figures/best_sel_trace.jpg")
+write_csv(MCMCsummary(BestModelSat$MCMC), paste0("output/assessment/sat_convergence_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".csv"))
+MCMCtrace(BestModelSat$MCMC, filename = paste0("output/assessment/sat_trace_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".pdf"))
+write_csv(MCMCsummary(BestModelSel$MCMC), paste0("output/assessment/sel_convergence_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".csv"))
+MCMCtrace(BestModelSel$MCMC, filename = paste0("output/assessment/sel_trace_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".pdf"))
 
 # do posterior predictive checks for the best model
 
