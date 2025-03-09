@@ -67,9 +67,9 @@ BestModelSat <- readRDS(paste0("output/mcmc/sat_order", ModelWAICs$Order[BestInd
 BestModelSel <- readRDS(paste0("output/mcmc/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
 
 # check for convergence
-write_csv(MCMCsummary(BestModelSat$MCMC), paste0("output/assessment/sat_convergence_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".csv"))
+write.csv(MCMCsummary(BestModelSat$MCMC), paste0("output/assessment/sat_convergence_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".csv"))
 MCMCtrace(BestModelSat$MCMC, filename = paste0("output/assessment/sat_trace_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".pdf"))
-write_csv(MCMCsummary(BestModelSel$MCMC), paste0("output/assessment/sel_convergence_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".csv"))
+write.csv(MCMCsummary(BestModelSel$MCMC), paste0("output/assessment/sel_convergence_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".csv"))
 MCMCtrace(BestModelSel$MCMC, filename = paste0("output/assessment/sel_trace_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".pdf"))
 
 # do posterior predictive checks for the best model
@@ -213,7 +213,7 @@ write_csv(Summary_Stats, paste0("output/inference/estimates_order", ModelWAICs$O
 set.seed(seed)
 
 # sub sample MCMC chains if needed
-MCMC <- MCMC[sample(1:dim(MCMC)[1], 1000), ]
+MCMC <- MCMC[sample(1:dim(MCMC)[1], 10000), ]
 
 # load feature class of small grids
 Grid <- vect("input/survey_data/grid_vec.shp")
@@ -341,37 +341,47 @@ gc()
 PredsList <- readRDS(paste0("output/predictions/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
 
 Years <- 2020:year(LastDate)
-Expected <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$Total$Mean)}) %>% unlist()
-Lower <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$Total$Lower)}) %>% unlist()
-Upper <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$Total$Upper)}) %>% unlist()
+Expected <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2020)):length(PredsList)], FUN = function(x){return(x$Total$Mean)}) %>% unlist()
+Lower <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2020)):length(PredsList)], FUN = function(x){return(x$Total$Lower)}) %>% unlist()
+Upper <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2020)):length(PredsList)], FUN = function(x){return(x$Total$Upper)}) %>% unlist()
 Abundances <- tibble(Year = Years, Expected = Expected, Lower = Lower, Upper = Upper)
 
-ExpectedNC <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$NC$Mean)}) %>% unlist()
-LowerNC <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$NC$Lower)}) %>% unlist()
-UpperNC <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$NC$Upper)}) %>% unlist()
+ExpectedNC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2020)):length(PredsList)], FUN = function(x){return(x$NC$Mean)}) %>% unlist()
+LowerNC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2020)):length(PredsList)], FUN = function(x){return(x$NC$Lower)}) %>% unlist()
+UpperNC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2020)):length(PredsList)], FUN = function(x){return(x$NC$Upper)}) %>% unlist()
 AbundancesNC <- tibble(Year = Years, Expected = ExpectedNC, Lower = LowerNC, Upper = UpperNC)
 
-ExpectedWI <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$WI$Mean)}) %>% unlist()
-LowerWI <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$WI$Lower)}) %>% unlist()
-UpperWI <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$WI$Upper)}) %>% unlist()
+ExpectedWI <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2020)):length(PredsList)], FUN = function(x){return(x$WI$Mean)}) %>% unlist()
+LowerWI <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2020)):length(PredsList)], FUN = function(x){return(x$WI$Lower)}) %>% unlist()
+UpperWI <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2020)):length(PredsList)], FUN = function(x){return(x$WI$Upper)}) %>% unlist()
 AbundancesWI <- tibble(Year = Years, Expected = ExpectedWI, Lower = LowerWI, Upper = UpperWI)
 
-ExpectedSC <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$SC$Mean)}) %>% unlist()
-LowerSC <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$SC$Lower)}) %>% unlist()
-UpperSC <- lapply(PredsList[(length(PredsList) - 3):length(PredsList)], FUN = function(x){return(x$SC$Upper)}) %>% unlist()
+ExpectedSC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2020)):length(PredsList)], FUN = function(x){return(x$SC$Mean)}) %>% unlist()
+LowerSC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2020)):length(PredsList)], FUN = function(x){return(x$SC$Lower)}) %>% unlist()
+UpperSC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2020)):length(PredsList)], FUN = function(x){return(x$SC$Upper)}) %>% unlist()
 AbundancesSC <- tibble(Year = Years, Expected = ExpectedSC, Lower = LowerSC, Upper = UpperSC)
 
 PlotT <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Total") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
 
+PlotT_None <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Total") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
 PlotNC <- ggplot(AbundancesNC, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Northern Coast") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotNC_None <- ggplot(AbundancesNC, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Northern Coast") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
 
 PlotWI <- ggplot(AbundancesWI, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Western Inland") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
 
+PlotWI_none <- ggplot(AbundancesWI, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Western Inland") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
 PlotSC <- ggplot(AbundancesSC, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Southern Coast") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
 
-TrendPlot_2020_2023 <- PlotT + PlotNC + PlotWI + PlotSC + plot_layout(nrow = 2, ncol = 2, guides = "collect") & theme(legend.position = 'bottom')
+PlotSC_None <- ggplot(AbundancesSC, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Southern Coast") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
 
-ggsave(TrendPlot_2020_2023, file = paste0("output/inference/figures/trend_2020_", year(LastDate), ".jpg"), width = 40, height = 30, units = "cm", dpi = 300)
+TrendPlot_2020_end <- PlotT + PlotNC + PlotWI + PlotSC + plot_layout(nrow = 2, ncol = 2, guides = "collect") & theme(legend.position = 'bottom')
+TrendPlot_2020_end_None <- PlotT_None + PlotNC_None + PlotWI_None + PlotSC_None + plot_layout(nrow = 2, ncol = 2, guides = "collect") & theme(legend.position = 'bottom')
+
+ggsave(TrendPlot_2020_end, file = paste0("output/inference/figures/trend_2020_", year(LastDate), ".jpg"), width = 40, height = 30, units = "cm", dpi = 300)
+ggsave(TrendPlot_2020_end, file = paste0("output/inference/figures/trend_2020_", year(LastDate), "_none.jpg"), width = 40, height = 30, units = "cm", dpi = 300)
 
 # trend plots 1996 to end
 
@@ -386,7 +396,10 @@ Abundances <- tibble(Year = Years, Expected = Expected, Lower = Lower, Upper = U
 
 PlotT <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Total") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18), legend.position = "bottom")
 
+PlotT_None <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Total") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18), legend.position = "bottom")
+
 ggsave(PlotT, file = paste0("output/inference/figures/trend_1996_", year(LastDate), ".jpg"), width = 40, height = 30, units = "cm", dpi = 300)
+ggsave(PlotT_None, file = paste0("output/inference/figures/trend_1996_", year(LastDate), "_none.jpg"), width = 40, height = 30, units = "cm", dpi = 300)
 
 # violin plots of change since 2020
 
@@ -402,7 +415,7 @@ ChWI <- as_tibble(Change_2020_end$DistWI) %>% rename(Change = value) %>% mutate(
 ChSC <- as_tibble(Change_2020_end$DistSC) %>% rename(Change = value) %>% mutate(Region = "Southern Coast", Change = (Change - 1) * 100)
 ChAll <- bind_rows(ChTotal, ChNC, ChWI, ChSC) %>% mutate(Region = factor(Region, levels = c("Total", "Northern Coast", "Western Inland", "Southern Coast")))
 
-# Cat 1 and Cat 2 scenario
+# create plot
 Plot <- ggplot(ChAll, aes(x = Region, y = Change, fill = Region)) + geom_violin(color = NA) + theme_minimal() + theme(legend.position = "none") + geom_hline(yintercept = 0) + labs(x = "Sub-region", y = "Percentage Change") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(limits = c(-100, 250), breaks = seq(-100, 250, by = 25))
 
 ggsave(Plot, file = "output/inference/figures/change_violin_2020_end.jpg", width = 40, height = 30, units = "cm", dpi = 300)

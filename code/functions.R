@@ -1102,25 +1102,53 @@ get_predictions <- function(MCMC, Data) {
   Lower <- apply(Density, MARGIN = 1, function(x) {quantile(x, 0.025, na.rm = TRUE)})
   Upper <- apply(Density, MARGIN = 1, function(x) {quantile(x, 0.975, na.rm = TRUE)})
   SD <- apply(Density, MARGIN = 1, function(x) {sd(x, na.rm = TRUE)})
-  Spatial <- tibble(GridID = Data$SGridID, Expected = Mean, LowerCI = Lower, UpperCI = Upper, SD = SD) %>% mutate(Expected = ifelse(is.na(Expected), NA, Expected), LowerCI = ifelse(is.na(LowerCI), NA, LowerCI), UpperCI = ifelse(is.na(UpperCI), NA, UpperCI), SD = ifelse(is.na(SD), NA, SD), CV = ifelse(!is.na(SD) & !is.na(Expected) & (Expected > 0), SD / Expected, NA))
+  CV <- SD / Mean
+  Spatial <- tibble(GridID = Data$SGridID, Expected = Mean, LowerCI = Lower, UpperCI = Upper, SD = SD) %>% mutate(Expected = ifelse(is.na(Expected), NA, Expected), LowerCI = ifelse(is.na(LowerCI), NA, LowerCI), UpperCI = ifelse(is.na(UpperCI), NA, UpperCI), SD = ifelse(is.na(SD), NA, SD), CV = ifelse(is.na(CV), NA, CV))
   # remove grids with missing data
   Spatial <- Spatial %>% filter(!is.na(Expected))
-  TotalSumMean <- mean(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
-  TotalSumLower <- quantile(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
-  TotalSumUpper <- quantile(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
+  # get total abundance values (multiply by 25 since each 500 m x 500m grid cell is 25 ha in size)
+  TotalMean <- mean(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  TotalLower <- quantile(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
+  TotalUpper <- quantile(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
   TotalSD <- sd(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  TotalCV <- TotalSD / TotalMean
+  Total <- tibble(Mean = TotalMean, Lower = TotalLower, Upper = TotalUpper, SD = TotalSD, CV = TotalCV)
+  # get total abundance values for each genetic population
+  # northern coast
+  NCMean <- mean(apply(Density[which(Data$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  NCLower <- quantile(apply(Density[which(Data$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
+  NCUpper <- quantile(apply(Density[which(Data$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
+  NCSD <- sd(apply(Density[which(Data$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  NCCV <- NCSD / NCMean
+  NC <- tibble(Mean = NCMean, Lower = NCLower, Upper = NCUpper, SD = NCSD, CV = NCCV)
+  # wstern inland
+  WIMean <- mean(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  WILower <- quantile(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
+  WIUpper <- quantile(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
+  WISD <- sd(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  WICV <- WISD / WIMean
+  WI <- tibble(Mean = WIMean, Lower = WILower, Upper = WIUpper, SD = WISD, CV = WICV)
+  # southern coast
+  SCMean <- mean(apply(Density[which(Data$GenPopID == 3),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  SCLower <- quantile(apply(Density[which(Data$GenPopID == 3),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
+  SCUpper <- quantile(apply(Density[which(Data$GenPopID == 3),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
+  SCSD <- sd(apply(Density[which(Data$GenPopID == 3),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  SCCV <- SCSD / SCMean
+  SC <- tibble(Mean = SCMean, Lower = SCLower, Upper = SCUpper, SD = SCSD, CV = SCCV)
 
-  Output <- list(Spatial = Spatial, TotalSumMean = TotalSumMean, TotalSumLowerCI = TotalSumLower, TotalSumUpperCI = TotalSumUpper, TotalSD = TotalSD)
-
-  return(Output)
+  # create output
+  Output <- list(Spatial = Spatial, Total = Total, NC = NC, WI = WI, SC = SC)
 }
 
 # function to get predictions from a model
 # Data is an output generated from get_prediction_data()
 get_change <- function(MCMC, Data1, Data2) {
 
+  # get the spatial random effects
+  Sre <- select(as_tibble(MCMC),contains("sd["))  
+
   # get the spatio-temporal random effects if needed
-  if (Data1$VarTrend == 1) {
+  if (Data$VarTrend == 1) {
     STre <- select(as_tibble(MCMC),contains("std["))
   } else {
     # get temporal random effects
@@ -1129,7 +1157,7 @@ get_change <- function(MCMC, Data1, Data2) {
 
   # get regression coefficients
   Betas <- select(as_tibble(MCMC),contains("beta_d["))
-
+  
   # remove grids with no genetic population ID
   # first year
   Data1$X <- Data1$X %>% filter(!is.na(Data1$GenPopID))
@@ -1146,48 +1174,44 @@ get_change <- function(MCMC, Data1, Data2) {
   LPFixed1 <- apply(Betas[,1:dim(Data1$X)[2]], MARGIN = 1, function(y) {as.matrix(Data1$X) %*% as.matrix(y)})
   LPFixed2 <- apply(Betas[,1:dim(Data2$X)[2]], MARGIN = 1, function(y) {as.matrix(Data2$X) %*% as.matrix(y)})
 
-  # loop through time steps - first year
-  for (i in Data1$FirstDateID:Data1$LastDateID) {
-
+  # loop through time steps first step
+  for (i in Data1$FirstDateIDTrim:Data1$LastDateIDTrim) {
     # get time variable linear predictors
     if (Data1$VarTrend == 1) {
-      LPTime1 <- LPFixed1 + apply(Betas[,(dim(Data1$X)[2] + 1):(dim(Data1$X)[2] + dim(Data1$Y)[3] - 2)], MARGIN = 1, function(z) {as.matrix(Data1$Y[, (i - Data1$FirstDateID + 1), 1:(dim(Data1$Y)[3] - 2)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(STre[, (3 * (floor((i - Data1$FirstDateID_Orig) / 2) + 1 - 1) + x)])}))
+      LPTime1 <- LPFixed1 + apply(Betas[,(dim(Data1$X)[2] + 1):(dim(Data1$X)[2] + dim(Data1$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data1$Y[, i - Data1$Lag, 1:(dim(Data1$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(STre[, (Data1$NGPops * (floor((i + (Data1$FirstDateID - Data1$FirstDateIDTrim) - Data1$DiffIDActFitted - 1) / 2) + 1 - 1) + x)])}))
     } else {
-      LPTime1 <- LPFixed1 + apply(Betas[,(dim(Data1$X)[2] + 1):(dim(Data1$X)[2] + dim(Data1$Y)[3] - 2)], MARGIN = 1, function(z) {as.matrix(Data1$Y[, (i - Data1$FirstDateID + 1), 1:(dim(Data1$Y)[3] - 2)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i - Data1$FirstDateID_Orig) / 2) + 1])}))
+      LPTime1 <- LPFixed1 + apply(Betas[,(dim(Data1$X)[2] + 1):(dim(Data1$X)[2] + dim(Data1$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data1$Y[, i - Data1$Lag, 1:(dim(Data1$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i + (Data1$FirstDateID - Data1$FirstDateIDTrim) - Data1$DiffIDActFitted - 1) / 2) + 1])}))
     }
 
-    # multiply density estimates by the habitat availability to account for habitat masked out (second last covariate in Y generated from get_prediction_data())
-    # also multiply by the mask to remove masked areas (set density to zero) (last covariate in Y generated from get_prediction_data())
-    if (i == Data1$FirstDateID) {
-      Density1 <- sweep(exp(LPTime1), MARGIN = 1, as.matrix(Data1$Y[ , (i - Data1$FirstDateID + 1 + Data1$Lag), dim(Data1$Y)[3] - 1]) * as.matrix(Data1$Y[ , (i - Data1$FirstDateID + 1 + Data1$Lag), dim(Data1$Y)[3]]), `*`)
+    # multiply density estimates by the habitat availability to account for habitat masked out (last covariate in Y)
+    if (i == Data1$FirstDateIDTrim) {
+      Density1 <- sweep(exp(LPTime1), MARGIN = 1, as.matrix(Data1$Y[ , i, dim(Data1$Y)[3]]), `*`)
     } else {
-      Density1 <- Density1 + sweep(exp(LPTime1), MARGIN = 1, as.matrix(Data1$Y[ , (i - Data1$FirstDateID + 1 + Data1$Lag), dim(Data1$Y)[3] - 1]) * as.matrix(Data1$Y[ , (i - Data1$FirstDateID + 1 + Data1$Lag), dim(Data1$Y)[3]]), `*`)
+      Density1 <- Density1 + sweep(exp(LPTime1), MARGIN = 1, as.matrix(Data1$Y[ , i, dim(Data1$Y)[3]]), `*`)
     }
 
     Density1 <- Density1 / (Data1$LastDateID - Data1$FirstDateID + 1)
   }
 
-  # loop through time steps - second year
-  for (i in Data2$FirstDateID:Data2$LastDateID) {
-
+  # loop through time steps first step - second year
+  for (i in Data2$FirstDateIDTrim:Data2$LastDateIDTrim) {
     # get time variable linear predictors
     if (Data2$VarTrend == 1) {
-      LPTime2 <- LPFixed2 + apply(Betas[,(dim(Data2$X)[2] + 1):(dim(Data2$X)[2] + dim(Data2$Y)[3] - 2)], MARGIN = 1, function(z) {as.matrix(Data2$Y[, (i - Data2$FirstDateID + 1), 1:(dim(Data2$Y)[3] - 2)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(STre[, (3 * (floor((i - Data2$FirstDateID_Orig) / 2) + 1 - 1) + x)])}))
+      LPTime2 <- LPFixed2 + apply(Betas[,(dim(Data2$X)[2] + 1):(dim(Data2$X)[2] + dim(Data2$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data2$Y[, i - Data2$Lag, 1:(dim(Data2$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(STre[, (Data2$NGPops * (floor((i + (Data2$FirstDateID - Data2$FirstDateIDTrim) - Data2$DiffIDActFitted - 1) / 2) + 1 - 1) + x)])}))
     } else {
-      LPTime2 <- LPFixed2 + apply(Betas[,(dim(Data2$X)[2] + 1):(dim(Data2$X)[2] + dim(Data2$Y)[3] - 2)], MARGIN = 1, function(z) {as.matrix(Data2$Y[, (i - Data2$FirstDateID + 1), 1:(dim(Data2$Y)[3] - 2)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i - Data2$FirstDateID_Orig) / 2) + 1])}))
+      LPTime2 <- LPFixed2 + apply(Betas[,(dim(Data2$X)[2] + 1):(dim(Data2$X)[2] + dim(Data2$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data2$Y[, i - Data2$Lag, 1:(dim(Data2$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i + (Data2$FirstDateID - Data2$FirstDateIDTrim) - Data2$DiffIDActFitted - 1) / 2) + 1])}))
     }
 
-    # multiply density estimates by the habitat availability to account for habitat masked out (second last covariate in Y generated from get_prediction_data())
-    # also multiply by the mask to remove masked areas (set density to zero) (last covariate in Y generated from get_prediction_data())
-    if (i == Data2$FirstDateID) {
-      Density2 <- sweep(exp(LPTime2), MARGIN = 1, as.matrix(Data2$Y[ , (i - Data2$FirstDateID + 1 + Data2$Lag), dim(Data2$Y)[3] - 1]) * as.matrix(Data2$Y[ , (i - Data2$FirstDateID + 1 + Data2$Lag), dim(Data2$Y)[3]]), `*`)
+    # multiply density estimates by the habitat availability to account for habitat masked out (last covariate in Y)
+    if (i == Data2$FirstDateIDTrim) {
+      Density2 <- sweep(exp(LPTime2), MARGIN = 1, as.matrix(Data2$Y[ , i, dim(Data2$Y)[3]]), `*`)
     } else {
-      Density2 <- Density2 + sweep(exp(LPTime2), MARGIN = 1, as.matrix(Data2$Y[ , (i - Data2$FirstDateID + 1 + Data2$Lag), dim(Data2$Y)[3] - 1]) * as.matrix(Data2$Y[ , (i - Data2$FirstDateID + 1 + Data2$Lag), dim(Data2$Y)[3]]), `*`)
+      Density2 <- Density2 + sweep(exp(LPTime1), MARGIN = 1, as.matrix(Data2$Y[ , i, dim(Data2$Y)[3]]), `*`)
     }
 
     Density2 <- Density2 / (Data2$LastDateID - Data2$FirstDateID + 1)
   }
-
+  
   # get change in total abundance values (multiply by 25 since each 500 m x 500m grid cell is 25 ha in size)
   # total
   ChangeTot <- apply(Density2 * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}) / apply(Density1 * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)})

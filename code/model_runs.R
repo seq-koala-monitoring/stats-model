@@ -30,7 +30,7 @@ gc()
 
 # fit the saturated models
 
-for (Order in 1:1) {
+for (Order in 2:2) {
   for (Lag in 0:2) {
     for (VarTrend in 1:1) {
       # get the data for fitting models
