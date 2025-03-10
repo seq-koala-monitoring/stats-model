@@ -68,5 +68,9 @@ dynamic_variables <- c("hhfwc", "hhpgr2km", "htpls2km", "hcpre", "hctmn", "hseas
 # subcanopy cover
 obs_variables <- c("hhcht", "hhunf", "hhchtunf", "hdtma", "hdpre")
 
+# When extracting ObserverID as a predictor for observer error, should observers be grouped (from 2021 onwards)? 
+# This parameter lets the user choose between two options: (1) Using each observer ID as a variable, which may result in models that are easier to converge but require long computing times; (2) Grouping observers based on their affiliation, as specified in the group_observers.csv file located in input/group_observers/. This option reduces computing time but may lead to convergence issues in the models.
+obs_groups <- TRUE
+
 # set whether to mask rainforest
 RainMask <- TRUE
