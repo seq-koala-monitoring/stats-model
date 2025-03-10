@@ -1989,7 +1989,8 @@ fcn_all_tables_detect <- function(db_name = "integrated",
                                               "Cloud_Cover",
                                               "Canopy_Cover",
                                               "Subcanopy_Cover"),
-                                  updated.db = T)
+                                  updated.db = T,
+                                  group_observers = obs_groups)
 {
   # custom function to extract the maximum value when multiple values are separated by "_". For instance: in "2_3" only 3 is retained  
   split_sep <- function(column){
@@ -2039,7 +2040,7 @@ fcn_all_tables_detect <- function(db_name = "integrated",
       max()
   }) |> unlist()
   if(max(max.year, na.rm = T) > 2023){
-    warning("Please, update the Names_to_code table in the Access database to include observers from 2024 onwards. Otherwise, they will be recorded as missing data (represented as GRNA).")}
+    message("Always make sure to keep the Names_to_Code table in the Access database up-to-date")}
   
   # Process tables to include variables for koala detectability
   tables <- lapply(table[which(names(table) %in% c("line_transect", "strip_transect", "uaoa"))], function(df){
@@ -2125,7 +2126,7 @@ fcn_all_tables_detect <- function(db_name = "integrated",
       dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ 1,
                                                      lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2)) 
     
-        if("ObserverID" %in% names(df3)){
+    if("ObserverID" %in% names(df3)){
       # to handle changes in how DESI recorded the observer ID from 2024 onwards, it is needed to treat the data by period
       df.2020 <- df3 |> 
         dplyr::filter(lubridate::year(Date) <= 2020) |> 
@@ -2158,38 +2159,61 @@ fcn_all_tables_detect <- function(db_name = "integrated",
         dplyr::select(-ObserverID) |> 
         dplyr::ungroup()
       
-      # group observers based in the organisation they work for
-      message("Always make sure to keep the file group_observers_lookup.csv in 'input/group_observers' updated. Any observers from 2020 without an assigned group will be grouped together.")
-      obs.lookup <- read.csv("input/group_observers/group_observers_lookup.csv") |> 
-        dplyr::mutate(code = code + 2)
-      obs.index <- data.frame(group = unique(obs.lookup$group),
-                              obs.index = 3:(length(unique(obs.lookup$group))+3-1))
-      obs.lookup <- obs.lookup |> 
-        dplyr::left_join(obs.index, by = "group") |> 
-        dplyr::select(-group)
-      
-      # join
-      df3 <- df3 |> 
-        dplyr::left_join(obs.lookup, join_by(obs.code == code)) |> 
-        dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ 1,
-                                                       lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2,
-                                                       obs.code == 1000 ~ max(obs.index, na.rm = T) + 1, 
-                                                       .default = obs.index))
-      if(sum(is.na(df3$ObserverGroup)) > 0){
-        obs.na <- df3 |> 
-          dplyr::filter(is.na(ObserverGroup)) |> 
-          dplyr::pull(obs.code) - 2 |> 
-          unique()
-        obs.na <- paste(obs.na, collapse = " ")
+      if(!group_observers){
+        df3 <- df3 |> 
+          dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ 1,
+                                                         lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2,
+                                                         obs.code == 1000 ~ max(obs.code, na.rm = T) + 1, 
+                                                         .default = obs.code)) |> 
+          dplyr::select(-obs.code)
         
-        warning(sprintf("Observer code(s) % s is not found in the file group_observers_lookup.csv, so it will either be grouped with others in multiple cases or assigned to a separate group if alone.",
-                        obs.na))
-      } # close conditional related to missing data in ObserverGroup
+        if(sum(is.na(df3$ObserverGroup)) > 0){
+          obs.na <- df3 |> 
+            dplyr::filter(is.na(ObserverGroup)) |> 
+            dplyr::pull(TransectID) |> 
+            unique()
+          obs.na <- paste(obs.na, collapse = " ")
+          
+          warning(sprintf("Transect ID(s) % s do not have the observer initials matching a code in the Names_to_code table in the Access Database or ObserverID is missing.",
+                          obs.na))
+        } # close conditional related to missing data in ObserverGroup
+      }
       
-      df3 <- df3 |> 
-        dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverGroup), max(ObserverGroup, na.rm = T) + 1, ObserverGroup)) |> 
-        dplyr::select(-obs.index, -obs.code)
-    } # close conditional of ObserverID %in% names(df3)
+      if(group_observers){
+        # group observers based in the organisation they work for
+        message("Always make sure to keep the file group_observers_lookup.csv in 'input/group_observers' updated. Any observers from 2020 without an assigned group will be grouped together.")
+        obs.lookup <- read.csv("input/group_observers/group_observers_lookup.csv") |> 
+          dplyr::mutate(code = code + 2)
+        obs.index <- data.frame(group = unique(obs.lookup$group),
+                                obs.index = 3:(length(unique(obs.lookup$group))+3-1))
+        obs.lookup <- obs.lookup |> 
+          dplyr::left_join(obs.index, by = "group") |> 
+          dplyr::select(-group)
+        
+        # join
+        df3 <- df3 |> 
+          dplyr::left_join(obs.lookup, join_by(obs.code == code)) |> 
+          dplyr::mutate(ObserverGroup = dplyr::case_when(lubridate::year(Date) >= 1996 & lubridate::year(Date) <= 2013 ~ 1,
+                                                         lubridate::year(Date) >= 2014 & lubridate::year(Date) <= 2020 ~ 2,
+                                                         obs.code == 1000 ~ max(obs.index, na.rm = T) + 1, 
+                                                         .default = obs.index))
+        if(sum(is.na(df3$ObserverGroup)) > 0){
+          obs.na <- df3 |> 
+            dplyr::filter(is.na(ObserverGroup)) |> 
+            dplyr::pull(obs.code) - 2 |> 
+            unique()
+          obs.na <- paste(obs.na, collapse = " ")
+          
+          warning(sprintf("Observer code(s) % s is not found in the file group_observers_lookup.csv, so it will either be grouped with others in multiple cases or assigned to a separate group if alone.",
+                          obs.na))
+        } # close conditional related to missing data in ObserverGroup
+        
+        df3 <- df3 |> 
+          dplyr::mutate(ObserverGroup = ifelse(is.na(ObserverGroup), max(ObserverGroup, na.rm = T) + 1, ObserverGroup)) |> 
+          dplyr::select(-obs.index, -obs.code)
+      } # close conditional related to grouping observers
+    } # close conditional related to ObserverID %in% names(df3)
+    
     return(df3)
   })
   
@@ -2839,4 +2863,10 @@ extract_temp_precip <- function(data, type){
   }
   
   return(data)
+}
+
+# Update packages
+fcn_install_packages <- function(pckgs){
+  new.packages <- pckgs[!(pckgs %in% installed.packages()[,"Package"])]
+  if(length(new.packages)) install.packages(new.packages, quiet = T)
 }

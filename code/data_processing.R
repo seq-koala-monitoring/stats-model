@@ -24,8 +24,9 @@
 #        depending on how many files need updating and your computer's specifications.
 
 # -------------------------------------------------------------------
-# install packages if required
-source("code/install_packages_data_processing.R")
+# install packages
+packages <- c("terra", "sf", "rvest","pbapply","httr","stringi","foreach","doParallel","tidyverse","exactextractr", "tidyterra","abind","mice","factoextra","nimble","devtools","readr","rstudioapi","furrr")
+fcn_install_packages(packages)
 
 # load libraries
 library(tidyverse)

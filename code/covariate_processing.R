@@ -30,8 +30,9 @@ rm(list=ls())
 try(dev.off(dev.list()["RStudioGD"]), silent=TRUE)
 gc()
 
-# install packages if required
-source("code/install_packages_covariates.R")
+# install packages
+packages <- c("terra","sf","rvest","pbapply","httr","stringi","foreach","doParallel","tidyverse")
+fcn_install_packages(packages)
 
 # load libraries
 library(tidyverse)
