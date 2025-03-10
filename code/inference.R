@@ -37,7 +37,7 @@ rm(CovCons, CovTemp, DateIntervals, GenPopLookup, Mask)
 gc()
 
 # set orders, lags, and vartrends want to consider
-Orders <- c(1)
+Orders <- c(1, 2)
 Lags <- c(0, 1, 2)
 VarTrends <- c(0, 1)
 
