@@ -30,6 +30,9 @@ rm(list=ls())
 try(dev.off(dev.list()["RStudioGD"]), silent=TRUE)
 gc()
 
+# read utility functions
+source("code/functions.R")
+
 # install packages
 packages <- c("terra","sf","rvest","pbapply","httr","stringi","foreach","doParallel","tidyverse")
 fcn_install_packages(packages)
