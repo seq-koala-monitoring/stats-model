@@ -24,6 +24,9 @@
 #        depending on how many files need updating and your computer's specifications.
 
 # -------------------------------------------------------------------
+# read utility functions
+source("code/functions.R")
+
 # install packages
 packages <- c("terra", "sf", "rvest","pbapply","httr","stringi","foreach","doParallel","tidyverse","exactextractr", "tidyterra","abind","mice","factoextra","nimble","devtools","readr","rstudioapi","furrr")
 fcn_install_packages(packages)
