@@ -1,7 +1,7 @@
 # functions
 
 # nimble function to get the cdf of f(x) for distance sampling
-cdfhnorm <- nimbleRcall(function(q = double(0), sigma = double(0)){}, Rfun = 'phnorm', returnType = double(0))
+cdfhnorm <- nimble::nimbleRcall(function(q = double(0), sigma = double(0)){}, Rfun = 'phnorm', returnType = double(0))
 
 # fit saturated model
 
