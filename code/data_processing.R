@@ -24,7 +24,14 @@
 #        depending on how many files need updating and your computer's specifications.
 
 # -------------------------------------------------------------------
+<<<<<<< HEAD
 # install and load packages
+=======
+# read utility functions
+source("code/functions.R")
+
+# install packages
+>>>>>>> e08002c1e556058677742aea22cd164d8ce6a848
 packages <- c("terra", "sf", "rvest","pbapply","httr","stringi","foreach","doParallel","tidyverse","exactextractr", "tidyterra","abind","mice","factoextra","nimble","devtools","readr","rstudioapi","furrr")
 new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, quiet = T)
