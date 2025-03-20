@@ -1093,10 +1093,11 @@ get_predictions <- function(MCMC, Data) {
       Density <- sweep(exp(LPTime), MARGIN = 1, as.matrix(Data$Y[ , i, dim(Data$Y)[3]]), `*`)
     } else {
       Density <- Density + sweep(exp(LPTime), MARGIN = 1, as.matrix(Data$Y[ , i, dim(Data$Y)[3]]), `*`)
-    }
-
-    Density <- Density / (Data$LastDateID - Data$FirstDateID + 1)
+    }    
   }
+
+  # get the average density over the time steps
+  Density <- Density / (Data$LastDateIDTrim - Data$FirstDateIDTrim + 1)
 
   Mean <- apply(Density, MARGIN = 1, function(x) {mean(x, na.rm = TRUE)})
   Lower <- apply(Density, MARGIN = 1, function(x) {quantile(x, 0.025, na.rm = TRUE)})
@@ -1148,7 +1149,7 @@ get_change <- function(MCMC, Data1, Data2) {
   Sre <- select(as_tibble(MCMC),contains("sd["))  
 
   # get the spatio-temporal random effects if needed
-  if (Data$VarTrend == 1) {
+  if (Data1$VarTrend == 1) {
     STre <- select(as_tibble(MCMC),contains("std["))
   } else {
     # get temporal random effects
@@ -1174,7 +1175,7 @@ get_change <- function(MCMC, Data1, Data2) {
   LPFixed1 <- apply(Betas[,1:dim(Data1$X)[2]], MARGIN = 1, function(y) {as.matrix(Data1$X) %*% as.matrix(y)})
   LPFixed2 <- apply(Betas[,1:dim(Data2$X)[2]], MARGIN = 1, function(y) {as.matrix(Data2$X) %*% as.matrix(y)})
 
-  # loop through time steps first step
+  # loop through time steps first year
   for (i in Data1$FirstDateIDTrim:Data1$LastDateIDTrim) {
     # get time variable linear predictors
     if (Data1$VarTrend == 1) {
@@ -1188,12 +1189,13 @@ get_change <- function(MCMC, Data1, Data2) {
       Density1 <- sweep(exp(LPTime1), MARGIN = 1, as.matrix(Data1$Y[ , i, dim(Data1$Y)[3]]), `*`)
     } else {
       Density1 <- Density1 + sweep(exp(LPTime1), MARGIN = 1, as.matrix(Data1$Y[ , i, dim(Data1$Y)[3]]), `*`)
-    }
-
-    Density1 <- Density1 / (Data1$LastDateID - Data1$FirstDateID + 1)
+    }   
   }
 
-  # loop through time steps first step - second year
+  # get the average density over the time steps
+  Density1 <- Density1 / (Data1$LastDateIDTrim - Data1$FirstDateIDTrim + 1)
+
+  # loop through time steps second year
   for (i in Data2$FirstDateIDTrim:Data2$LastDateIDTrim) {
     # get time variable linear predictors
     if (Data2$VarTrend == 1) {
@@ -1207,11 +1209,12 @@ get_change <- function(MCMC, Data1, Data2) {
       Density2 <- sweep(exp(LPTime2), MARGIN = 1, as.matrix(Data2$Y[ , i, dim(Data2$Y)[3]]), `*`)
     } else {
       Density2 <- Density2 + sweep(exp(LPTime1), MARGIN = 1, as.matrix(Data2$Y[ , i, dim(Data2$Y)[3]]), `*`)
-    }
-
-    Density2 <- Density2 / (Data2$LastDateID - Data2$FirstDateID + 1)
+    }    
   }
   
+  # get the average density over the time steps
+  Density2 <- Density2 / (Data2$LastDateIDTrim - Data2$FirstDateIDTrim + 1)
+
   # get change in total abundance values (multiply by 25 since each 500 m x 500m grid cell is 25 ha in size)
   # total
   ChangeTot <- apply(Density2 * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}) / apply(Density1 * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)})
@@ -1249,8 +1252,8 @@ get_change <- function(MCMC, Data1, Data2) {
   return(Output)
 }
 
-# create data for QQ plot
-qq.plot.ci <- function(R.sim, R.obs)
+# qq plot with confidence intervals
+qq.plot.ci <- function(R.sim,R.obs)
 {
 	MedObs<-apply(R.obs,MARGIN=2,FUN=median)
 	MedSim<-apply(R.sim,MARGIN=2,FUN=median)
@@ -1272,14 +1275,10 @@ qq.plot.ci <- function(R.sim, R.obs)
 	maxX <- max(NewSim)
 	minY <- min(c(UpperSim,LowerSim,UpperObs,LowerObs))
 	maxY <- max(c(UpperSim,LowerSim,UpperObs,LowerObs))
-	plot(NewSim,NewObs,xlim=c(minX,maxX),ylim=c(minY,maxY),cex=0.5,pch=21,col="black",xlab="Simulated Quantiles",ylab="Observed Quantiles")
-	lines(NewSim,UpperObs,lwd=2,col="red")
-	lines(NewSim,LowerObs,lwd=2,col="red")
-	polygon(c(NewSim,rev(NewSim)),c(UpperObs,rev(LowerObs)),col="red",border = NA)
-	points(NewSim,NewObs,cex=0.5,pch=21,col="black")
-	lines(NewSim,UpperSim,lwd=2)
-	lines(NewSim,LowerSim,lwd=2)
-	abline(0,1,lty=3,lwd=2)	
+	
+  Data <- tibble(Simulated = NewSim, Observed = NewObs, LowerSim = LowerSim, UpperSim = UpperSim, LowerObs = LowerObs, UpperObs = UpperObs)
+
+  return(Data)  
 }
 
 fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
@@ -2865,8 +2864,174 @@ extract_temp_precip <- function(data, type){
   return(data)
 }
 
-# Update packages
-fcn_install_packages <- function(pckgs){
-  new.packages <- pckgs[!(pckgs %in% installed.packages()[,"Package"])]
-  if(length(new.packages)) install.packages(new.packages, quiet = T)
+# FROM https://rdrr.io/github/BoulderCodeHub/CRSSIO/src/R/stat_boxplot_custom.R
+
+# modified from
+# https://github.com/tidyverse/ggplot2/blob/master/R/stat-boxplot.r
+# now takes qs argument instead of coef to extend the whiskers to a specific 
+# percentile
+
+#' A box and whiskers plot that uses percentiles instead of IQR
+#' 
+#' `stat_boxplot_custom()` modifies [ggplot2::stat_boxplot()] so that it 
+#' computes the extents of the whiskers based on specified percentiles, rather 
+#' than a multiple of the IQR. 
+#' 
+#' The upper and lower whiskers extend to the first, and last entries of the 
+#' `qs` parameter, respectively. Data beyond the whiskers are "outliers".
+#' 
+#' @param qs The percentiles that are used to create the lower whisker, lower
+#'   hinge, middle bar, upper hinge, and upper whisker, respectively. The lower 
+#'   and upper whiskers default to the 5th and 95th percentiles. The hinges 
+#'   default to the 25th and 75th percentiles, and the middle bar defaults to 
+#'   the median. These  values should be in increasing order, i.e., the whisker 
+#'   should be a smaller percentile than the lower hinge, and can only span the 
+#'   values from 0 to 1 (inclusive).
+#'   
+#' @param geom Available, but should only be 'boxplot'.
+#'   
+#' @inheritParams ggplot2::stat_boxplot
+#' 
+#' @examples 
+#' 
+#' library(ggplot2)
+#' p <- ggplot(mpg, aes(class, hwy))
+#' 
+#' # show whiskers at 5th and 95th percentiles
+#' p + stat_boxplot_custom(qs = c(.05, .25, .5, .75, .95))
+#' 
+#' # show whiskers at 10th and 90th percentiles
+#' p + stat_boxplot_custom(qs = c(.1, .25, .5, .75, .9))
+#' 
+#' @export
+stat_boxplot_custom <- function(mapping = NULL, data = NULL,
+                                geom = "boxplot", position = "dodge2",
+                                ...,
+                                qs = c(.05, .25, 0.5, 0.75, 0.95),
+                                na.rm = FALSE,
+                                orientation = NA,
+                                show.legend = NA,
+                                inherit.aes = TRUE) {
+  assert_that(
+    length(qs) == 5 && is.numeric(qs),
+    msg = "`qs` should be a numeric vector with 5 values."
+  )
+  
+  assert_that(
+    all(qs == sort(qs)), 
+    msg = "`qs` should be provided in ascending order."
+  )
+  
+  assert_that(
+    all(qs <= 1) && all(qs >= 0),
+    msg = "`qs` should only span values [0, 1]."
+  )
+  
+  ggplot2::layer(
+    data = data,
+    mapping = mapping,
+    stat = StatBoxplotCustom,
+    geom = geom,
+    position = position,
+    show.legend = show.legend,
+    inherit.aes = inherit.aes,
+    params = rlang::list2(
+      na.rm = na.rm,
+      orientation = orientation,
+      qs = qs,
+      ...
+    )
+  )
 }
+
+#' @rdname stat_boxplot_custom
+#' @usage NULL
+#' @format NULL
+#' @export
+StatBoxplotCustom <- ggplot2::ggproto("StatBoxplotCustom", ggplot2::Stat,
+  required_aes = c("y|x"),
+  non_missing_aes = "weight",
+  # either the x or y aesthetic will get dropped during
+  # statistical transformation, depending on the orientation
+  dropped_aes = c("x", "y", "weight"),
+  setup_data = function(self, data, params) {
+    data <- ggplot2::flip_data(data, params$flipped_aes)
+    data$x <- ggplot2:::"%||%"(data$x, 0)
+    data <- ggplot2::remove_missing(
+      data,
+      na.rm = params$na.rm,
+      vars = "x",
+      name = "stat_boxplot_custom"
+    )
+    ggplot2::flip_data(data, params$flipped_aes)
+  },
+  
+  setup_params = function(self, data, params) {
+    params$flipped_aes <- ggplot2::has_flipped_aes(data, params, 
+                                          main_is_orthogonal = TRUE,
+                                          group_has_equal = TRUE,
+                                          main_is_optional = TRUE)
+    data <- ggplot2::flip_data(data, params$flipped_aes)
+    
+    has_x <- !(is.null(data$x) && is.null(params$x))
+    has_y <- !(is.null(data$y) && is.null(params$y))
+    if (!has_x && !has_y) {
+      abort("stat_boxplot() requires an x or y aesthetic.")
+    }
+    
+    params$width <- ggplot2:::"%||%"(
+      params$width, 
+      (ggplot2::resolution(ggplot2:::"%||%"(data$x, 0) * 0.75))
+    ) 
+    
+    if (!ggplot2:::is_mapped_discrete(data$x) && is.double(data$x) && 
+        !ggplot2:::has_groups(data) && any(data$x != data$x[1L])) {
+      rlang::warn(glue::glue(
+        "Continuous {flipped_names(params$flipped_aes)$x} aesthetic -- did you forget aes(group=...)?"
+      ))
+    }
+    
+    params
+  },
+  
+  extra_params = c("na.rm", "orientation"),
+   
+  compute_group = function(data, scales, width = NULL, na.rm = FALSE, 
+                        qs = c(.05, .25, 0.5, 0.75, 0.95), flipped_aes = FALSE) {
+    
+    data <- ggplot2::flip_data(data, flipped_aes)
+      
+    if (!is.null(data$weight)) {
+      mod <- quantreg::rq(y ~ 1, weights = weight, data = data, tau = qs)
+      stats <- as.numeric(stats::coef(mod))
+    } else {
+      stats <- as.numeric(stats::quantile(data$y, qs))
+    }
+    names(stats) <- c("ymin", "lower", "middle", "upper", "ymax")
+    iqr <- diff(stats[c(2, 4)])
+    
+    outliers <- (data$y < stats[1]) | (data$y > stats[5])
+
+    if (vctrs::vec_unique_count(data$x) > 1)
+      width <- diff(range(data$x)) * 0.9
+    
+    df <- ggplot2:::data_frame0(!!!as.list(stats))
+    df$outliers <- list(data$y[outliers])
+    
+    if (is.null(data$weight)) {
+      n <- sum(!is.na(data$y))
+    } else {
+      # Sum up weights for non-NA positions of y and weight
+      n <- sum(data$weight[!is.na(data$y) & !is.na(data$weight)])
+    }
+    
+    df$notchupper <- df$middle + 1.58 * iqr / sqrt(n)
+    df$notchlower <- df$middle - 1.58 * iqr / sqrt(n)
+    
+    df$x <- if (is.factor(data$x)) data$x[1] else mean(range(data$x))
+    df$width <- width
+    df$relvarwidth <- sqrt(n)
+    df$flipped_aes <- flipped_aes
+    ggplot2::flip_data(df, flipped_aes)
+  }
+)

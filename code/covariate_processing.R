@@ -30,20 +30,11 @@ rm(list=ls())
 try(dev.off(dev.list()["RStudioGD"]), silent=TRUE)
 gc()
 
-# install packages
+# install and load packages
 packages <- c("terra","sf","rvest","pbapply","httr","stringi","foreach","doParallel","tidyverse")
-fcn_install_packages(packages)
-
-# load libraries
-library(tidyverse)
-library(terra)
-library(sf)
-library(rvest)
-library(pbapply)
-library(httr)
-library(stringi)
-library(foreach)
-library(doParallel)
+new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages, quiet = T)
+invisible(lapply(packages, library, character.only = TRUE))
 
 # get tokens needed
 source("keys/apis.R")

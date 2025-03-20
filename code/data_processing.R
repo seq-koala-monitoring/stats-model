@@ -24,25 +24,13 @@
 #        depending on how many files need updating and your computer's specifications.
 
 # -------------------------------------------------------------------
-# install packages
+# install and load packages
 packages <- c("terra", "sf", "rvest","pbapply","httr","stringi","foreach","doParallel","tidyverse","exactextractr", "tidyterra","abind","mice","factoextra","nimble","devtools","readr","rstudioapi","furrr")
-fcn_install_packages(packages)
-
-# load libraries
-library(tidyverse)
-library(terra)
-library(exactextractr)
-library(sf)
-library(tidyterra)
-library(abind)
-library(mice)
-library(factoextra)
-library(nimble)
-library(devtools)
+new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages, quiet = T)
+invisible(lapply(packages, library, character.only = TRUE))
 if (!require("SEQKoalaDataPipeline")) devtools::install_github('seq-koala-monitoring/data-pipeline')
 library(SEQKoalaDataPipeline)
-library(readr)
-library(rstudioapi)
 
 # load parameters
 source("parameters_init.txt")
