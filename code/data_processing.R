@@ -24,14 +24,8 @@
 #        depending on how many files need updating and your computer's specifications.
 
 # -------------------------------------------------------------------
-<<<<<<< HEAD
-# install and load packages
-=======
-# read utility functions
-source("code/functions.R")
 
-# install packages
->>>>>>> e08002c1e556058677742aea22cd164d8ce6a848
+# install and load packages
 packages <- c("terra", "sf", "rvest","pbapply","httr","stringi","foreach","doParallel","tidyverse","exactextractr", "tidyterra","abind","mice","factoextra","nimble","devtools","readr","rstudioapi","furrr")
 new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, quiet = T)
@@ -324,19 +318,19 @@ DateIntervals <- read_csv("input/survey_data/date_interval_lookup.csv") %>% muta
 grid.rast <- rast("input/survey_data/grid_raster.tif")
 grid.vect <- vect("input/survey_data/grid_vec.shp") %>% st_as_sf()
 # load land uses
-lu1999 <- rast("input/covariates/output/mask/lu1999_mask.tif")
-lu2017 <- rast("input/covariates/output/mask/lu2017_mask.tif")
+lu1999 <- rast("input/mask/lu1999_mask.tif")
+lu2017 <- rast("input/mask/lu2017_mask.tif")
 # get zonal statisrics for grid cells
 lu1999.zonal <- exact_extract(lu1999, grid.vect, "mode") %>% as.data.frame()
 lu2017.zonal <- exact_extract(lu2017, grid.vect, "mode") %>% as.data.frame()
 names(lu1999.zonal) <- "Tertiary"
 names(lu2017.zonal) <- "Tertiary"
 
-lu1999.res <- resample(rast("input/covariates/output/mask/lu1999_mask.tif"), grid.rast, method = "near")
-lu2017.res <- resample(rast("input/covariates/output/mask/lu2017_mask.tif"), grid.rast, method = "near")
+lu1999.res <- resample(rast("input/mask/lu1999_mask.tif"), grid.rast, method = "near")
+lu2017.res <- resample(rast("input/mask/lu2017_mask.tif"), grid.rast, method = "near")
 # load lot sizes and created a named list
-files <- list.files("input/covariates/output/mask", pattern = "htpls", full.names = T)
-names <- list.files("input/covariates/output/mask", pattern = "htpls", full.names = F)
+files <- list.files("input/mask", pattern = "htpls", full.names = T)
+names <- list.files("input/mask", pattern = "htpls", full.names = F)
 names <- as.character(parse_number(names))
 htpls <- lapply(files, rast)
 names(htpls) <- names
@@ -355,8 +349,8 @@ htpls.grid <- lapply(htpls, function(r) {
 for(i in 1:length(htpls.grid)){
   htpls.grid[[i]]$date <- names(htpls.grid)[i]}
 # Load look up tables to mask cells by land use only
-lookup1999 <- read_csv("input/covariates/output/mask/land_use_lookup1999_mask.csv")
-lookup2017 <- read_csv("input/covariates/output/mask/land_use_lookup2017_mask.csv")
+lookup1999 <- read_csv("input/mask/land_use_lookup1999_mask.csv")
+lookup2017 <- read_csv("input/mask/land_use_lookup2017_mask.csv")
 # use the median lot size (ha) in Brisbane CBD and inner suburbs (2021) as threshold
 # this value represents highly urbanized areas where koalas are unlikely to occur
 median.lot.size.brisbane <- 0.63
@@ -405,7 +399,7 @@ rm(i, n, index, files, names,lookup1999, lookup2017, htpls, lu1999.res, lu2017.r
 gc()
 
 # save the mask matrix
-saveRDS(lu.mask.matrix, "input/covariates/output/mask/lu_mask_matrix.rds")
+saveRDS(lu.mask.matrix, "input/mask/lu_mask_matrix.rds")
 
 # end
 print("Data formatting for nimble complete")

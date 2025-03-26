@@ -882,6 +882,9 @@ get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRU
   # Subset temporally variable data for the specified year
   PredData$CovTemp <- PredData$CovTemp[ , , (FirstDateID - NimbleData$Constants$Lag):LastDateID]
 
+  # Subset mask data for the specified year
+  PredData$Mask <- PredData$Mask[, (FirstDateID - NimbleData$Constants$Lag):LastDateID]
+
   # set up small grid IDs
   SGridID = PredData$CovCons[,"GridID"]
   GenPopID <- left_join(as.data.frame(PredData$CovCons$GridID), as.data.frame(PredData$GenPopLookup), by = c("PredData$CovCons$GridID" = "GridID"))$GENPOP_ID
@@ -1005,17 +1008,20 @@ get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRU
   # used to mask out grid cells that are rainforest and non-habitat so that: 0 = rainforest and non-habitat, 1 = everything else
   Y_khabitat <- as.vector(PredData$CovTemp[,"hhkha",]) %>% as.character() %>% case_match("1"~1,"2"~1,"3"~1,"4"~0, "5"~1, "6"~1, "7"~1, "8"~0) %>% as.numeric()
 
+  # mask 
+  Y_mask <- ifelse(as.vector(PredData$Mask) == 1, 0, 1)
+
   # get the proportion habitat by multiplying the above variables together
   if (RainForestMask) {
-      Y_prophabitat <- Y_propwoody * Y_khabitat
+      Y_prophabitat <- Y_propwoody * Y_khabitat * Y_mask
   } else {
-      Y_prophabitat <- Y_propwoody
+      Y_prophabitat <- Y_propwoody * Y_mask
   }
 
   # compile into a tibble
   Y_temp <- tibble(htime = Y_htime, hseas = Y_hseas, hhpgr = Y_hhpgr, hhpgr2km = Y_hhpgr2km, hhkha = Y_hhkha, hhfwc = Y_hhfwc, hcpre = Y_hcpre, hctmn = Y_hctmn, hctma = Y_hctma, htlus = Y_htlus, htilu2km = Y_htilu2km, htpls2km = Y_htpls2km, prophabitat = Y_prophabitat)
 
-  # get the design matrix and remove collinear variables for X
+  # get the design matrix for selected variables
   X <- model.matrix(as.formula(paste0("~ ", paste(NimbleData$StaticVars, collapse = " + "))), model.frame(as.formula(paste0("~ ", paste(NimbleData$StaticVars, collapse = " + "))), as.data.frame(X), na.action = "na.pass")) %>% as.data.frame()
 
   # remove the intercept term
@@ -1122,7 +1128,7 @@ get_predictions <- function(MCMC, Data) {
   NCSD <- sd(apply(Density[which(Data$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
   NCCV <- NCSD / NCMean
   NC <- tibble(Mean = NCMean, Lower = NCLower, Upper = NCUpper, SD = NCSD, CV = NCCV)
-  # wstern inland
+  # western inland
   WIMean <- mean(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
   WILower <- quantile(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
   WIUpper <- quantile(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
