@@ -19,8 +19,11 @@ source("code/nimble_code.R")
 Surveys <- readRDS("input/survey_data/master.rds")
 
 # get first date
-FirstDate <- min(c(min(Surveys$line_transect$Date), min(Surveys$strip_transect$Date), min(Surveys$uaoa$Date)))
-
+if(is.null(FirstDate)){
+  FirstDate <- min(c(min(Surveys$line_transect$Date), min(Surveys$strip_transect$Date), min(Surveys$uaoa$Date)))
+} else {
+  FirstDate <- as.Date(FirstDate, format = "%d/%m/%Y")
+}
 # free up memory
 rm(Surveys)
 gc()
