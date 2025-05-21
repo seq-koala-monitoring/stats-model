@@ -61,6 +61,22 @@ for (file in r.files) {
     mode = "wb"  # Binary mode to ensure proper file handling
   )
 }
+
+# extract parameter's path
+par.file <- repo_contents_stats$tree %>%
+  purrr::keep( ~ .x$type == "blob" && grepl("parameters_init.txt$", .x$path)) %>%
+  purrr::map_chr( ~ .x$path)
+
+raw_url <- sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s",
+                   owner,
+                   repo,
+                   branch, par.file)
+
+download.file(
+  url = raw_url,
+  destfile = par.file,
+  mode = "wb"  # Binary mode to ensure proper file handling
+)
   
 rm(list = ls())
 gc()
