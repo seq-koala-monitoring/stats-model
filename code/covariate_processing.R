@@ -30,14 +30,10 @@ rm(list=ls())
 try(dev.off(dev.list()["RStudioGD"]), silent=TRUE)
 gc()
 
-<<<<<<< HEAD
-# install and load packages
-=======
 # read utility functions
 source("code/functions.R")
 
 # install packages
->>>>>>> e08002c1e556058677742aea22cd164d8ce6a848
 packages <- c("terra","sf","rvest","pbapply","httr","stringi","foreach","doParallel","tidyverse")
 new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages, quiet = T)
