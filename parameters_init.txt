@@ -1,8 +1,9 @@
 # We designed this project to give users flexibility to adjust parameters while still achieving reliable results.
 # If you need to modify any spatial parameter from the default, adjust the parameters below.
 
-# random number seed
-seed <- 20
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ----   DATA PREPARATION: SURVEY DATA AND COVARIATES   ------------------------------------------------------------
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # primary_grid_size: A numeric value representing the spatial dimensions (in metres) of each cell in the analysis and mapping grid. 
 primary_grid_size <- 500
@@ -40,6 +41,13 @@ run_cov_extraction <- TRUE
 
 # specify wheher to use spatial data imputation (default = FALSE - unlikely to be needed)
 use_imputation <- FALSE
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ----   MODELLING   -----------------------------------------------------------------------------------------------
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# random number seed
+seed <- 20
 
 # list of static predictor variables to use
 # Variables removed by default due to high correlations (> 0.6 or < -0.6) were:
