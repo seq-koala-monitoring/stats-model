@@ -1135,17 +1135,14 @@ get_predictions <- function(MCMC, Data, grid_size = primary_grid_size) {
   NCCV <- NCSD / NCMean
   NC <- tibble(Mean = NCMean, Lower = NCLower, Upper = NCUpper, SD = NCSD, CV = NCCV)
   # western inland
-<<<<<<< HEAD
   WIMean <- mean(apply(Density[which(Data$GenPopID == 2),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
   WILower <- quantile(apply(Density[which(Data$GenPopID == 2),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
   WIUpper <- quantile(apply(Density[which(Data$GenPopID == 2),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
   WISD <- sd(apply(Density[which(Data$GenPopID == 2),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
-=======
   WIMean <- mean(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
   WILower <- quantile(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
   WIUpper <- quantile(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
   WISD <- sd(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
->>>>>>> 29999ec3257a21f2468dc6921a32ee08d918e002
   WICV <- WISD / WIMean
   WI <- tibble(Mean = WIMean, Lower = WILower, Upper = WIUpper, SD = WISD, CV = WICV)
   # southern coast
