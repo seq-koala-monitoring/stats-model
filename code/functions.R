@@ -96,7 +96,7 @@ fit_sel_model <- function(X, Seeds, Iter, Burnin, Thin, Monitors, Calculate = FA
 }
 
 # format data inputs and check for multi-collinearity (also uses multiple imputation to impute missing values)
-format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateIntervals, GenPopLookup, AggGenPop, FirstDate, LastDate, Order, Lag, VarTrend) {
+format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateIntervals, GenPopLookup, AggGenPop = gen_pop_agg, FirstDate, LastDate, Order, Lag, VarTrend) {
 
   # check if need to aggregate genetic populations
   if (AggGenPop) {
@@ -840,17 +840,22 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
 
 # function to get data for a particular year for a model to make predictions
 get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRUE) {
-
-  # reclassify genetic population IDs to three "populations"
-  # 1 (Noosa) -> 1
-  # 2 (North Coast) -> 1
-  # 3 (North West) -> 2
-  # 4 (Toowoomba)-> 2
-  # 5 (South West) -> 2
-  # 6 (Koala Coast) -> 3
-  # 7 (Minjerribah) -> 3
-  # 8 (Gold Coast) -> 3
-  PredData$GenPopLookup <- PredData$GenPopLookup %>% as_tibble() %>% mutate(GENPOP_ID = case_match(GENPOP_ID, 1~1, 2~1, 3~2, 4~2, 5~2, 6~3, 7~3, 8~3) %>% as.integer())
+  
+  if(gen_pop_agg){
+    # reclassify genetic population IDs to three "populations"
+    # 1 (Noosa) -> 1
+    # 2 (North Coast) -> 1
+    # 3 (North West) -> 2
+    # 4 (Toowoomba)-> 2
+    # 5 (South West) -> 2
+    # 6 (Koala Coast) -> 3
+    # 7 (Minjerribah) -> 3
+    # 8 (Gold Coast) -> 3
+    PredData$GenPopLookup <- PredData$GenPopLookup %>% as_tibble() %>% mutate(GENPOP_ID = case_match(GENPOP_ID, 1~1, 2~1, 3~2, 4~2, 5~2, 6~3, 7~3, 8~3) %>% as.integer()) 
+  } else {
+    # do not reclassify genetic population IDs 
+    PredData$GenPopLookup <- PredData$GenPopLookup %>% as_tibble() %>% mutate(GENPOP_ID = case_match(GENPOP_ID, 1~1, 2~2, 3~3, 4~4, 5~5, 6~6, 7~7, 8~8) %>% as.integer())
+  }
 
   # get first and last date IDs
   # check if the first date is in the data, use it, otherwise use the second date - to avoid issues at the start or end
@@ -1060,7 +1065,7 @@ get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRU
 
 # function to get predictions from a model
 # Data and output generated from get_prediction_data()
-get_predictions <- function(MCMC, Data) {
+get_predictions <- function(MCMC, Data, grid_size = primary_grid_size) {
 
   # get the spatial random effects
   Sre <- select(as_tibble(MCMC),contains("sd["))  
@@ -1113,33 +1118,41 @@ get_predictions <- function(MCMC, Data) {
   Spatial <- tibble(GridID = Data$SGridID, Expected = Mean, LowerCI = Lower, UpperCI = Upper, SD = SD) %>% mutate(Expected = ifelse(is.na(Expected), NA, Expected), LowerCI = ifelse(is.na(LowerCI), NA, LowerCI), UpperCI = ifelse(is.na(UpperCI), NA, UpperCI), SD = ifelse(is.na(SD), NA, SD), CV = ifelse(is.na(CV), NA, CV))
   # remove grids with missing data
   Spatial <- Spatial %>% filter(!is.na(Expected))
-  # get total abundance values (multiply by 25 since each 500 m x 500m grid cell is 25 ha in size)
-  TotalMean <- mean(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
-  TotalLower <- quantile(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
-  TotalUpper <- quantile(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
-  TotalSD <- sd(apply(Density * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  # get total abundance values (multiply by the grid area, in hectares, since each grid cell is a given area in size)
+  area <- (grid_size^2)/1e4
+  TotalMean <- mean(apply(Density * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  TotalLower <- quantile(apply(Density * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
+  TotalUpper <- quantile(apply(Density * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
+  TotalSD <- sd(apply(Density * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
   TotalCV <- TotalSD / TotalMean
   Total <- tibble(Mean = TotalMean, Lower = TotalLower, Upper = TotalUpper, SD = TotalSD, CV = TotalCV)
   # get total abundance values for each genetic population
   # northern coast
-  NCMean <- mean(apply(Density[which(Data$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
-  NCLower <- quantile(apply(Density[which(Data$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
-  NCUpper <- quantile(apply(Density[which(Data$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
-  NCSD <- sd(apply(Density[which(Data$GenPopID == 1),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  NCMean <- mean(apply(Density[which(Data$GenPopID == 1),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  NCLower <- quantile(apply(Density[which(Data$GenPopID == 1),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
+  NCUpper <- quantile(apply(Density[which(Data$GenPopID == 1),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
+  NCSD <- sd(apply(Density[which(Data$GenPopID == 1),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
   NCCV <- NCSD / NCMean
   NC <- tibble(Mean = NCMean, Lower = NCLower, Upper = NCUpper, SD = NCSD, CV = NCCV)
   # western inland
+<<<<<<< HEAD
+  WIMean <- mean(apply(Density[which(Data$GenPopID == 2),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  WILower <- quantile(apply(Density[which(Data$GenPopID == 2),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
+  WIUpper <- quantile(apply(Density[which(Data$GenPopID == 2),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
+  WISD <- sd(apply(Density[which(Data$GenPopID == 2),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+=======
   WIMean <- mean(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
   WILower <- quantile(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
   WIUpper <- quantile(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
   WISD <- sd(apply(Density[which(Data$GenPopID == 2),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+>>>>>>> 29999ec3257a21f2468dc6921a32ee08d918e002
   WICV <- WISD / WIMean
   WI <- tibble(Mean = WIMean, Lower = WILower, Upper = WIUpper, SD = WISD, CV = WICV)
   # southern coast
-  SCMean <- mean(apply(Density[which(Data$GenPopID == 3),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
-  SCLower <- quantile(apply(Density[which(Data$GenPopID == 3),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
-  SCUpper <- quantile(apply(Density[which(Data$GenPopID == 3),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
-  SCSD <- sd(apply(Density[which(Data$GenPopID == 3),] * 25, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  SCMean <- mean(apply(Density[which(Data$GenPopID == 3),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
+  SCLower <- quantile(apply(Density[which(Data$GenPopID == 3),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.025, na.rm = TRUE)
+  SCUpper <- quantile(apply(Density[which(Data$GenPopID == 3),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}), 0.975, na.rm = TRUE)
+  SCSD <- sd(apply(Density[which(Data$GenPopID == 3),] * area, MARGIN = 2, function(x) {sum(x, na.rm = TRUE)}))
   SCCV <- SCSD / SCMean
   SC <- tibble(Mean = SCMean, Lower = SCLower, Upper = SCUpper, SD = SCSD, CV = SCCV)
 

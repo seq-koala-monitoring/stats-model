@@ -12,14 +12,17 @@ library(foreach)
 library(doParallel)
 library(exactextractr)
 
+# load parameters
+source("parameters_init.txt")
+
 # get functions
-source("functions.r")
+source("code/functions.R")
 
 # get input data
-CovCons <- readRDS("input/survey_data_500/cov_constant_array.rds")
-CovTemp <- readRDS("input/survey_data_500/cov_temporal_array.rds")
-GenPopLookup <- readRDS("input/survey_data_500/gen_pop_lookup.rds")
-DateIntervals <- read_csv("input/survey_data_500/date_interval_lookup.csv") %>% mutate(end_date = as.Date(end_date))
+CovCons <- readRDS("input/survey_data/cov_constant_array.rds")
+CovTemp <- readRDS("input/survey_data/cov_temporal_array.rds")
+GenPopLookup <- readRDS("input/survey_data/gen_pop_lookup.rds")
+DateIntervals <- read_csv("input/survey_data/date_interval_lookup.csv") %>% mutate(end_date = as.Date(end_date))
 PredData <- list(CovCons = CovCons, CovTemp = CovTemp, DateIntervals = DateIntervals, GenPopLookup = GenPopLookup)
 rm(CovCons, CovTemp, DateIntervals, GenPopLookup)
 
@@ -31,7 +34,9 @@ rm(CovCons, CovTemp, DateIntervals, GenPopLookup)
 Order = 1
 Lag = 0
 VarTrend = 1
-FirstDate <- "1996-02-13"
+if(is.null(FirstDate)){
+  FirstDate <- "1996-02-13"
+}
 
 # load nimble data and mcmc data
 NimbleData <- readRDS(paste0("output/nimble_data/data_order", Order, "_lag", Lag, "_vartrend", VarTrend, "_firstdate", FirstDate, ".rds"))
@@ -43,7 +48,7 @@ MCMC <- rbind(MCMC$MCMC[[1]], MCMC$MCMC[[2]], MCMC$MCMC[[3]])
 MCMC <- MCMC[sample(1:dim(MCMC)[1], 1000), ]
 
 # load feature class of small grids
-Grid <- vect("input/survey_data_500/grid_vec.shp")
+Grid <- vect("input/survey_data/grid_vec.shp")
 
 # make cluster
 #cl <- makeCluster(3)
@@ -58,6 +63,8 @@ Grid <- vect("input/survey_data_500/grid_vec.shp")
 #  })
 
 # loop through years to generate predictions
+if(!dir.exists("output/predictions")){dir.create("output/predictions")}
+
 Predictions <- foreach(i = 1996:2023) %do% {
 
   # format data for predictions
