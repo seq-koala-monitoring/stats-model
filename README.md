@@ -1,6 +1,7 @@
 # QUICK START GUIDE
 Step-by-step instructions to run the analysis
 
+
 ## INITIAL SETTINGS
 ### Download R and RStudio
 
@@ -85,6 +86,7 @@ within the keys folder in your working directory
 8. Replace the sequence of numbers and letters with your API code. Make sure
 to keep it within quotes
 
+
 ## COVARIATES AND KOALA SURVEY DATA
 ### Download covariates
 The R script  _covariate_processing.R_  was designed to update the covariates required for the Bayesian state-space model used to estimate koala densities across Southeast Queensland.
@@ -105,6 +107,7 @@ When you see "THIS CODE HAS FINISHED" in the Console panel (usually at the botto
 NOTE:
 1.  Disregard any warnings on the taskbar about packages that are not installed
 2.  This code may take anywhere from a few minutes to days to run, depending on how many files need updating and your computer's specifications.
+
 
 
 ## MODELLING
