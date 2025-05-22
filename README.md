@@ -105,4 +105,4 @@ You only need to open the _model_runs.R_  file in R, select all the lines, and c
 
 ### Make predictions
 The R script _predictions.R_ was developed to estimate koala densities across the whole study area, based on relationships learned from survey data and spatial covariates. 
-Once more, all you need is to open _predictions.R_, select all, lines, and click run. 
+Once more, all you need is to open _predictions.R_, select all lines, and click Run. 
