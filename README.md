@@ -42,6 +42,8 @@ The parameters are:
     `run_cov_extraction <- TRUE`
 * specify wheher to use spatial data imputation (default = FALSE - unlikely to be needed)
     `use_imputation <- FALSE`
+* set a start date for modelling using the format dd/mm/yyyy. If you want to model the entire survey period (i.e., from 1996 to current), leave it as NULL and the model will then start from the date of the first survey.
+    `FirstDate <- NULL`
 * list of static predictor variables to use,
     * Variables removed by default due to high correlations (> 0.6 or < -0.6) were:
     * elevation,
