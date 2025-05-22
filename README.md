@@ -96,3 +96,12 @@ When you see "THIS CODE HAS FINISHED" in the Console panel (usually at the botto
 NOTE:
 1.  Disregard any warnings on the taskbar about packages that are not installed
 2.  This code may take anywhere from a few minutes to days to run, depending on how many files need updating and your computer's specifications.
+
+
+## MODELLING
+### Fit models
+The R script _model_runs.R_ was designed to fit the Bayesian state-space model used to estimate koala densities across Southeast Queensland. The model itself is specified in file _nimble_code.R_. 
+You only need to open the _model_runs.R_  file in R, select all the lines, and click run. The process will automatically load the parameters previously defined in the _parameter_init.txt_ file. 
+
+### Make predictions
+The R script _predictions.R_ was developed to estimate koala densities across the whole study area, based on relationships learned from survey data and spatial covariates. 
