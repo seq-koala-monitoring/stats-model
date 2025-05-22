@@ -258,58 +258,108 @@ if (!file.exists("input/covariates/output/mask/lu2017_mask.tif") | !file.exists(
 
 # precipitation
 for (i in 1990:as.numeric(format(Sys.Date(), "%Y"))) {
-  # get download URLs and file names
-  URL1 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/precip/total/r005/06month/", as.character(i),
-                 "/precip_total_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
-  File1 <- paste0("input/covariates/raw_data/precipitation", "/precip_total_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
-  URL2 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/precip/total/r005/06month/", as.character(i),
-                 "/precip_total_r005_", as.character(i), "0401_", as.character(i), "0930.nc")
-  File2 <- paste0("input/covariates/raw_data/precipitation", "/precip_total_r005_", as.character(i), "0401_", as.character(i), "0930.nc")
-
-  # download files
-  if (!file.exists(File1)) {
-    download.file(URL1, File1, mode = "wb")
+  
+  current_date <- Sys.Date()
+  
+  start_date_url1 <- as.Date(paste0(as.character(i - 1), "1001"), format = "%Y%m%d")
+  end_date_url1 <- as.Date(paste0(as.character(i), "0331"), format = "%Y%m%d")
+  
+  if(all(c(start_date_url2, end_date_url2) <= current_date)){
+    # get download URLs and file names
+    URL1 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/precip/total/r005/06month/", as.character(i),
+                   "/precip_total_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
+    File1 <- paste0("input/covariates/raw_data/precipitation", "/precip_total_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
+    
+    # download files
+    if (!file.exists(File1)) {
+      download.file(URL1, File1, mode = "wb")
+    }
   }
-  if (!file.exists(File2)) {
-    download.file(URL2, File2, mode = "wb")
+  
+  start_date_url2 <- as.Date(paste0(as.character(i), "0401"), format = "%Y%m%d")
+  end_date_url2 <- as.Date(paste0(as.character(i), "0930"), format = "%Y%m%d")
+  
+  if(all(c(start_date_url2, end_date_url2) <= current_date)){
+    # get download URLs and file names
+    URL2 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/precip/total/r005/06month/", as.character(i),
+                   "/precip_total_r005_", as.character(i), "0401_", as.character(i), "0930.nc")
+    File2 <- paste0("input/covariates/raw_data/precipitation", "/precip_total_r005_", as.character(i), "0401_", as.character(i), "0930.nc")
+    
+    # download files
+    if (!file.exists(File2)) {
+      download.file(URL2, File2, mode = "wb")
+    }
   }
 }
 
 # mean mean temperature
 for (i in 1990:as.numeric(format(Sys.Date(), "%Y"))) {
-  # get download URLs and file names
-  URL1 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/tmean/mean/r005/06month/", as.character(i),
-                 "/tmean_mean_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
-  File1 <- paste0("input/covariates/raw_data/temp_mean", "/tmean_mean_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
-  URL2 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/tmean/mean/r005/06month/", as.character(i),
-                 "/tmean_mean_r005_", as.character(i), "0401_", as.character(i), "0930.nc")
-  File2 <- paste0("input/covariates/raw_data/temp_mean", "/tmean_mean_r005_", as.character(i), "0401_", as.character(i), "0930.nc")
-
-  # download files
-  if (!file.exists(File1)) {
-    download.file(URL1, File1, mode = "wb")
+  
+  current_date <- Sys.Date()
+  
+  start_date_url1 <- as.Date(paste0(as.character(i - 1), "1001"), format = "%Y%m%d")
+  end_date_url1 <- as.Date(paste0(as.character(i), "0331"), format = "%Y%m%d")
+  
+  if(all(c(start_date_url1, end_date_url1) <= current_date)){
+    # get download URLs and file names
+    # get download URLs and file names
+    URL1 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/tmean/mean/r005/06month/", as.character(i),
+                   "/tmean_mean_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
+    File1 <- paste0("input/covariates/raw_data/temp_mean", "/tmean_mean_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
+    
+    # download files
+    if (!file.exists(File1)) {
+      download.file(URL1, File1, mode = "wb")
+    }
   }
-  if (!file.exists(File2)) {
-    download.file(URL2, File2, mode = "wb")
+  
+  start_date_url2 <- as.Date(paste0(as.character(i), "0401"), format = "%Y%m%d")
+  end_date_url2 <- as.Date(paste0(as.character(i), "0930"), format = "%Y%m%d")
+  
+  if(all(c(start_date_url2, end_date_url2) <= current_date)){
+    # get download URLs and file names
+    URL2 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/tmean/mean/r005/06month/", as.character(i),
+                   "/tmean_mean_r005_", as.character(i), "0401_", as.character(i), "0930.nc")
+    File2 <- paste0("input/covariates/raw_data/temp_mean", "/tmean_mean_r005_", as.character(i), "0401_", as.character(i), "0930.nc")
+    
+    if (!file.exists(File2)) {
+      download.file(URL2, File2, mode = "wb")
+    }
   }
 }
 
 # mean max temperature
 for (i in 1990:as.numeric(format(Sys.Date(), "%Y"))) {
-  # get download URLs and file names
-  URL1 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/tmax/mean/r005/06month/", as.character(i),
-                 "/tmax_mean_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
-  File1 <- paste0("input/covariates/raw_data/temp_max", "/tmax_mean_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
-  URL2 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/tmax/mean/r005/06month/", as.character(i),
-                 "/tmax_mean_r005_", as.character(i), "0401_", as.character(i), "0930.nc")
-  File2 <- paste0("input/covariates/raw_data/temp_max", "/tmax_mean_r005_", as.character(i), "0401_", as.character(i), "0930.nc")
-
-  # download files
-  if (!file.exists(File1)) {
-    download.file(URL1, File1, mode = "wb")
+  current_date <- Sys.Date()
+  
+  start_date_url1 <- as.Date(paste0(as.character(i - 1), "1001"), format = "%Y%m%d")
+  end_date_url1 <- as.Date(paste0(as.character(i), "0331"), format = "%Y%m%d")
+  
+  if(all(c(start_date_url2, end_date_url2) <= current_date)){
+    # get download URLs and file names
+    # get download URLs and file names
+    URL1 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/tmax/mean/r005/06month/", as.character(i),
+                   "/tmax_mean_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
+    File1 <- paste0("input/covariates/raw_data/temp_max", "/tmax_mean_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
+    
+    # download files
+    if (!file.exists(File1)) {
+      download.file(URL1, File1, mode = "wb")
+    }
   }
-  if (!file.exists(File2)) {
-    download.file(URL2, File2, mode = "wb")
+  
+  start_date_url2 <- as.Date(paste0(as.character(i), "0401"), format = "%Y%m%d")
+  end_date_url2 <- as.Date(paste0(as.character(i), "0930"), format = "%Y%m%d")
+  
+  if(all(c(start_date_url2, end_date_url2) <= current_date)){
+    # get download URLs and file names
+    URL2 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/tmax/mean/r005/06month/", as.character(i),
+                   "/tmax_mean_r005_", as.character(i), "0401_", as.character(i), "0930.nc")
+    File2 <- paste0("input/covariates/raw_data/temp_max", "/tmax_mean_r005_", as.character(i), "0401_", as.character(i), "0930.nc")
+    
+    if (!file.exists(File2)) {
+      download.file(URL2, File2, mode = "wb")
+    }
   }
 }
 
