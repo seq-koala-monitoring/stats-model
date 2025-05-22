@@ -13,7 +13,7 @@ Ensure that you have R version 4.4.1 or higher installed on your computer. The n
 * On your computer, navigate to your working directory that contains the R project and initial files. Then, click on the R project named  _KoalaModellingAnalysis.Rproj_.
 * Navigate to  _File_,  click  _Open file…_,  go to the code folder within your working directory, select  _setup_script.R_,  and click _Open_. Once the script is open, click _Source_ (near the top right corner of the script panel) to download the latest code from GitHub (https://github.com/seq-koala-monitoring/stats-model/tree/main) and configure the working directory to ensure that the analyses run properly.
 
-## Parameters
+### Parameters
 We designed this project to give users flexibility to adjust parameters while still achieving reliable results. If you need to modify any spatial parameter from the default, adjust the arguments in the _parameters_init.txt_ file.
 The parameters are:
 * primary_grid_size: A numeric value representing the spatial dimensions (in metres) of each cell in the analysis and mapping grid.
@@ -70,11 +70,20 @@ The parameters are:
     `obs_groups <- FALSE`
 * set whether to mask rainforest,
     `RainMask <- TRUE`
-* You also need to provide an API code that allows R to download a few soil variables from TERN. Please, follow the steps below:
-    1.  Navigate to https://geonetwork.tern.org.au/geonetwork/srv/eng/new.account
-    2.  Create an account and obtain an API key from TERN
-    3.  Open the file  apis.R  in R or any text editor like Notepad. The file is located within the  keys  folder in your working directory
-    4.  Replace the sequence of numbers and letters with your API code. Make sure to keep it within quotes
+
+### TERN API
+You also need to provide an API code that allows R to download a few soil variables
+from TERN. Please, follow the steps below:
+1. Navigate to https://portal.tern.org.au/browse/theme
+2. Click "Sign in" in the right-hand side
+3. Sign in with an account
+4. Once logged in, click you name and TERN account
+5. Click API Keys > Create API Keys > Type a name > Request API key
+6. Copy or save the API key in a secure location
+7. Open the file _apis.R_ in R or any text editor like Notepad. The file is located
+within the keys folder in your working directory
+8. Replace the sequence of numbers and letters with your API code. Make sure
+to keep it within quotes
 
 ## COVARIATES AND KOALA SURVEY DATA
 ### Download covariates
