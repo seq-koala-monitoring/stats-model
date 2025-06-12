@@ -330,7 +330,9 @@ lu1999.res <- resample(rast("input/mask/lu1999_mask.tif"), grid.rast, method = "
 lu2017.res <- resample(rast("input/mask/lu2017_mask.tif"), grid.rast, method = "near")
 # load lot sizes and created a named list
 files <- list.files("input/mask", pattern = "htpls", full.names = T)
+files <- files[-grep("\\b(aux|xml)\\b", files)]
 names <- list.files("input/mask", pattern = "htpls", full.names = F)
+names <- names[-grep("\\b(aux|xml)\\b", names)]
 names <- as.character(parse_number(names))
 htpls <- lapply(files, rast)
 names(htpls) <- names
