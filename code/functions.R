@@ -2798,7 +2798,7 @@ extract_temp_precip <- function(data, type){
     dplyr::select(TransectID = TrnscID, date_chr, SiteID, geometry)
   
   # check if every survey has a spatial representation
-    check <- dat |> 
+  check <- dat |> 
     filter(!TransectID %in% unique(surveys$TransectID)) 
   
   # add survey site representation if required
@@ -2830,7 +2830,7 @@ extract_temp_precip <- function(data, type){
     dat <- dat |> 
       dplyr::filter(!TransectID %in% surveys.to.remove)
   }
-
+  
   check <- dat |> 
     filter(!TransectID %in% unique(surveys$TransectID)) 
   if(nrow(check) > 0){warning("Some surveys do not have a spatial representation")}
@@ -2848,8 +2848,9 @@ extract_temp_precip <- function(data, type){
   
   data$temp_max <- NA
   
+  message("Assigning temperature values to each survey. The time required will vary, but it could take a few HOURS if many surveys are being processed.")
+  pb <- txtProgressBar(min = 1, max = nrow(dat), style = 3)
   for(i in 1:nrow(dat)){
-    cat(paste0(i, " "))
     data[i, "temp_max"] <- local({
       s <- surveys.sub[which(surveys.sub$TransectID %in% unique(dat[i,]$TransectID)), ]
       r.path <-  filepath[which(grepl(unique(s$date_chr), filepath))] 
@@ -2857,8 +2858,13 @@ extract_temp_precip <- function(data, type){
       r <- suppressWarnings(project(r, "EPSG:7856"))
       mean <- exactextractr::exact_extract(r, s, fun = "mean")
     })
+    # Print progress
+    setTxtProgressBar(pb, i)
   }
+  close(pb)
   
+  message("Assigning precipitation values to each survey. The time required will vary, but it could take a few HOURS if many surveys are being processed.")
+  pb <- txtProgressBar(min = 1, max = nrow(dat), style = 3)
   ## Precipitation 
   filepath <- list.files(path = "input/covariates/raw_data/precipitation_total_for_observation_error",
                          pattern = ".nc",
@@ -2875,7 +2881,11 @@ extract_temp_precip <- function(data, type){
       r <- suppressWarnings(project(r, "EPSG:7856"))
       mean <- exactextractr::exact_extract(r, s, fun = "mean")
     })
+    # Print progress
+    setTxtProgressBar(pb, i)
   }
+  close(pb)
+  rm(pb)
   
   return(data)
 }
