@@ -2873,7 +2873,6 @@ extract_temp_precip <- function(data, type){
   data$precip_tot <- NA
   
   for(i in 1:nrow(dat)){
-    cat(paste0(i, " "))
     data[i, "precip_tot"] <- local({
       s <- surveys.sub[which(surveys.sub$TransectID %in% unique(dat[i,]$TransectID)), ]
       r.path <-  filepath[which(grepl(unique(s$date_chr), filepath))] 
