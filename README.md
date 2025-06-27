@@ -101,8 +101,8 @@ Disregard any warnings on the taskbar about packages that are not installed
 ### Covariates that are NOT downloaded automatically
 Some covariate maps are not regularly updated by their data custodians. Before re-running this analysis with new survey data, users should manually check whether updated versions of these maps are available.
 #### Pre-clear Koala Habitat Map and Remnant Vegetation Cover
-Our final analysis used the _KoalaSurveyStrata_v3_ful_ map directly provided by DETSI and the remnant vegetation cover based on the 2021 remnant regional ecosystem mapping (available at: [https://qldspatial.information.qld.gov.au/catalogue/custom/detail.page?fid={F5CF90D6-5881-4D8F-9581-D8F55D25F9CE}]).
-The user only needs to update it if a new version of the "pre-clear koala habitat map" or remnant vegetation map are produced/released.
+Our final analysis used the _KoalaSurveyStrata_v3_ful_ map directly provided by DETSI and the remnant vegetation cover based on the 2021 remnant regional ecosystem mapping (available at: [https://qldspatial.information.qld.gov.au/catalogue/custom/detail.page?fid={F5CF90D6-5881-4D8F-9581-D8F55D25F9CE}]).  
+The user only needs to update it if a new version of the "pre-clear koala habitat map" or remnant vegetation map are produced/released.  
 To do so, follow the steps below:
 1.  Obtain the new version of the layers from its source.
 2.  Find the folder where the old version is saved. The location currently (June 2025) is: input/covariates/raw_data/preclear_koala_habitat/. Save the new file in this folder.
@@ -123,24 +123,24 @@ To update it, follow the steps below:
 ```GDEVect <- st_read("input/covariates/raw_data/gde/GDE_2025.gdb", layer = "gw_gde_hgpot") %>% vect() %>% project(Bounding) %>% crop(Bounding) %>% aggregate("HGPOT7_DESC")```
 
 ### Elevation
-This is a "Digital Elevation Model" or DEM. It shows how high the land is above sea level. Our final analysis used the SRTM-derived 1 Second Digital Elevation Models Version 1.0e found at [https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/72759].
+This is a "Digital Elevation Model" or DEM. It shows how high the land is above sea level. Our final analysis used the SRTM-derived 1 Second Digital Elevation Models Version 1.0e found at [https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/72759].  
 To update it, follow the steps below:
 1.  Obtain the new version of the layers from its source (probably from [https://ecat.ga.gov.au]).
 2.  The folder for this layer is: input/covariates/raw_data/dem/. Save the new file here.
 3.  Open the file named _covariate_processing.R_.
 4.  Go to line 56.
 5.  You will need to replace the name of the old elevation file (it ends in .tif) with the name of the new one.  
-    For example, if the new file is DEM_1sec_v2.tif, you would update the line to look like this:
+    For example, if the new file is DEM_1sec_v2.tif, you would update the line to look like this:  
 ```DEM <- rast(paste(getwd(), "input/covariates/raw_data/dem/DEM_1sec_v2.tif",sep = "")) %>%```
 
 #### Land Use
-These maps show how land is being used. Our final analyisis used land use maps for 1999 and 2017 (available at: [https://qldspatial.information.qld.gov.au/catalogue/custom/detail.page?fid={273F1E50-DD95-4772-BD6C-5C1963CAA594}]).
-To add a new version, follow the steps below:
+These maps show how land is being used. Our final analyisis used land use maps for 1999 and 2017 (available at: [https://qldspatial.information.qld.gov.au/catalogue/custom/detail.page?fid={273F1E50-DD95-4772-BD6C-5C1963CAA594}]).  
+To add a new version, follow the steps below:  
 1.  Obtain the new version of the layers from its source (probably from [https://qldspatial.information.qld.gov.au]).
 2.  The folder for this layer is: input/covariates/raw_data/land_use/. Save the new file here.
 3.  Open the code file _covariate_processing.R_ and follow the next steps carefully.
 4.  Go to line 239 in _covariate_processing.R_. Click your mouse at the very end of the line and press "Enter" to create a new, empty line below it.
-5.  Copy the entire code block below and paste it into the empty space you just created.
+5.  Copy the entire code block below and paste it into the empty space you just created.  
 ```
 LandUse[YYYY] <- vect("input/covariates/raw_data/land_use/[NEW_LANDUSE_FILENAME.shp]") %>% project(Bounding) %>% crop(Bounding) %>% rasterize(rast(Bounding, resolution = 30), field = "Secondary")
 LULookup2017 <- read_csv("input/covariates/raw_data/land_use/land_use_2017_lookup_raw.csv")
