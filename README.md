@@ -98,6 +98,78 @@ When you see "THIS CODE HAS FINISHED" in the Console panel (usually at the botto
 NOTE:
 Disregard any warnings on the taskbar about packages that are not installed
 
+### Covariates that are NOT downloaded automatically
+Some covariate maps are not regularly updated by their data custodians. Before re-running this analysis with new survey data, users should manually check whether updated versions of these maps are available.
+#### Pre-clear Koala Habitat Map and Remnant Vegetation Cover
+Our final analysis used the _KoalaSurveyStrata_v3_ful_ map directly provided by DETSI and the remnant vegetation cover based on the 2021 remnant regional ecosystem mapping (available at: [https://qldspatial.information.qld.gov.au/catalogue/custom/detail.page?fid={F5CF90D6-5881-4D8F-9581-D8F55D25F9CE}]).
+The user only needs to update it if a new version of the "pre-clear koala habitat map" or remnant vegetation map are produced/released.
+To do so, follow the steps below:
+1.  Obtain the new version of the layers from its source.
+2.  Find the folder where the old version is saved. The location currently (June 2025) is: input/covariates/raw_data/preclear_koala_habitat/. Save the new file in this folder.
+3.  Open the file named _covariate_processing.R_ in R.
+4.  Go to line 516.
+5.  Simply replace the old file name (KoalaSurveyStrata_v3_ful.shp) inside the quotation marks with the name of the new file you just downloaded. For example, if the new file is called KoalaHabitat_v4.shp, the line should now look like this:  
+```reClearHabitat <- vect("input/covariates/raw_data/preclear_koala_habitat/KoalaHabitat_v4.shp") %>% project(Bounding)```
+
+#### Groundwater Dependence
+This map shows the ecosystems that are likely to depend on groundwater to survive. Our final analysis used the version published on 28 May 2018 available at [https://qldspatial.information.qld.gov.au/catalogue/custom/detail.page?fid={2DF30B15-FA92-47EC-BD2F-5FF1F311DC69}].
+To update it, follow the steps below:
+1.  Obtain the new version of the layers from its source.
+2.  The folder for this layer is: input/covariates/raw_data/gde/. Save the new file here.
+3.  Open the file named _covariate_processing.R_.
+4.  Go to line 605.
+5.  You will see a file path inside quotation marks. You need to replace the name of the database file (it ends in .gdb) with the name of the new file you downloaded.
+    For example, if the new file is GDE_2025.gdb, you would update the line to look like this:  
+```GDEVect <- st_read("input/covariates/raw_data/gde/GDE_2025.gdb", layer = "gw_gde_hgpot") %>% vect() %>% project(Bounding) %>% crop(Bounding) %>% aggregate("HGPOT7_DESC")```
+
+### Elevation
+This is a "Digital Elevation Model" or DEM. It shows how high the land is above sea level. Our final analysis used the SRTM-derived 1 Second Digital Elevation Models Version 1.0e found at [https://ecat.ga.gov.au/geonetwork/srv/eng/catalog.search#/metadata/72759].
+To update it, follow the steps below:
+1.  Obtain the new version of the layers from its source (probably from [https://ecat.ga.gov.au]).
+2.  The folder for this layer is: input/covariates/raw_data/dem/. Save the new file here.
+3.  Open the file named _covariate_processing.R_.
+4.  Go to line 56.
+5.  You will need to replace the name of the old elevation file (it ends in .tif) with the name of the new one.  
+    For example, if the new file is DEM_1sec_v2.tif, you would update the line to look like this:
+```DEM <- rast(paste(getwd(), "input/covariates/raw_data/dem/DEM_1sec_v2.tif",sep = "")) %>%```
+
+#### Land Use
+These maps show how land is being used. Our final analyisis used land use maps for 1999 and 2017 (available at: [https://qldspatial.information.qld.gov.au/catalogue/custom/detail.page?fid={273F1E50-DD95-4772-BD6C-5C1963CAA594}]).
+To add a new version, follow the steps below:
+1.  Obtain the new version of the layers from its source (probably from [https://qldspatial.information.qld.gov.au]).
+2.  The folder for this layer is: input/covariates/raw_data/land_use/. Save the new file here.
+3.  Open the code file _covariate_processing.R_ and follow the next steps carefully.
+4.  Go to line 239 in _covariate_processing.R_. Click your mouse at the very end of the line and press "Enter" to create a new, empty line below it.
+5.  Copy the entire code block below and paste it into the empty space you just created.
+```
+LandUse[YYYY] <- vect("input/covariates/raw_data/land_use/[NEW_LANDUSE_FILENAME.shp]") %>% project(Bounding) %>% crop(Bounding) %>% rasterize(rast(Bounding, resolution = 30), field = "Secondary")
+LULookup2017 <- read_csv("input/covariates/raw_data/land_use/land_use_2017_lookup_raw.csv")
+LandUse[YYYY] <- classify(LandUse[YYYY], LULookup2017)
+writeRaster(LandUse[YYYY], "input/covariates/output/htlus[YYYY][MM].tif", overwrite = TRUE)
+Intensive[YYYY] <- classify(LandUse[YYYY], cbind(c(1, 2, 3, 4, 5, 6, 7), c(0, 0, 0, 0, 1, 0, 0)))
+Buff1 <- focalMat(Intensive[YYYY], 1000, "circle", fillNA = TRUE)
+Buff2 <- focalMat(Intensive[YYYY], 2000, "circle", fillNA = TRUE)
+Buff3 <- focalMat(Intensive[YYYY], 3000, "circle", fillNA = TRUE)
+focal(Intensive[YYYY], Buff1, filename = paste0("input/covariates/output/htilu1km", "[YYYY][MM]", ".tif"),
+      overwrite = TRUE, na.rm = TRUE)
+focal(Intensive[YYYY], Buff2, filename = paste0("input/covariates/output/htilu2km", "[YYYY][MM]", ".tif"),
+      overwrite = TRUE, na.rm = TRUE)
+focal(Intensive[YYYY], Buff3, filename = paste0("input/covariates/output/htilu3km", "[YYYY][MM]", ".tif"),
+      overwrite = TRUE, na.rm = TRUE)
+```
+6. Replace every [YYYY] with the year of the new data. For example, if the data is from 2025, change LandUse[YEAR] to LandUse2025. Do this everywhere you see [YEAR].
+7. Replace [NEW_LANDUSE_FILENAME.shp] with the actual name of the file you downloaded.
+8. Replace every [YYYY][MM] with the year and two-digit month. For example, if the data is for May 2025, you would use 202505.
+9. Go to line 244 in the file. Click at the end of the line and press "Enter" to create another new, empty line.
+10. Copy the code block below and paste it into this new space.
+```LandUse[YEAR]_mask <- vect("input/covariates/raw_data/land_use/[NEW_LANDUSE_FILENAME.shp]") %>% project(Bounding) %>% crop(Bounding) %>% rasterize(rast(Bounding, resolution = 30), field = "Tertiary")
+  # save rasters
+  writeRaster(LandUse[YEAR]_mask, "input/covariates/output/mask/lu[YEAR]_mask.tif")
+```
+11. Replace [NEW_LANDUSE_FILENAME.shp] with the name of the file you downloaded (the same one as in Part A).
+12. Replace both instances of [YEAR] with the year of the new data. For example, this would become LandUse2025_mask and lu2025_mask.tif.
+
+
 ### Update survey database and process data for modelling
 The R script  _data_processing.R_  was designed to process all covariate data related to the survey data. It also formats the data appropriately for the Bayesian state-space model used to estimate koala densities in Southeast Queensland.
 The basic workflow involves three main steps:
