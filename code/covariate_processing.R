@@ -264,7 +264,7 @@ for (i in 1990:as.numeric(format(Sys.Date(), "%Y"))) {
   start_date_url1 <- as.Date(paste0(as.character(i - 1), "1001"), format = "%Y%m%d")
   end_date_url1 <- as.Date(paste0(as.character(i), "0331"), format = "%Y%m%d")
   
-  if(all(c(start_date_url2, end_date_url2) <= current_date)){
+  if(all(c(start_date_url1, end_date_url1) <= current_date)){
     # get download URLs and file names
     URL1 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/precip/total/r005/06month/", as.character(i),
                    "/precip_total_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
