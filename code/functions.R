@@ -2170,9 +2170,17 @@ fcn_all_tables_detect <- function(db_name = "integrated",
         dplyr::mutate(obs.code = as.integer(ObserverID) + 2) |> 
         dplyr::ungroup()
       
-      df3 <- bind_rows(df.2020, df.2023, df.current) |> 
-        dplyr::select(-ObserverID) |> 
-        dplyr::ungroup()
+      if(nrow(df.current) > 0){
+        df3 <- bind_rows(df.2020, df.2023, df.current) |> 
+          dplyr::select(-ObserverID) |> 
+          dplyr::ungroup()
+        }
+      
+      if(nrow(df.current) == 0){
+        df3 <- bind_rows(df.2020, df.2023) |> 
+          dplyr::select(-ObserverID) |> 
+          dplyr::ungroup()
+        }
       
       if(!group_observers){
         df3 <- df3 |> 
