@@ -1,4 +1,4 @@
-#' Prepare R to model koala popualtion densities across South East Queensland
+#' Prepare R to model koala population densities across South East Queensland
 #' This initial function will download the latest code from GitHub (https://github.com/seq-koala-monitoring/stats-model/tree/main) and configure the working directory to ensure that the analyses run smoothly.
 
   # install required packages if not already installed
@@ -80,6 +80,22 @@ download.file(
   
 rm(list = ls())
 gc()
+
+
+
+# Configure directory structure -------------------------------------------
+folders <- readRDS("required_dir_structure.rds")
+
+if(any(!dir.exists(folders))){
+  cat("Configuring working directory...\n\n")
+}
+
+for(i in 1:length(folders)){
+  if(!dir.exists(folders[i])){
+    cat(paste0("Creating folder ", folders[i], sep = "\n"))
+    dir.create(folders[i])
+  }
+}
 
 # end
   
