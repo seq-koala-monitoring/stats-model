@@ -234,7 +234,7 @@ CovConsSurv <- readRDS("input/survey_data/cov_constant_array_surveylocations.rds
 CovTempSurv <- readRDS("input/survey_data/cov_temporal_array_surveylocations.rds")
 DateIntervals <- read_csv("input/survey_data/date_interval_lookup.csv") %>% mutate(end_date = as.Date(end_date))
 GenPopLookup <- readRDS("input/survey_data/gen_pop_lookup.rds")
-FirstDate <- min(c(min(Surveys$line_transect$Date), min(Surveys$strip_transect$Date), min(Surveys$uaoa$Date)))
+FirstDate <- if(is.null(FirstDate)){min(c(min(Surveys$line_transect$Date), min(Surveys$strip_transect$Date), min(Surveys$uaoa$Date)))} else {as.Date(FirstDate, format = "%d/%m/%Y")}
 LastDate <- max(c(max(Surveys$line_transect$Date), max(Surveys$strip_transect$Date), max(Surveys$uaoa$Date)))
 
 # format data and check for multi-collinearity
