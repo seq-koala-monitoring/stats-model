@@ -80,9 +80,9 @@ download.file(
 )
 
 # extract correct paths for folder structure
-cat("Downloading: required_dir_structure.rds\n")
+cat("Downloading: required_dir_structure.txt\n")
 par.file <- repo_contents_stats$tree %>%
-  purrr::keep( ~ .x$type == "blob" && grepl("required_dir_structure.rds$", .x$path)) %>%
+  purrr::keep( ~ .x$type == "blob" && grepl("required_dir_structure.txt$", .x$path)) %>%
   purrr::map_chr( ~ .x$path)
 
 raw_url <- sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s",
@@ -98,14 +98,10 @@ download.file(
 
 rm(list = ls())
 gc()
-  
-rm(list = ls())
-gc()
-
 
 
 # Configure directory structure -------------------------------------------
-folders <- readRDS("required_dir_structure.rds")
+source("required_dir_structure.txt")
 
 if(any(!dir.exists(folders))){
   cat("Configuring working directory...\n\n")
