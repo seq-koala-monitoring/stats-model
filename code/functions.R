@@ -398,91 +398,93 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
 
   # number of strip transects
   NStrips <- nrow(StripJoinGroupFrac)
-
-  # get small grid IDs for each strip transect
-  SGridIDsStrip <- StripJoinGroupFrac$data %>% map(~ .x$GridID) %>% unlist() %>% as_tibble() %>% left_join(SGridIDsLookUp, by = c("value" = "GridID"))
-  SGridIDsStrip <- SGridIDsStrip$OrderedID %>% as.vector()
-
-  # get small grid fractions for each strip transect
-  SGridFracsStrip <- StripJoinGroupFrac$data %>% map(~ .x$fraction) %>% unlist() %>% as.vector()
-
-  # get the start and end indexes for the small grids for each strip transect
-  StripNumSGrids <- StripJoinGroupFrac$data %>% map(~ nrow(.x)) %>% unlist() %>% as.vector()
-  SGridsStartStrip <- cumsum(StripNumSGrids) - StripNumSGrids + 1
-  SGridsEndStrip <-cumsum(StripNumSGrids)
-
-  # create matrices for small grid IDs and fractions for each strip transect
-  IDStrip <- matrix(0, nrow = NStrips, ncol = max(StripNumSGrids))
-  FracStrip <- matrix(0, nrow = NStrips, ncol = max(StripNumSGrids))
-  for (i in 1:NStrips) {
-          for (j in SGridsStartStrip[i]:SGridsEndStrip[i]) {
-              IDStrip[i, j - SGridsStartStrip[i] + 1] <- SGridIDsStrip[j]
-              FracStrip[i, j - SGridsStartStrip[i] + 1] <- SGridFracsStrip[j]
-          }
-  }
-
-  # get maximum number of small grids in any strip transect
-  NMaxSGridsStrip <- max(StripNumSGrids)
-
-  # get the number of observers for each strip transect
-  NumObsStrip <- StripJoinGroupFrac$Number_Observers %>% as.vector()
-
-  # get the area of each strip transect
-  AreaStrip <- StripJoinGroupFrac$TArea %>% as.vector()
-  AreaStrip[which(AreaStrip == 0)] <- 4 #EDIT OUT WHEN FIXED
-
-  # get the time step ID for each strip transect
-  TimeIDStrip <- StripJoinGroupFrac$TimePeriodID %>% as.vector()
-  TimeIDStrip <- TimeIDStrip - FirstDateID + 1 + Lag
-
-  # get the koala count for each strip transect
-  CntStrip <- StripJoinGroupFrac$Number_Sightings %>% as.vector()
-
-  # get the detectability covariates for each strip
-  Z_Strip_hhcht_Mat <- matrix(0, nrow = NStrips, ncol = max(StripNumSGrids))
-  Z_Strip_hhunf_Mat <- matrix(0, nrow = NStrips, ncol = max(StripNumSGrids))
-  Z_Strip_hhchtunf_Mat <- matrix(0, nrow = NStrips, ncol = max(StripNumSGrids))
-  Z_Strip_hhcht <- rep(NA, NStrips)
-  Z_Strip_hhunf <- rep(NA, NStrips)
-  Z_Strip_hhchtunf <- rep(NA, NStrips)
-  for (i in 1:NStrips) {
-          for (j in SGridsStartStrip[i]:SGridsEndStrip[i]) {
-              Z_Strip_hhcht_Mat[i, j - SGridsStartStrip[i] + 1] <- Z_hhcht[SGridIDsStrip[j]]
-              Z_Strip_hhunf_Mat[i, j - SGridsStartStrip[i] + 1] <- Z_hhunf[SGridIDsStrip[j]]
-              Z_Strip_hhchtunf_Mat[i, j - SGridsStartStrip[i] + 1] <- Z_hhchtunf[SGridIDsStrip[j]]
-          }
-          Z_Strip_hhcht[i] <- sum(Z_Strip_hhcht_Mat[i, ] * FracStrip[i, ], na.rm = TRUE)
-          Z_Strip_hhunf[i] <- sum(Z_Strip_hhunf_Mat[i, ] * FracStrip[i, ], na.rm = TRUE)
-          Z_Strip_hhchtunf[i] <- sum(Z_Strip_hhchtunf_Mat[i, ] * FracStrip[i, ], na.rm = TRUE)
-  }
-
-  # compile into a tibble and add weather variables
-  # hdwea = Weather
-  # hdclc = Cloud cover
-  # hdwin = Wind
-  # hdcco = Canopy cover
-  # hdscc = Subcanopy cover
-  # hdtma = daily max temperature
-  # hdpre = daily precipitation
-  # hdobs = Observer group
-  Z_Strip <- tibble(hhcht = Z_Strip_hhcht, hhunf = Z_Strip_hhunf, hhchtunf = Z_Strip_hhchtunf, hdwea = StripJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = StripJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = StripJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = StripJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = StripJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = StripJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer(), hdtma = ((StripJoinGroupFrac$temp_max - MeanTemp) / SDTemp) %>% as.vector(), hdpre = ((StripJoinGroupFrac$precip_tot - MeanPrec) / SDPrec) %>% as.vector(), hdtmapre = (((StripJoinGroupFrac$temp_max * StripJoinGroupFrac$precip_tot) - MeanTempPrec) / SDTempPrec) %>% as.vector())
   
-  # check for collinearity among continuous predictors
-  CorrZ_Strip <- cor(Z_Strip %>% dplyr::select(-hdwea, -hdclc, -hdwin, -hdscc, -hdobs), use = "complete.obs", method = "spearman")
-
-  # get amount of missing data
-  MissZ_Strip <- (sapply(Z_Strip, function(y) sum(is.na(y))) / nrow(Z_Strip)) %>% t() %>% as_tibble()
-
-  # impute any missing values
-  if (any(is.na(Z_Strip))) {
+  if(NStrips > 0){
+    # get small grid IDs for each strip transect
+    SGridIDsStrip <- StripJoinGroupFrac$data %>% map(~ .x$GridID) %>% unlist() %>% as_tibble() %>% left_join(SGridIDsLookUp, by = c("value" = "GridID"))
+    SGridIDsStrip <- SGridIDsStrip$OrderedID %>% as.vector()
+    
+    # get small grid fractions for each strip transect
+    SGridFracsStrip <- StripJoinGroupFrac$data %>% map(~ .x$fraction) %>% unlist() %>% as.vector()
+    
+    # get the start and end indexes for the small grids for each strip transect
+    StripNumSGrids <- StripJoinGroupFrac$data %>% map(~ nrow(.x)) %>% unlist() %>% as.vector()
+    SGridsStartStrip <- cumsum(StripNumSGrids) - StripNumSGrids + 1
+    SGridsEndStrip <-cumsum(StripNumSGrids)
+    
+    # create matrices for small grid IDs and fractions for each strip transect
+    IDStrip <- matrix(0, nrow = NStrips, ncol = max(StripNumSGrids))
+    FracStrip <- matrix(0, nrow = NStrips, ncol = max(StripNumSGrids))
+    for (i in 1:NStrips) {
+      for (j in SGridsStartStrip[i]:SGridsEndStrip[i]) {
+        IDStrip[i, j - SGridsStartStrip[i] + 1] <- SGridIDsStrip[j]
+        FracStrip[i, j - SGridsStartStrip[i] + 1] <- SGridFracsStrip[j]
+      }
+    }
+    
+    # get maximum number of small grids in any strip transect
+    NMaxSGridsStrip <- max(StripNumSGrids)
+    
+    # get the number of observers for each strip transect
+    NumObsStrip <- StripJoinGroupFrac$Number_Observers %>% as.vector()
+    
+    # get the area of each strip transect
+    AreaStrip <- StripJoinGroupFrac$TArea %>% as.vector()
+    AreaStrip[which(AreaStrip == 0)] <- 4 #EDIT OUT WHEN FIXED
+    
+    # get the time step ID for each strip transect
+    TimeIDStrip <- StripJoinGroupFrac$TimePeriodID %>% as.vector()
+    TimeIDStrip <- TimeIDStrip - FirstDateID + 1 + Lag
+    
+    # get the koala count for each strip transect
+    CntStrip <- StripJoinGroupFrac$Number_Sightings %>% as.vector()
+    
+    # get the detectability covariates for each strip
+    Z_Strip_hhcht_Mat <- matrix(0, nrow = NStrips, ncol = max(StripNumSGrids))
+    Z_Strip_hhunf_Mat <- matrix(0, nrow = NStrips, ncol = max(StripNumSGrids))
+    Z_Strip_hhchtunf_Mat <- matrix(0, nrow = NStrips, ncol = max(StripNumSGrids))
+    Z_Strip_hhcht <- rep(NA, NStrips)
+    Z_Strip_hhunf <- rep(NA, NStrips)
+    Z_Strip_hhchtunf <- rep(NA, NStrips)
+    for (i in 1:NStrips) {
+      for (j in SGridsStartStrip[i]:SGridsEndStrip[i]) {
+        Z_Strip_hhcht_Mat[i, j - SGridsStartStrip[i] + 1] <- Z_hhcht[SGridIDsStrip[j]]
+        Z_Strip_hhunf_Mat[i, j - SGridsStartStrip[i] + 1] <- Z_hhunf[SGridIDsStrip[j]]
+        Z_Strip_hhchtunf_Mat[i, j - SGridsStartStrip[i] + 1] <- Z_hhchtunf[SGridIDsStrip[j]]
+      }
+      Z_Strip_hhcht[i] <- sum(Z_Strip_hhcht_Mat[i, ] * FracStrip[i, ], na.rm = TRUE)
+      Z_Strip_hhunf[i] <- sum(Z_Strip_hhunf_Mat[i, ] * FracStrip[i, ], na.rm = TRUE)
+      Z_Strip_hhchtunf[i] <- sum(Z_Strip_hhchtunf_Mat[i, ] * FracStrip[i, ], na.rm = TRUE)
+    }
+    
+    # compile into a tibble and add weather variables
+    # hdwea = Weather
+    # hdclc = Cloud cover
+    # hdwin = Wind
+    # hdcco = Canopy cover
+    # hdscc = Subcanopy cover
+    # hdtma = daily max temperature
+    # hdpre = daily precipitation
+    # hdobs = Observer group
+    Z_Strip <- tibble(hhcht = Z_Strip_hhcht, hhunf = Z_Strip_hhunf, hhchtunf = Z_Strip_hhchtunf, hdwea = StripJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = StripJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = StripJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = StripJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = StripJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = StripJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer(), hdtma = ((StripJoinGroupFrac$temp_max - MeanTemp) / SDTemp) %>% as.vector(), hdpre = ((StripJoinGroupFrac$precip_tot - MeanPrec) / SDPrec) %>% as.vector(), hdtmapre = (((StripJoinGroupFrac$temp_max * StripJoinGroupFrac$precip_tot) - MeanTempPrec) / SDTempPrec) %>% as.vector())
+    
+    # check for collinearity among continuous predictors
+    CorrZ_Strip <- cor(Z_Strip %>% dplyr::select(-hdwea, -hdclc, -hdwin, -hdscc, -hdobs), use = "complete.obs", method = "spearman")
+    
+    # get amount of missing data
+    MissZ_Strip <- (sapply(Z_Strip, function(y) sum(is.na(y))) / nrow(Z_Strip)) %>% t() %>% as_tibble()
+    
+    # impute any missing values
+    if (any(is.na(Z_Strip))) {
       Z_Strip <- complete(mice(Z_Strip, m = 1)) %>% as_tibble()
+    }
+    
+    # get the survey observer group number
+    StripObsGrp <- Z_Strip$hdobs %>% as.vector()
+    
+    # get the design matrix
+    Z_Strip <- model.matrix(as.formula(paste0("~ ", paste(ObsVars, collapse= " + "))), model.frame(as.formula(paste0("~ ", paste(ObsVars, collapse= " + "))), as.data.frame(Z_Strip), na.action = "na.pass")) %>% as.data.frame()
   }
-
-  # get the survey observer group number
-  StripObsGrp <- Z_Strip$hdobs %>% as.vector()
-
-  # get the design matrix
-  Z_Strip <- model.matrix(as.formula(paste0("~ ", paste(ObsVars, collapse= " + "))), model.frame(as.formula(paste0("~ ", paste(ObsVars, collapse= " + "))), as.data.frame(Z_Strip), na.action = "na.pass")) %>% as.data.frame()
 
   # all of area search data
 
@@ -494,88 +496,89 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
 
   # number of all of area searches
   NAoAs <- nrow(AoAJoinGroupFrac)
-
-  # get small grid IDs for each all of area search
-  SGridIDsAoA <- AoAJoinGroupFrac$data %>% map(~ .x$GridID) %>% unlist() %>% as_tibble() %>% left_join(SGridIDsLookUp, by = c("value" = "GridID"))
-  SGridIDsAoA <- SGridIDsAoA$OrderedID %>% as.vector()
-
-  # get small grid fractions for each all of area search
-  SGridFracsAoA <- AoAJoinGroupFrac$data %>% map(~ .x$fraction) %>% unlist() %>% as.vector()
-
-  # get the start and end indexes for the small grids for each all of area search
-  AoANumSGrids <- AoAJoinGroupFrac$data %>% map(~ nrow(.x)) %>% unlist() %>% as.vector()
-  SGridsStartAoA <- cumsum(AoANumSGrids) - AoANumSGrids + 1
-  SGridsEndAoA <-cumsum(AoANumSGrids)
-
-  # create matrices for small grid IDs and fractions for each strip transect
-  IDAoA <- matrix(0, nrow = NAoAs, ncol = max(AoANumSGrids))
-  FracAoA <- matrix(0, nrow = NAoAs, ncol = max(AoANumSGrids))
-  for (i in 1:NAoAs) {
-          for (j in SGridsStartAoA[i]:SGridsEndAoA[i]) {
-              IDAoA[i, j - SGridsStartAoA[i] + 1] <- SGridIDsAoA[j]
-              FracAoA[i, j - SGridsStartAoA[i] + 1] <- SGridFracsAoA[j]
-          }
-  }
-
-  # get maximum number of small grids in any all of area search
-  NMaxSGridsAoA <- max(AoANumSGrids)
-
-  # get the number of observers for each all of area search
-  NumObsAoA <- AoAJoinGroupFrac$Number_Observers %>% as.vector()
-
-  # get the area of each all of area search
-  AreaAoA <- AoAJoinGroupFrac$TArea %>% as.vector()
-
-  # get the time step ID for each all of area search
-  TimeIDAoA <- AoAJoinGroupFrac$TimePeriodID %>% as.vector()
-  TimeIDAoA <- TimeIDAoA - FirstDateID + 1 + Lag
-
-  # get the koala count for each all of areas search
-  CntAoA <- AoAJoinGroupFrac$Number_Sightings %>% as.vector()
-
-  # get the detectability covariates for each AoA
-  Z_AoA_hhcht_Mat <- matrix(0, nrow = NAoAs, ncol = max(AoANumSGrids))
-  Z_AoA_hhunf_Mat <- matrix(0, nrow = NAoAs, ncol = max(AoANumSGrids))
-  Z_AoA_hhchtunf_Mat <- matrix(0, nrow = NAoAs, ncol = max(AoANumSGrids))
-  Z_AoA_hhcht <- rep(NA, NAoAs)
-  Z_AoA_hhunf <- rep(NA, NAoAs)
-  Z_AoA_hhchtunf <- rep(NA, NAoAs)
-  for (i in 1:NAoAs) {
-          for (j in SGridsStartAoA[i]:SGridsEndAoA[i]) {
-              Z_AoA_hhcht_Mat[i, j - SGridsStartAoA[i] + 1] <- Z_hhcht[SGridIDsAoA[j]]
-              Z_AoA_hhunf_Mat[i, j - SGridsStartAoA[i] + 1] <- Z_hhunf[SGridIDsAoA[j]]
-              Z_AoA_hhchtunf_Mat[i, j - SGridsStartAoA[i] + 1] <- Z_hhchtunf[SGridIDsAoA[j]]
-          }
-          Z_AoA_hhcht[i] <- sum(Z_AoA_hhcht_Mat[i, ] * FracAoA[i, ], na.rm = TRUE)
-          Z_AoA_hhunf[i] <- sum(Z_AoA_hhunf_Mat[i, ] * FracAoA[i, ], na.rm = TRUE)
-          Z_AoA_hhchtunf[i] <- sum(Z_AoA_hhchtunf_Mat[i, ] * FracAoA[i, ], na.rm = TRUE)
-  }
-
-  # compile into a tibble and add weather variables
-  # hdwea = Weather
-  # hdclc = Cloud cover
-  # hdwin = Wind
-  # hdcco = Canopy cover
-  # hdscc = Subcanopy cover
-  # hdobs = Observer group
-  Z_AoA <- tibble(hhcht = Z_AoA_hhcht, hhunf = Z_AoA_hhunf, hhchtunf = Z_AoA_hhchtunf, hdwea = AoAJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = AoAJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = AoAJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = AoAJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = AoAJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = AoAJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer(), hdtma = ((AoAJoinGroupFrac$temp_max - MeanTemp) / SDTemp) %>% as.vector(), hdpre = ((AoAJoinGroupFrac$precip_tot - MeanPrec) / SDPrec) %>% as.vector(), hdtmapre = (((AoAJoinGroupFrac$temp_max * AoAJoinGroupFrac$precip_tot) - MeanTempPrec) / SDTempPrec) %>% as.vector())
-  
-  # check for collinearity among continuous predictors
-  CorrZ_AoA <- cor(Z_AoA %>% dplyr::select(-hdwea, -hdclc, -hdwin, -hdscc, -hdobs), use = "complete.obs", method = "spearman")
-
-  # get amount of missing data
-  MissZ_AoA <- (sapply(Z_AoA, function(y) sum(is.na(y))) / nrow(Z_AoA)) %>% t() %>% as_tibble()
-
-  # impute any missing values
-  if (any(is.na(Z_AoA))) {
+  if(NAoAs > 0){
+    # get small grid IDs for each all of area search
+    SGridIDsAoA <- AoAJoinGroupFrac$data %>% map(~ .x$GridID) %>% unlist() %>% as_tibble() %>% left_join(SGridIDsLookUp, by = c("value" = "GridID"))
+    SGridIDsAoA <- SGridIDsAoA$OrderedID %>% as.vector()
+    
+    # get small grid fractions for each all of area search
+    SGridFracsAoA <- AoAJoinGroupFrac$data %>% map(~ .x$fraction) %>% unlist() %>% as.vector()
+    
+    # get the start and end indexes for the small grids for each all of area search
+    AoANumSGrids <- AoAJoinGroupFrac$data %>% map(~ nrow(.x)) %>% unlist() %>% as.vector()
+    SGridsStartAoA <- cumsum(AoANumSGrids) - AoANumSGrids + 1
+    SGridsEndAoA <-cumsum(AoANumSGrids)
+    
+    # create matrices for small grid IDs and fractions for each strip transect
+    IDAoA <- matrix(0, nrow = NAoAs, ncol = max(AoANumSGrids))
+    FracAoA <- matrix(0, nrow = NAoAs, ncol = max(AoANumSGrids))
+    for (i in 1:NAoAs) {
+      for (j in SGridsStartAoA[i]:SGridsEndAoA[i]) {
+        IDAoA[i, j - SGridsStartAoA[i] + 1] <- SGridIDsAoA[j]
+        FracAoA[i, j - SGridsStartAoA[i] + 1] <- SGridFracsAoA[j]
+      }
+    }
+    
+    # get maximum number of small grids in any all of area search
+    NMaxSGridsAoA <- max(AoANumSGrids)
+    
+    # get the number of observers for each all of area search
+    NumObsAoA <- AoAJoinGroupFrac$Number_Observers %>% as.vector()
+    
+    # get the area of each all of area search
+    AreaAoA <- AoAJoinGroupFrac$TArea %>% as.vector()
+    
+    # get the time step ID for each all of area search
+    TimeIDAoA <- AoAJoinGroupFrac$TimePeriodID %>% as.vector()
+    TimeIDAoA <- TimeIDAoA - FirstDateID + 1 + Lag
+    
+    # get the koala count for each all of areas search
+    CntAoA <- AoAJoinGroupFrac$Number_Sightings %>% as.vector()
+    
+    # get the detectability covariates for each AoA
+    Z_AoA_hhcht_Mat <- matrix(0, nrow = NAoAs, ncol = max(AoANumSGrids))
+    Z_AoA_hhunf_Mat <- matrix(0, nrow = NAoAs, ncol = max(AoANumSGrids))
+    Z_AoA_hhchtunf_Mat <- matrix(0, nrow = NAoAs, ncol = max(AoANumSGrids))
+    Z_AoA_hhcht <- rep(NA, NAoAs)
+    Z_AoA_hhunf <- rep(NA, NAoAs)
+    Z_AoA_hhchtunf <- rep(NA, NAoAs)
+    for (i in 1:NAoAs) {
+      for (j in SGridsStartAoA[i]:SGridsEndAoA[i]) {
+        Z_AoA_hhcht_Mat[i, j - SGridsStartAoA[i] + 1] <- Z_hhcht[SGridIDsAoA[j]]
+        Z_AoA_hhunf_Mat[i, j - SGridsStartAoA[i] + 1] <- Z_hhunf[SGridIDsAoA[j]]
+        Z_AoA_hhchtunf_Mat[i, j - SGridsStartAoA[i] + 1] <- Z_hhchtunf[SGridIDsAoA[j]]
+      }
+      Z_AoA_hhcht[i] <- sum(Z_AoA_hhcht_Mat[i, ] * FracAoA[i, ], na.rm = TRUE)
+      Z_AoA_hhunf[i] <- sum(Z_AoA_hhunf_Mat[i, ] * FracAoA[i, ], na.rm = TRUE)
+      Z_AoA_hhchtunf[i] <- sum(Z_AoA_hhchtunf_Mat[i, ] * FracAoA[i, ], na.rm = TRUE)
+    }
+    
+    # compile into a tibble and add weather variables
+    # hdwea = Weather
+    # hdclc = Cloud cover
+    # hdwin = Wind
+    # hdcco = Canopy cover
+    # hdscc = Subcanopy cover
+    # hdobs = Observer group
+    Z_AoA <- tibble(hhcht = Z_AoA_hhcht, hhunf = Z_AoA_hhunf, hhchtunf = Z_AoA_hhchtunf, hdwea = AoAJoinGroupFrac$Weather %>% as.vector() %>% as.integer(), hdclc = AoAJoinGroupFrac$Cloud_Cover %>% as.vector() %>% as.integer(), hdwin = AoAJoinGroupFrac$Wind %>% as.vector() %>% as.integer(), hdcco = AoAJoinGroupFrac$Canopy_Cover %>% as.vector() %>% as.integer(), hdscc = AoAJoinGroupFrac$Subcanopy_Cover %>% as.vector() %>% as.integer(), hdobs = AoAJoinGroupFrac$ObserverGroup %>% as.vector() %>% as.integer(), hdtma = ((AoAJoinGroupFrac$temp_max - MeanTemp) / SDTemp) %>% as.vector(), hdpre = ((AoAJoinGroupFrac$precip_tot - MeanPrec) / SDPrec) %>% as.vector(), hdtmapre = (((AoAJoinGroupFrac$temp_max * AoAJoinGroupFrac$precip_tot) - MeanTempPrec) / SDTempPrec) %>% as.vector())
+    
+    # check for collinearity among continuous predictors
+    CorrZ_AoA <- cor(Z_AoA %>% dplyr::select(-hdwea, -hdclc, -hdwin, -hdscc, -hdobs), use = "complete.obs", method = "spearman")
+    
+    # get amount of missing data
+    MissZ_AoA <- (sapply(Z_AoA, function(y) sum(is.na(y))) / nrow(Z_AoA)) %>% t() %>% as_tibble()
+    
+    # impute any missing values
+    if (any(is.na(Z_AoA))) {
       Z_AoA <- complete(mice(Z_AoA, m = 1)) %>% as_tibble()
+    }
+    
+    # get the survey observer group number
+    AoAObsGrp <- Z_AoA$hdobs %>% as.vector()
+    
+    # get the design matrix
+    Z_AoA <- model.matrix(as.formula(paste0("~ ", paste(ObsVars, collapse= " + "))), model.frame(as.formula(paste0("~ ", paste(ObsVars, collapse= " + "))), as.data.frame(Z_AoA), na.action = "na.pass")) %>% as.data.frame()  
   }
-
-  # get the survey observer group number
-  AoAObsGrp <- Z_AoA$hdobs %>% as.vector()
-
-  # get the design matrix
-  Z_AoA <- model.matrix(as.formula(paste0("~ ", paste(ObsVars, collapse= " + "))), model.frame(as.formula(paste0("~ ", paste(ObsVars, collapse= " + "))), as.data.frame(Z_AoA), na.action = "na.pass")) %>% as.data.frame()  
 
   # line transect data
 
@@ -671,7 +674,22 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
   NZ <- ncol(Z_Line)
 
   # get the number of observer groups 
-  NObsGrps <- max(c(StripObsGrp, AoAObsGrp, LineObsGrp))
+  if(NStrips > 0 & NAoAs > 0){
+    NObsGrps <- max(c(StripObsGrp, AoAObsGrp, LineObsGrp))
+  }
+  
+  if(NStrips == 0 & NAoAs == 0){
+    NObsGrps <- max(LineObsGrp)
+  }
+  
+  if(NStrips > 0 & NAoAs == 0){
+    NObsGrps <- max(c(StripObsGrp, LineObsGrp))
+  }
+  
+  if(NStrips == 0 & NAoAs > 0){
+    NObsGrps <- max(c(AoAObsGrp, LineObsGrp))
+  }
+  
 
   # get transect IDs for each perpendicular distance
   PDLineIDs <- match(Surveys$perp_distance$TransectID, LineJoinGroupFrac$TransectID.x)
@@ -832,10 +850,29 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
   NTimeAdjs2 <- length(AdjT2)
 
   # set up nimble constants and data inputs for model with temporal CAR process order = 1
-  NimbleConsts <- list(NGPops = NGPops, NGPopsAdjs = NGPopsAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, GenPopID = GenPopID, FirstDateID = FirstDateID, LastDateID = LastDateID, NX = NX, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine, NZ = NZ, NObsGrps = NObsGrps, NPDists = NPDists, PDLineIDs = PDLineIDs, Order = Order, Lag = Lag, VarTrend = VarTrend)
-  NimbleData <- list(X = X, Y = Y, Z_Strip = Z_Strip, Z_AoA = Z_AoA, Z_Line = Z_Line, StripObsGrp = StripObsGrp, AoAObsGrp = AoAObsGrp, LineObsGrp = LineObsGrp, CntStrip = CntStrip, CntAoA = CntAoA, PDists = PDists, CntLine = CntLine)
-
-  return(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), NamesZ = names(Z_Line), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, Order = Order, Lag = Lag, VarTrend = VarTrend, StaticVars = StaticVars, DynamicVars = DynamicVars, ObsVars = ObsVars, MissZ_Strip = MissZ_Strip, MissZ_AoA = MissZ_AoA, MissZ_Line = MissZ_Line, CorrZ_Strip = CorrZ_Strip, CorrZ_AoA = CorrZ_AoA, CorrZ_Line = CorrZ_Line, Soil_PCA = Soil_PCA))
+  if(NStrips > 0 & NAoAs > 0){
+    NimbleConsts <- list(NGPops = NGPops, NGPopsAdjs = NGPopsAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, GenPopID = GenPopID, FirstDateID = FirstDateID, LastDateID = LastDateID, NX = NX, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine, NZ = NZ, NObsGrps = NObsGrps, NPDists = NPDists, PDLineIDs = PDLineIDs, Order = Order, Lag = Lag, VarTrend = VarTrend)
+    NimbleData <- list(X = X, Y = Y, Z_Strip = Z_Strip, Z_AoA = Z_AoA, Z_Line = Z_Line, StripObsGrp = StripObsGrp, AoAObsGrp = AoAObsGrp, LineObsGrp = LineObsGrp, CntStrip = CntStrip, CntAoA = CntAoA, PDists = PDists, CntLine = CntLine)
+    return(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), NamesZ = names(Z_Line), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, Order = Order, Lag = Lag, VarTrend = VarTrend, StaticVars = StaticVars, DynamicVars = DynamicVars, ObsVars = ObsVars, MissZ_Strip = MissZ_Strip, MissZ_AoA = MissZ_AoA, MissZ_Line = MissZ_Line, CorrZ_Strip = CorrZ_Strip, CorrZ_AoA = CorrZ_AoA, CorrZ_Line = CorrZ_Line, Soil_PCA = Soil_PCA))
+  }
+  
+  if(NStrips == 0 & NAoAs == 0){
+    NimbleConsts <- list(NGPops = NGPops, NGPopsAdjs = NGPopsAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, GenPopID = GenPopID, FirstDateID = FirstDateID, LastDateID = LastDateID, NX = NX, NY = NY, NStrips = NStrips, NAoAs = NAoAs, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsLine = NMaxSGridsLine, NZ = NZ, NObsGrps = NObsGrps, NPDists = NPDists, PDLineIDs = PDLineIDs, Order = Order, Lag = Lag, VarTrend = VarTrend)
+    NimbleData <- list(X = X, Y = Y, Z_Line = Z_Line, LineObsGrp = LineObsGrp, PDists = PDists, CntLine = CntLine)
+    return(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), NamesZ = names(Z_Line), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, Order = Order, Lag = Lag, VarTrend = VarTrend, StaticVars = StaticVars, DynamicVars = DynamicVars, ObsVars = ObsVars, MissZ_Line = MissZ_Line, CorrZ_Line = CorrZ_Line, Soil_PCA = Soil_PCA))
+  }
+  
+  if(NStrips > 0 & NAoAs == 0){
+    NimbleConsts <- list(NGPops = NGPops, NGPopsAdjs = NGPopsAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, GenPopID = GenPopID, FirstDateID = FirstDateID, LastDateID = LastDateID, NX = NX, NY = NY, NStrips = NStrips, SGridsStartStrip = SGridsStartStrip, SGridsEndStrip = SGridsEndStrip, SGridIDsStrip = SGridIDsStrip, SGridFracsStrip = SGridFracsStrip, AreaStrip = AreaStrip, TimeIDStrip = TimeIDStrip, NAoAs = NAoAs, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsStrip = NMaxSGridsStrip, NMaxSGridsLine = NMaxSGridsLine, NZ = NZ, NObsGrps = NObsGrps, NPDists = NPDists, PDLineIDs = PDLineIDs, Order = Order, Lag = Lag, VarTrend = VarTrend)
+    NimbleData <- list(X = X, Y = Y, Z_Strip = Z_Strip, Z_Line = Z_Line, StripObsGrp = StripObsGrp, LineObsGrp = LineObsGrp, CntStrip = CntStrip, PDists = PDists, CntLine = CntLine)
+    return(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), NamesZ = names(Z_Line), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, Order = Order, Lag = Lag, VarTrend = VarTrend, StaticVars = StaticVars, DynamicVars = DynamicVars, ObsVars = ObsVars, MissZ_Strip = MissZ_Strip, MissZ_Line = MissZ_Line, CorrZ_Strip = CorrZ_Strip, CorrZ_Line = CorrZ_Line, Soil_PCA = Soil_PCA))
+  }
+  
+  if(NStrips == 0 & NAoAs > 0){
+    NimbleConsts <- list(NGPops = NGPops, NGPopsAdjs = NGPopsAdjs, AdjS = AdjS, WeightsAdjS = WeightsAdjS, NumAdjS = NumAdjS, NTime = NTime, NTimeAdjs = NTimeAdjs, AdjT = AdjT, WeightsAdjT = WeightsAdjT, NumAdjT = NumAdjT, NTime2 = NTime2, NTimeAdjs2 = NTimeAdjs2, AdjT2 = AdjT2, WeightsAdjT2 = WeightsAdjT2, NumAdjT2 = NumAdjT2, NSGrids = NSGrids, GenPopID = GenPopID, FirstDateID = FirstDateID, LastDateID = LastDateID, NX = NX, NY = NY, NStrips = NStrips, NAoAs = NAoAs, SGridsStartAoA = SGridsStartAoA, SGridsEndAoA = SGridsEndAoA, SGridIDsAoA = SGridIDsAoA, SGridFracsAoA = SGridFracsAoA, AreaAoA = AreaAoA, TimeIDAoA = TimeIDAoA, NLines = NLines, SGridsStartLine = SGridsStartLine, SGridsEndLine = SGridsEndLine, SGridIDsLine = SGridIDsLine, SGridFracsLine = SGridFracsLine, LengthLine = LengthLine, TimeIDLine = TimeIDLine, PI = pi, NMaxSGridsAoA = NMaxSGridsAoA, NMaxSGridsLine = NMaxSGridsLine, NZ = NZ, NObsGrps = NObsGrps, NPDists = NPDists, PDLineIDs = PDLineIDs, Order = Order, Lag = Lag, VarTrend = VarTrend)
+    NimbleData <- list(X = X, Y = Y, Z_AoA = Z_AoA, Z_Line = Z_Line, AoAObsGrp = AoAObsGrp, LineObsGrp = LineObsGrp, CntAoA = CntAoA, PDists = PDists, CntLine = CntLine)
+    return(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), NamesZ = names(Z_Line), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, Order = Order, Lag = Lag, VarTrend = VarTrend, StaticVars = StaticVars, DynamicVars = DynamicVars, ObsVars = ObsVars, MissZ_AoA = MissZ_AoA, MissZ_Line = MissZ_Line, CorrZ_AoA = CorrZ_AoA, CorrZ_Line = CorrZ_Line, Soil_PCA = Soil_PCA))
+  }
 }
 
 # function to get data for a particular year for a model to make predictions
