@@ -63,6 +63,7 @@ for (file in r.files) {
 }
 
 # extract parameter's path
+cat("Downloading: parameters_init.txt")
 par.file <- repo_contents_stats$tree %>%
   purrr::keep( ~ .x$type == "blob" && grepl("parameters_init.txt$", .x$path)) %>%
   purrr::map_chr( ~ .x$path)
@@ -77,6 +78,26 @@ download.file(
   destfile = par.file,
   mode = "wb"  # Binary mode to ensure proper file handling
 )
+
+# extract correct paths for folder structure
+cat("Downloading: required_dir_structure.rds\n")
+par.file <- repo_contents_stats$tree %>%
+  purrr::keep( ~ .x$type == "blob" && grepl("required_dir_structure.rds$", .x$path)) %>%
+  purrr::map_chr( ~ .x$path)
+
+raw_url <- sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s",
+                   owner,
+                   repo,
+                   branch, par.file)
+
+download.file(
+  url = raw_url,
+  destfile = par.file,
+  mode = "wb"  # Binary mode to ensure proper file handling
+)
+
+rm(list = ls())
+gc()
   
 rm(list = ls())
 gc()
