@@ -1,4 +1,4 @@
-#' Prepare R to model koala popualtion densities across South East Queensland
+#' Prepare R to model koala population densities across South East Queensland
 #' This initial function will download the latest code from GitHub (https://github.com/seq-koala-monitoring/stats-model/tree/main) and configure the working directory to ensure that the analyses run smoothly.
 
   # install required packages if not already installed
@@ -63,6 +63,7 @@ for (file in r.files) {
 }
 
 # extract parameter's path
+cat("Downloading: parameters_init.txt")
 par.file <- repo_contents_stats$tree %>%
   purrr::keep( ~ .x$type == "blob" && grepl("parameters_init.txt$", .x$path)) %>%
   purrr::map_chr( ~ .x$path)
@@ -77,9 +78,41 @@ download.file(
   destfile = par.file,
   mode = "wb"  # Binary mode to ensure proper file handling
 )
-  
+
+# extract correct paths for folder structure
+cat("Downloading: required_dir_structure.txt\n")
+par.file <- repo_contents_stats$tree %>%
+  purrr::keep( ~ .x$type == "blob" && grepl("required_dir_structure.txt$", .x$path)) %>%
+  purrr::map_chr( ~ .x$path)
+
+raw_url <- sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s",
+                   owner,
+                   repo,
+                   branch, par.file)
+
+download.file(
+  url = raw_url,
+  destfile = par.file,
+  mode = "wb"  # Binary mode to ensure proper file handling
+)
+
 rm(list = ls())
 gc()
+
+
+# Configure directory structure -------------------------------------------
+source("required_dir_structure.txt")
+
+if(any(!dir.exists(folders))){
+  cat("Configuring working directory...\n\n")
+}
+
+for(i in 1:length(folders)){
+  if(!dir.exists(folders[i])){
+    cat(paste0("Creating folder ", folders[i], sep = "\n"))
+    dir.create(folders[i])
+  }
+}
 
 # end
   

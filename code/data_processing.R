@@ -234,7 +234,7 @@ CovConsSurv <- readRDS("input/survey_data/cov_constant_array_surveylocations.rds
 CovTempSurv <- readRDS("input/survey_data/cov_temporal_array_surveylocations.rds")
 DateIntervals <- read_csv("input/survey_data/date_interval_lookup.csv") %>% mutate(end_date = as.Date(end_date))
 GenPopLookup <- readRDS("input/survey_data/gen_pop_lookup.rds")
-FirstDate <- min(c(min(Surveys$line_transect$Date), min(Surveys$strip_transect$Date), min(Surveys$uaoa$Date)))
+FirstDate <- if(is.null(FirstDate)){min(c(min(Surveys$line_transect$Date), min(Surveys$strip_transect$Date), min(Surveys$uaoa$Date)))} else {as.Date(FirstDate, format = "%d/%m/%Y")}
 LastDate <- max(c(max(Surveys$line_transect$Date), max(Surveys$strip_transect$Date), max(Surveys$uaoa$Date)))
 
 # format data and check for multi-collinearity
@@ -312,6 +312,7 @@ for (Order in 1:2) {
 
 # get date intervals
 DateIntervals <- read_csv("input/survey_data/date_interval_lookup.csv") %>% mutate(end_date = as.Date(end_date))
+time.period.id <- DateIntervals$TimePeriodID[DateIntervals$start_date <= FirstDate & DateIntervals$end_date >= FirstDate]
 
 # get the mask for the predictions
 # load grids
@@ -330,9 +331,9 @@ lu1999.res <- resample(rast("input/mask/lu1999_mask.tif"), grid.rast, method = "
 lu2017.res <- resample(rast("input/mask/lu2017_mask.tif"), grid.rast, method = "near")
 # load lot sizes and created a named list
 files <- list.files("input/mask", pattern = "htpls", full.names = T)
-files <- files[-grep("\\b(aux|xml)\\b", files)]
+files <- files[!grepl(".aux|.xml", files)]
 names <- list.files("input/mask", pattern = "htpls", full.names = F)
-names <- names[-grep("\\b(aux|xml)\\b", names)]
+names <- names[!grepl(".aux|.xml", names)]
 names <- as.character(parse_number(names))
 htpls <- lapply(files, rast)
 names(htpls) <- names
@@ -350,6 +351,8 @@ htpls.grid <- lapply(htpls, function(r) {
 # add raster date to the previous list
 for(i in 1:length(htpls.grid)){
   htpls.grid[[i]]$date <- names(htpls.grid)[i]}
+
+
 # Load look up tables to mask cells by land use only
 lookup1999 <- read_csv("input/mask/land_use_lookup1999_mask.csv")
 lookup2017 <- read_csv("input/mask/land_use_lookup2017_mask.csv")

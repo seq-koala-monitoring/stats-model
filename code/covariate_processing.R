@@ -148,12 +148,14 @@ setwd(wd)
 # get all .tif files in the relevant directory
 PGFiles <- list.files("input/covariates/raw_data/persistent_green", pattern = "\\.tif$")
 
-# set up parallel processing cluster
-cl <- makeCluster(detectCores() - 1, type = "PSOCK")
-registerDoParallel(cl)
-
 # create raster of boundary box with 30m resolution and wrap() so it can be passed to foreach()
 BoundingWrap <- wrap(rast(Bounding, resolution = 30, vals = 1))
+crs <- crs(rast(Bounding, resolution = 30, vals = 1))
+
+# set up parallel processing cluster
+cl <- makeCluster(detectCores() - 4, type = "PSOCK")
+clusterExport(cl, varlist = "crs")
+registerDoParallel(cl)
 
 # get each tif file, project, clip, and save
 foreach (i = 1:length(PGFiles), .packages = c("tidyverse", "terra")) %dopar% {
@@ -167,7 +169,8 @@ foreach (i = 1:length(PGFiles), .packages = c("tidyverse", "terra")) %dopar% {
     }
   }
   if (!file.exists(paste0("input/covariates/output/hhpgr", Date, ".tif"))) {
-    Rast <- rast(paste0(getwd(), "/input/covariates/raw_data/persistent_green/", PGFiles[i])) %>% project(unwrap(BoundingWrap))
+    Rast <- rast(paste0(getwd(), "/input/covariates/raw_data/persistent_green/", PGFiles[i]))
+    Rast <- project(Rast, crs)
     NAflag(Rast) <- 255
 
     writeRaster(Rast, paste0("input/covariates/output/hhpgr", Date, ".tif"), overwrite = TRUE)
@@ -264,7 +267,7 @@ for (i in 1990:as.numeric(format(Sys.Date(), "%Y"))) {
   start_date_url1 <- as.Date(paste0(as.character(i - 1), "1001"), format = "%Y%m%d")
   end_date_url1 <- as.Date(paste0(as.character(i), "0331"), format = "%Y%m%d")
   
-  if(all(c(start_date_url2, end_date_url2) <= current_date)){
+  if(all(c(start_date_url1, end_date_url1) <= current_date)){
     # get download URLs and file names
     URL1 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/precip/total/r005/06month/", as.character(i),
                    "/precip_total_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
