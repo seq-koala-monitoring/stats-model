@@ -148,14 +148,12 @@ setwd(wd)
 # get all .tif files in the relevant directory
 PGFiles <- list.files("input/covariates/raw_data/persistent_green", pattern = "\\.tif$")
 
+# set up parallel processing cluster
+cl <- makeCluster(detectCores() - 1, type = "PSOCK")
+registerDoParallel(cl)
+
 # create raster of boundary box with 30m resolution and wrap() so it can be passed to foreach()
 BoundingWrap <- wrap(rast(Bounding, resolution = 30, vals = 1))
-crs <- crs(rast(Bounding, resolution = 30, vals = 1))
-
-# set up parallel processing cluster
-cl <- makeCluster(detectCores() - 4, type = "PSOCK")
-clusterExport(cl, varlist = "crs")
-registerDoParallel(cl)
 
 # get each tif file, project, clip, and save
 foreach (i = 1:length(PGFiles), .packages = c("tidyverse", "terra")) %dopar% {
@@ -169,8 +167,7 @@ foreach (i = 1:length(PGFiles), .packages = c("tidyverse", "terra")) %dopar% {
     }
   }
   if (!file.exists(paste0("input/covariates/output/hhpgr", Date, ".tif"))) {
-    Rast <- rast(paste0(getwd(), "/input/covariates/raw_data/persistent_green/", PGFiles[i]))
-    Rast <- project(Rast, crs)
+    Rast <- rast(paste0(getwd(), "/input/covariates/raw_data/persistent_green/", PGFiles[i])) %>% project(unwrap(BoundingWrap))
     NAflag(Rast) <- 255
 
     writeRaster(Rast, paste0("input/covariates/output/hhpgr", Date, ".tif"), overwrite = TRUE)

@@ -68,7 +68,7 @@ static_variables <- c("htslo", "hspc1", "hspc2", "hcltp", "hcltt", "hhgde")
 dynamic_variables <- c("hhfwc", "hhpgr2km", "htpls2km", "hcpre", "hctmn", "hseas", "hhkha", "htlus")  
 
 # set a start date for modelling using the format dd/mm/yyyy in quotes (e.g. "01/01/2025"). If you want to model the entire survey period (i.e., from 1996 to current), leave it as NULL and the model will then start from the date of the first survey.
-FirstDate <- NULL
+FirstDate <- "01/04/2015"
 
 # list of observer error predictor variables
 # Variables removed by default due to too much missing data were:
