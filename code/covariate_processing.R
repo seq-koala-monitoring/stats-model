@@ -510,7 +510,7 @@ for (i in 1:length(FeatureClasses$name)) {
   }
 }
 
-# habitat covariates
+# koala habitat
 
 # get preclaring koala habitat and habitat category lookup table
 PreClearHabitat <- vect("input/covariates/raw_data/preclear_koala_habitat/KoalaSurveyStrata_v3_ful.shp") %>% project(Bounding)
@@ -557,45 +557,69 @@ for (i in 1:length(FeatureClasses$name)) {
   }
 }
 
-# forest and woody cover
+# forest and sparse woody cover
 
-# download data - UPDATE URLs when necessary - search for "national forest and sparse woody vegetation data" to find the latest version of the data (currently version 7 - 1988 to 2022)
-# download northern woody cover tile time series
-if (!file.exists("input/covariates/raw_data/woody_cover/sg56_woody_8822.zip") & !file.exists("input/covariates/raw_data/woody_cover/sh56_woody_8822.zip")) {
-download.file("https://data.gov.au/data/dataset/48900c21-c5e2-499a-86f0-20b1b82275e2/resource/f0c169a3-afce-413c-be9e-3c27f9825a85/download/sg56_woody_8822.zip", "input/covariates/raw_data/woody_cover/sg56_woody_8822.zip", mode = "wb")
-unzip("input/covariates/raw_data/woody_cover/sg56_woody_8822.zip", exdir = "input/covariates/raw_data/woody_cover/sg56/", junkpaths = TRUE)
-# download southern woody cover tile time series
-download.file("https://data.gov.au/data/dataset/48900c21-c5e2-499a-86f0-20b1b82275e2/resource/6870c825-e5fe-4313-9747-9fa9bce98950/download/sh56_woody_8822.zip", "input/covariates/raw_data/woody_cover/sh56_woody_8822.zip", mode = "wb")
-unzip("input/covariates/raw_data/woody_cover/sh56_woody_8822.zip", exdir = "input/covariates/raw_data/woody_cover/sh56/", junkpaths = TRUE)
+# download data - UPDATE URLs when necessary - search for "national forest and sparse woody vegetation data" to find the latest version of the data (currently version 8 - 1988 to 2023)
+# see: https://data.gov.au/data/dataset/national-forest-and-sparse-woody-vegetation-data-version-8-0-2023-release
+
+# northern series
+if (!file.exists("input/covariates/raw_data/woody_cover/sg56_woody_8822.zip")) {
+  # download northern woody cover tile time series
+  options(timeout = 300)
+  download.file("https://data.gov.au/data/dataset/48900c21-c5e2-499a-86f0-20b1b82275e2/resource/f0c169a3-afce-413c-be9e-3c27f9825a85/download/sg56_woody_8822.zip", "input/covariates/raw_data/woody_cover/sg56_woody_8822.zip", mode = "wb")
+}
+unzip("input/covariates/raw_data/woody_cover/sg56_woody_8822.zip", exdir = "input/covariates/raw_data/woody_cover/sg56/", junkpaths = TRUE, overwrite = TRUE)
+
+# southern series
+if (!file.exists("input/covariates/raw_data/woody_cover/sh56_woody_8823.zip")) {
+  # download southern woody cover tile time series
+  options(timeout = 300)
+  download.file("https://data.gov.au/data/dataset/b166b550-94be-433d-a0b6-03e8bf3cd03d/resource/b150890e-e60d-45ad-8f89-0fb356179651/download/sh56_woody_8823.zip", "input/covariates/raw_data/woody_cover/sh56_woody_8823.zip", mode = "wb")  
+}
+unzip("input/covariates/raw_data/woody_cover/sh56_woody_8823.zip", exdir = "input/covariates/raw_data/woody_cover/sh56/", junkpaths = TRUE, overwrite = TRUE)
+
+# process forest and sparse woody cover data
 
 # get list of .tif files
 SGTiffFiles <- as_tibble(list.files("input/covariates/raw_data/woody_cover/sg56/", pattern = "\\.tif$", full.names = FALSE)) %>% arrange(value)
 SHTiffFiles <- as_tibble(list.files("input/covariates/raw_data/woody_cover/sh56/", pattern = "\\.tif$", full.names = FALSE)) %>% arrange(value)
 
-# loop through each northern tile file and process
-for (i in 1:length(SGTiffFiles$value)) {
-  # get year
-  Year <- as.numeric(substr(SGTiffFiles$value[i], nchar(SGTiffFiles$value[i]) - 5, nchar(SGTiffFiles$value[i]) - 4))
+if (length(SGTiffFiles$value) >= length(SHTiffFiles$value)) {
+  TiffFiles <- SGTiffFiles
+} else {
+  TiffFiles <- SHTiffFiles
+}
+
+# loop through each file name and process
+for (i in 1:length(TiffFiles$value)) {
+  # get year name
+  Year <- as.numeric(substr(TiffFiles$value[i], nchar(TiffFiles$value[i]) - 5, nchar(TiffFiles$value[i]) - 4))
   if (Year < 88) {
-    Year <- Year + 2000
+    YearFull <- Year + 2000
   } else {
-    Year <- Year + 1900
+    YearFull <- Year + 1900
   }
 
-  if (!file.exists(paste0("input/covariates/output/hhfwc", Year, "06.tif"))) {
-    # check if there is a matching file in the southern woody cover data for this year
-    if (any(SHTiffFiles$value == SGTiffFiles$value[i])) {
-      # load both tiff files for this year
-      SG <- rast(paste0("input/covariates/raw_data/woody_cover/sg56/", SGTiffFiles$value[i]))
-      SH <- rast(paste0("input/covariates/raw_data/woody_cover/sh56/", SHTiffFiles$value[i]))
-      # mosaic them together, project, clip, and reclassify
-      Woody <- mosaic(SG, SH, fun = "first") %>% project(rast(Bounding, resolution = 25)) %>% crop(Bounding) %>% as.int() %>% classify(cbind(c(0, 1, 2), c(3, 2, 1)))
-
-      # save
-      writeRaster(Woody, paste0("input/covariates/output/hhfwc", Year, "06.tif"), overwrite = TRUE)
-     }
-    }
+  # extract the file for SG
+  # note that if a file is not found it picks the file from the year before (assumng it exists)
+  if (any(SGTiffFiles$value == TiffFiles$value[i])) {
+    SG <- rast(paste0("input/covariates/raw_data/woody_cover/sg56/", TiffFiles$value[i]))
+  } else {
+    SG <- rast(paste0("input/covariates/raw_data/woody_cover/sg56/", paste0("woody", as.character(Year - 1), ".tif")))
   }
+  # extract the file for SH
+  # note that if a file is not found it picks the file from the year before (assumng it exists)
+  if (any(SHTiffFiles$value == TiffFiles$value[i])) {
+    SH <- rast(paste0("input/covariates/raw_data/woody_cover/sh56/", TiffFiles$value[i]))
+  } else {
+    SH <- rast(paste0("input/covariates/raw_data/woody_cover/sh56/", paste0("woody", as.character(Year - 1), ".tif")))
+  }
+ 
+   # mosaic them together, project, clip, and reclassify
+   Woody <- mosaic(SG, SH, fun = "first") %>% project(rast(Bounding, resolution = 25)) %>% crop(Bounding) %>% as.int() %>% classify(cbind(c(0, 1, 2), c(3, 2, 1)))
+
+   # save
+   writeRaster(Woody, paste0("input/covariates/output/hhfwc", YearFull, "06.tif"), overwrite = TRUE)
 }
 
 # groundwater dependent ecosystems
