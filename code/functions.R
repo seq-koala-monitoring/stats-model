@@ -213,7 +213,7 @@ format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterva
 
   # impute any missing values
   if (any(is.na(X))) {
-      X <- complete(mice(X, m = 1)) %>% as_tibble()
+      X <- complete(impute_with_mice(X, m = 1)) %>% as_tibble()
   }
 
   # dynamic predictors
@@ -297,7 +297,7 @@ format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterva
 
   # impute any missing values
   if (any(is.na(Y_temp))) {
-      Y_temp <- complete(mice(Y_temp, m = 1)) %>% as_tibble()
+      Y_temp <- complete(impute_with_mice(Y_temp, m = 1)) %>% as_tibble()
   }
 
   # combine X and Y to check for collinearity
@@ -476,7 +476,7 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
     
     # impute any missing values
     if (any(is.na(Z_Strip))) {
-      Z_Strip <- complete(mice(Z_Strip, m = 1)) %>% as_tibble()
+      Z_Strip <- complete(impute_with_mice(Z_Strip, m = 1)) %>% as_tibble()
     }
     
     # get the survey observer group number
@@ -570,7 +570,7 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
     
     # impute any missing values
     if (any(is.na(Z_AoA))) {
-      Z_AoA <- complete(mice(Z_AoA, m = 1)) %>% as_tibble()
+      Z_AoA <- complete(impute_with_mice(Z_AoA, m = 1)) %>% as_tibble()
     }
     
     # get the survey observer group number
@@ -661,7 +661,7 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
 
   # impute any missing values
   if (any(is.na(Z_Line))) {
-      Z_Line <- complete(mice(Z_Line, m = 1)) %>% as_tibble()
+      Z_Line <- complete(impute_with_mice(Z_Line, m = 1)) %>% as_tibble()
   }
 
   # get the survey observer group number
@@ -873,6 +873,40 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
     NimbleData <- list(X = X, Y = Y, Z_AoA = Z_AoA, Z_Line = Z_Line, AoAObsGrp = AoAObsGrp, LineObsGrp = LineObsGrp, CntAoA = CntAoA, PDists = PDists, CntLine = CntLine)
     return(list(Constants = NimbleConsts, Data = NimbleData, NamesX = names(X), NamesY = names(Y_temp), NamesZ = names(Z_Line), ScalingX = ScaleParamsX, ScalingY = ScaleParamsY, FirstDate = FirstDate, LastDate = LastDate, FirstDateID_Orig = FirstDateID_Orig, LastDateID_Orig = LastDateID_Orig, Order = Order, Lag = Lag, VarTrend = VarTrend, StaticVars = StaticVars, DynamicVars = DynamicVars, ObsVars = ObsVars, MissZ_AoA = MissZ_AoA, MissZ_Line = MissZ_Line, CorrZ_AoA = CorrZ_AoA, CorrZ_Line = CorrZ_Line, Soil_PCA = Soil_PCA))
   }
+}
+
+# function to impute missing data with mice() removing variables without any variation from the prediction matrix
+impute_with_mice <- function(data, m) {
+  # Ensure it's a tibble
+  data <- as_tibble(data)
+  
+  # Identify variables with no variation (constant or all NA)
+  no_var_vars <- data %>%
+    summarise(across(everything(),
+                     ~ (n_distinct(.x[!is.na(.x)]) <= 1))) %>%
+    pivot_longer(everything(), names_to = "variable", values_to = "no_var") %>%
+    filter(no_var) %>%
+    pull(variable)
+  
+  if (length(no_var_vars) > 0) {
+    message("Variables with no variation excluded from mice imputation predictor matrix: ",
+            paste(no_var_vars, collapse = ", "))
+  } else {
+    message("All variables have variation for mice imputation.")
+  }
+
+  # Build the mice predictor matrix
+  pred <- make.predictorMatrix(data)
+  
+  # Exclude no-variation variables from being used as predictors
+  if (length(no_var_vars) > 0) {
+    pred[, no_var_vars] <- 0
+  }
+
+  # Run mice imputation
+  imp <- mice(data, m = m, predictorMatrix = pred, printFlag = FALSE)
+  
+  return(imp)
 }
 
 # function to get data for a particular year for a model to make predictions
