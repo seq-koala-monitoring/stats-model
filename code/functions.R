@@ -213,7 +213,7 @@ format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterva
 
   # impute any missing values
   if (any(is.na(X))) {
-      X <- complete(impute_with_mice(X, m = 1)) %>% as_tibble()
+      X <- impute_with_mice(X, m = 1) %>% as_tibble()
   }
 
   # dynamic predictors
@@ -297,7 +297,7 @@ format_data <- function(Surveys, GridFrac, CovConsSurv, CovTempSurv, DateInterva
 
   # impute any missing values
   if (any(is.na(Y_temp))) {
-      Y_temp <- complete(impute_with_mice(Y_temp, m = 1)) %>% as_tibble()
+      Y_temp <- impute_with_mice(Y_temp, m = 1) %>% as_tibble()
   }
 
   # combine X and Y to check for collinearity
@@ -476,7 +476,7 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
     
     # impute any missing values
     if (any(is.na(Z_Strip))) {
-      Z_Strip <- complete(impute_with_mice(Z_Strip, m = 1)) %>% as_tibble()
+      Z_Strip <- impute_with_mice(Z_Strip, m = 1) %>% as_tibble()
     }
     
     # get the survey observer group number
@@ -570,7 +570,7 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
     
     # impute any missing values
     if (any(is.na(Z_AoA))) {
-      Z_AoA <- complete(impute_with_mice(Z_AoA, m = 1)) %>% as_tibble()
+      Z_AoA <- impute_with_mice(Z_AoA, m = 1) %>% as_tibble()
     }
     
     # get the survey observer group number
@@ -661,7 +661,7 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
 
   # impute any missing values
   if (any(is.na(Z_Line))) {
-      Z_Line <- complete(impute_with_mice(Z_Line, m = 1)) %>% as_tibble()
+      Z_Line <- impute_with_mice(Z_Line, m = 1) %>% as_tibble()
   }
 
   # get the survey observer group number
@@ -903,8 +903,23 @@ impute_with_mice <- function(data, m) {
     pred[, no_var_vars] <- 0
   }
 
+  # function to safely apply mice
+  safe_mice <- function(data, m, predictorMatrix, printFlag) {
+    result <- tryCatch({
+      # Attempt to run mice
+      imp <- mice(data, m, predictorMatrix, printFlag)
+      # Return the completed data
+      return(complete(imp))
+    }, error = function(e) {
+      # Handle the error: print a message and return original data
+      message("mice() failed: ", e$message)
+      return(data)
+    })
+    return(result)
+  }
+ 
   # Run mice imputation
-  imp <- mice(data, m = m, predictorMatrix = pred, printFlag = FALSE)
+  imp <- safe_mice(data, m = m, predictorMatrix = pred, printFlag = FALSE)
   
   return(imp)
 }
