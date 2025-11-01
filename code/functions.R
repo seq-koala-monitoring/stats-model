@@ -904,22 +904,22 @@ impute_with_mice <- function(data, m) {
   }
 
   # function to safely apply mice
-  safe_mice <- function(data, m, predictorMatrix, printFlag) {
-    result <- tryCatch({
+  safe_mice <- function(Data, M, PredMat) {
+	  result <- tryCatch({
       # Attempt to run mice
-      imp <- mice(data, m, predictorMatrix, printFlag)
+      imp <- mice(data = Data, m = M, predictorMatrix = PredMat, printFlag = FALSE)
       # Return the completed data
       return(complete(imp))
     }, error = function(e) {
       # Handle the error: print a message and return original data
-      message("mice() failed: ", e$message)
+      message("mice() failed: NAs not imputed.")
       return(data)
     })
     return(result)
   }
  
   # Run mice imputation
-  imp <- safe_mice(data, m = m, predictorMatrix = pred, printFlag = FALSE)
+  imp <- safe_mice(Data = data, M = m, PredMat = pred)
   
   return(imp)
 }
