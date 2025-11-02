@@ -1,5 +1,12 @@
 # THIS SCRIPT DOES THE INFERENCE BY SELECTING THE BEST MODEL, CHECKS MODEL ADEQUACY, AND GENERATES PREDICTIONS 
 
+# redirect messages to a log file
+log_file <- "output/log_inference.txt"
+cat("\n==== Log started at:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "====\n\n",
+    file = log_file, append = FALSE)
+log_con <- file(log_file, open = "a")
+sink(log_con, type = "message")
+
 # install and load packages
 packages <- c("tidyverse", "abind", "nimble", "coda", "extraDistr", "parallel", "MCMCvis", "terra", "tidyterra", "foreach", "doParallel", "patchwork", "assertthat")
 new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
@@ -524,3 +531,8 @@ ChAll <- bind_rows(ChTotal, ChNC, ChWI, ChSC) %>% mutate(Region = factor(Region,
 Plot <- ggplot(ChAll, aes(x = Region, y = Change, fill = Region)) + geom_boxplot(width = 0.2) + theme_minimal() + theme(legend.position = "none") + geom_hline(yintercept = 0) + labs(x = "Sub-region", y = "Percentage Change") + theme(axis.text = element_text(size = 18),  axis.title.y = element_text(size = 20), axis.title.x = element_text(size = 20, vjust = -1)) + theme(plot.margin = unit(c(1,1,1,1), "cm"))
 
 ggsave(Plot, file = "output/inference/figures/change_boxplot_2020_end.jpg", width = 40, height = 30, units = "cm", dpi = 300)
+
+
+# reset sink and close connection
+sink(type = "message")
+close(log_con)

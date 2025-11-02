@@ -1,5 +1,12 @@
 # THIS SCRIPT FITS THE MODELS
 
+# redirect messages to a log file
+log_file <- "output/log_model_runs.txt"
+cat("\n==== Log started at:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "====\n\n",
+    file = log_file, append = FALSE)
+log_con <- file(log_file, open = "a")
+sink(log_con, type = "message")
+
 # install and load packages
 packages <- c("tidyverse", "nimble", "coda", "extraDistr", "parallel", "MCMCvis", "corrplot")
 new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
@@ -111,3 +118,7 @@ for (Order in 1:1) {
     }
   }
 }
+
+# reset sink and close connection
+sink(type = "message")
+close(log_con)

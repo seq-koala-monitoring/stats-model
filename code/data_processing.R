@@ -23,6 +23,14 @@
 #     2) This code may take anywhere from a few minutes to days to run, 
 #        depending on how many files need updating and your computer's specifications.
 
+
+# redirect messages to a log file
+log_file <- "output/log_data_processing.txt"
+cat("\n==== Log started at:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "====\n\n",
+    file = log_file, append = FALSE)
+log_con <- file(log_file, open = "a")
+sink(log_con, type = "message")
+
 # -------------------------------------------------------------------
 
 # install and load packages
@@ -408,3 +416,7 @@ saveRDS(lu.mask.matrix, "input/mask/lu_mask_matrix.rds")
 
 # end
 print("Data formatting for nimble complete")
+
+# reset sink and close connection
+sink(type = "message")
+close(log_con)
