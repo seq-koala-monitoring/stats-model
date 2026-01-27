@@ -1,11 +1,22 @@
 # THIS SCRIPT FITS THE MODELS
 
+# clean global environment
+rm(list=ls())
+try(dev.off(dev.list()["RStudioGD"]), silent=TRUE)
+gc()
+
 # redirect messages to a log file
 log_file <- "output/log_model_runs.txt"
 cat("\n==== Log started at:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "====\n\n",
     file = log_file, append = FALSE)
 log_con <- file(log_file, open = "a")
+sink(log_con)
 sink(log_con, type = "message")
+on.exit({
+  sink(type = "message")
+  sink()
+  close(log_con)
+}, add = TRUE)
 
 # install and load packages
 packages <- c("tidyverse", "nimble", "coda", "extraDistr", "parallel", "MCMCvis", "corrplot")
@@ -119,6 +130,10 @@ for (Order in 1:1) {
   }
 }
 
+# end
+print("model runs complete")
+
 # reset sink and close connection
 sink(type = "message")
+sink()
 close(log_con)

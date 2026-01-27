@@ -1,11 +1,22 @@
 # THIS SCRIPT DOES THE INFERENCE BY SELECTING THE BEST MODEL, CHECKS MODEL ADEQUACY, AND GENERATES PREDICTIONS 
 
+# clean global environment
+rm(list=ls())
+try(dev.off(dev.list()["RStudioGD"]), silent=TRUE)
+gc()
+
 # redirect messages to a log file
 log_file <- "output/log_inference.txt"
 cat("\n==== Log started at:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "====\n\n",
     file = log_file, append = FALSE)
 log_con <- file(log_file, open = "a")
+sink(log_con)
 sink(log_con, type = "message")
+on.exit({
+  sink(type = "message")
+  sink()
+  close(log_con)
+}, add = TRUE)
 
 # install and load packages
 packages <- c("tidyverse", "abind", "nimble", "coda", "extraDistr", "parallel", "MCMCvis", "terra", "tidyterra", "foreach", "doParallel", "patchwork", "assertthat")
@@ -26,12 +37,17 @@ source("code/nimble_code.R")
 Surveys <- readRDS("input/survey_data/master.rds")
 DateIntervals <- read_csv("input/survey_data/date_interval_lookup.csv") %>% mutate(end_date = as.Date(end_date))
 GenPopLookup <- readRDS("input/survey_data/gen_pop_lookup.rds")
-FirstDate <- min(c(min(Surveys$line_transect$Date), min(Surveys$strip_transect$Date), min(Surveys$uaoa$Date)))
-LastDate <- max(c(max(Surveys$line_transect$Date), max(Surveys$strip_transect$Date), max(Surveys$uaoa$Date)))
 CovCons <- readRDS("input/survey_data/cov_constant_array.rds")
 CovTemp <- readRDS("input/survey_data/cov_temporal_array.rds")
 Mask <- readRDS("input/mask/lu_mask_matrix.rds")
 PredData <- list(CovCons = CovCons, CovTemp = CovTemp, DateIntervals = DateIntervals, GenPopLookup = GenPopLookup, Mask = Mask)
+# get first date
+if(is.null(FirstDate)){
+  FirstDate <- min(c(min(Surveys$line_transect$Date), min(Surveys$strip_transect$Date), min(Surveys$uaoa$Date)))
+} else {
+  FirstDate <- as.Date(FirstDate, format = "%d/%m/%Y")
+}
+LastDate <- max(c(max(Surveys$line_transect$Date), max(Surveys$strip_transect$Date), max(Surveys$uaoa$Date)))
 rm(CovCons, CovTemp, DateIntervals, GenPopLookup, Mask)
 gc()
 
@@ -137,7 +153,7 @@ TLineObs <- ((LineResObs ^ 2) / 1) %>% apply(1, sum)
 TLineSim <- ((LineResSim ^ 2) / 1) %>% apply(1, sum)
 pLine <- sum(TLineSim >= TLineObs) / length(TLineSim)
 
-# collate p=values
+# collate p-values
 pVals <- tibble(pStrip = pStrip, pAoA = pAoA, pLine = pLine)
 
 # save p-values
@@ -532,7 +548,11 @@ Plot <- ggplot(ChAll, aes(x = Region, y = Change, fill = Region)) + geom_boxplot
 
 ggsave(Plot, file = "output/inference/figures/change_boxplot_2020_end.jpg", width = 40, height = 30, units = "cm", dpi = 300)
 
+# end
+print("inference complete")
 
 # reset sink and close connection
 sink(type = "message")
+sink()
 close(log_con)
+

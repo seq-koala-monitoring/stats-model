@@ -22,20 +22,25 @@
 # PS: 1) Disregard any warnings on the task bar about packages that are not installed 
 #     2) This code may take anywhere from a few minutes to days to run, 
 #        depending on how many files need updating and your computer's specifications.
+# -------------------------------------------------------------------
 
+# clean global environment
+rm(list=ls())
+try(dev.off(dev.list()["RStudioGD"]), silent=TRUE)
+gc()
 
 # redirect messages to a log file
 log_file <- "output/log_covariate_processing.txt"
 cat("\n==== Log started at:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "====\n\n",
     file = log_file, append = FALSE)
 log_con <- file(log_file, open = "a")
+sink(log_con)
 sink(log_con, type = "message")
-
-# -------------------------------------------------------------------
-# Clean global environment
-rm(list=ls())
-try(dev.off(dev.list()["RStudioGD"]), silent=TRUE)
-gc()
+on.exit({
+  sink(type = "message")
+  sink()
+  close(log_con)
+}, add = TRUE)
 
 # read utility functions
 source("code/functions.R")
@@ -279,7 +284,12 @@ for (i in 1990:as.numeric(format(Sys.Date(), "%Y"))) {
     
     # download files
     if (!file.exists(File1)) {
-      download.file(URL1, File1, mode = "wb")
+      res <- HEAD(URL1)
+      if (status_code(res) == 200) {
+        download.file(URL1, File1, mode = "wb")
+      } else {
+        message(paste("File not found at:", URL1))
+      }
     }
   }
   
@@ -294,7 +304,12 @@ for (i in 1990:as.numeric(format(Sys.Date(), "%Y"))) {
     
     # download files
     if (!file.exists(File2)) {
-      download.file(URL2, File2, mode = "wb")
+      res <- HEAD(URL2)
+      if (status_code(res) == 200) {
+        download.file(URL2, File2, mode = "wb")
+      } else {
+        message(paste("File not found at:", URL2))
+      }
     }
   }
 }
@@ -309,14 +324,18 @@ for (i in 1990:as.numeric(format(Sys.Date(), "%Y"))) {
   
   if(all(c(start_date_url1, end_date_url1) <= current_date)){
     # get download URLs and file names
-    # get download URLs and file names
     URL1 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/tmean/mean/r005/06month/", as.character(i),
                    "/tmean_mean_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
     File1 <- paste0("input/covariates/raw_data/temp_mean", "/tmean_mean_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
     
     # download files
     if (!file.exists(File1)) {
-      download.file(URL1, File1, mode = "wb")
+      res <- HEAD(URL1)
+      if (status_code(res) == 200) {
+        download.file(URL1, File1, mode = "wb")
+      } else {
+        message(paste("File not found at:", URL1))
+      } 
     }
   }
   
@@ -330,7 +349,12 @@ for (i in 1990:as.numeric(format(Sys.Date(), "%Y"))) {
     File2 <- paste0("input/covariates/raw_data/temp_mean", "/tmean_mean_r005_", as.character(i), "0401_", as.character(i), "0930.nc")
     
     if (!file.exists(File2)) {
-      download.file(URL2, File2, mode = "wb")
+      res <- HEAD(URL2)
+      if (status_code(res) == 200) {
+        download.file(URL2, File2, mode = "wb")
+      } else {
+        message(paste("File not found at:", URL2))
+      }
     }
   }
 }
@@ -342,8 +366,7 @@ for (i in 1990:as.numeric(format(Sys.Date(), "%Y"))) {
   start_date_url1 <- as.Date(paste0(as.character(i - 1), "1001"), format = "%Y%m%d")
   end_date_url1 <- as.Date(paste0(as.character(i), "0331"), format = "%Y%m%d")
   
-  if(all(c(start_date_url2, end_date_url2) <= current_date)){
-    # get download URLs and file names
+  if(all(c(start_date_url1, end_date_url1) <= current_date)){
     # get download URLs and file names
     URL1 <- paste0("http://opendap.bom.gov.au:8080/thredds/fileServer/agcd/tmax/mean/r005/06month/", as.character(i),
                    "/tmax_mean_r005_", as.character(i - 1), "1001_", as.character(i), "0331.nc")
@@ -351,7 +374,12 @@ for (i in 1990:as.numeric(format(Sys.Date(), "%Y"))) {
     
     # download files
     if (!file.exists(File1)) {
-      download.file(URL1, File1, mode = "wb")
+      res <- HEAD(URL1)
+      if (status_code(res) == 200) {
+        download.file(URL1, File1, mode = "wb")
+      } else {
+        message(paste("File not found at:", URL1))
+      }
     }
   }
   
@@ -365,7 +393,12 @@ for (i in 1990:as.numeric(format(Sys.Date(), "%Y"))) {
     File2 <- paste0("input/covariates/raw_data/temp_max", "/tmax_mean_r005_", as.character(i), "0401_", as.character(i), "0930.nc")
     
     if (!file.exists(File2)) {
-      download.file(URL2, File2, mode = "wb")
+      res <- HEAD(URL2)
+      if (status_code(res) == 200) {
+        download.file(URL2, File2, mode = "wb")
+      } else {
+        message(paste("File not found at:", URL2))
+      }
     }
   }
 }
@@ -446,7 +479,12 @@ for (i in 1976:1996) {
 
   # download files
   if (!file.exists(File)) {
-    download.file(URL, File, mode = "wb")
+    res <- HEAD(URL)
+    if (status_code(res) == 200) {
+      download.file(URL, File, mode = "wb")
+    } else {
+      message(paste("File not found at:", URL))
+    }
   }
 }
 
@@ -459,7 +497,12 @@ for (i in 1976:1996) {
 
   # download files
   if (!file.exists(File)) {
-    download.file(URL, File, mode = "wb")
+    res <- HEAD(URL)
+    if (status_code(res) == 200) {
+      download.file(URL, File, mode = "wb")
+    } else {
+      message(paste("File not found at:", URL))
+    }
   }
 }
 
@@ -663,14 +706,10 @@ if (!file.exists("input/covariates/output/hhunf.tif")) {
   writeRaster(UDRast, "input/covariates/output/hhunf.tif", overwrite = TRUE)
 }
 
-#cat("\n","\n",
-#    "################################################################",
-#    "################  THIS CODE HAS FINISHED  ######################",
-#    "################################################################", sep = "\n")
-
-# You can now close this script by clicking the X next to its name in the script tab.
+# end
+print("Covariate processing complete")
 
 # reset sink and close connection
 sink(type = "message")
+sink()
 close(log_con)
-

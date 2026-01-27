@@ -1354,33 +1354,83 @@ get_change <- function(MCMC, Data1, Data2) {
   return(Output)
 }
 
-# qq plot with confidence intervals
+# qq plot with confidence intervals - with split between neagtive and potiive residuals
 qq.plot.ci <- function(R.sim,R.obs)
 {
-	MedObs<-apply(R.obs,MARGIN=2,FUN=median)
-	MedSim<-apply(R.sim,MARGIN=2,FUN=median)
+	MedObs<-apply(R.obs,MARGIN=2,FUN=median, na.rm = TRUE)
+	MedSim<-apply(R.sim,MARGIN=2,FUN=median, na.rm = TRUE)
 
-	NegSim<-apply(R.sim,MARGIN=1,FUN=function(X){quantile(sort(X[X<0]),ppoints(MedObs[MedObs<0],a=1))})
-	PosSim<-apply(R.sim,MARGIN=1,FUN=function(X){quantile(sort(X[X>=0]),ppoints(MedObs[MedObs>=0],a=1))})
+	NegSim<-apply(R.sim,MARGIN=1,FUN=function(X){quantile(sort(X[X<0], na.rm = TRUE),ppoints(MedObs[MedObs<0],a=1), na.rm = TRUE)})
+	PosSim<-apply(R.sim,MARGIN=1,FUN=function(X){quantile(sort(X[X>=0], na.rm = TRUE),ppoints(MedObs[MedObs>=0],a=1), na.rm = TRUE)})
 	
-	NegObs<-apply(R.obs,MARGIN=1,FUN=function(X){quantile(sort(X[X<0]),ppoints(MedObs[MedObs<0],a=1))})
-	PosObs<-apply(R.obs,MARGIN=1,FUN=function(X){quantile(sort(X[X>=0]),ppoints(MedObs[MedObs>=0],a=1))})
+	NegObs<-apply(R.obs,MARGIN=1,FUN=function(X){quantile(sort(X[X<0], na.rm = TRUE),ppoints(MedObs[MedObs<0],a=1), na.rm = TRUE)})
+	PosObs<-apply(R.obs,MARGIN=1,FUN=function(X){quantile(sort(X[X>=0], na.rm = TRUE),ppoints(MedObs[MedObs>=0],a=1), na.rm = TRUE)})
 	
-	NewSim<-c(apply(NegSim,MARGIN=1,FUN=median),apply(PosSim,MARGIN=1,FUN=median))	
-	NewObs<-c(apply(NegObs,MARGIN=1,FUN=median),apply(PosObs,MARGIN=1,FUN=median))
-	UpperSim<-c(apply(NegSim,MARGIN=1,FUN=function(X){quantile(X,0.975)}),apply(PosSim,MARGIN=1,FUN=function(X){quantile(X,0.975)}))
-	LowerSim<-c(apply(NegSim,MARGIN=1,FUN=function(X){quantile(X,0.025)}),apply(PosSim,MARGIN=1,FUN=function(X){quantile(X,0.025)}))
-	UpperObs<-c(apply(NegObs,MARGIN=1,FUN=function(X){quantile(X,0.975)}),apply(PosObs,MARGIN=1,FUN=function(X){quantile(X,0.975)}))
-	LowerObs<-c(apply(NegObs,MARGIN=1,FUN=function(X){quantile(X,0.025)}),apply(PosObs,MARGIN=1,FUN=function(X){quantile(X,0.025)}))
-	
-	minX <- min(NewSim)
-	maxX <- max(NewSim)
-	minY <- min(c(UpperSim,LowerSim,UpperObs,LowerObs))
-	maxY <- max(c(UpperSim,LowerSim,UpperObs,LowerObs))
-	
+	NewSim<-c(apply(NegSim,MARGIN=1,FUN=median, na.rm = TRUE),apply(PosSim,MARGIN=1,FUN=median, na.rm = TRUE))	
+	NewObs<-c(apply(NegObs,MARGIN=1,FUN=median, na.rm = TRUE),apply(PosObs,MARGIN=1,FUN=median, na.rm = TRUE))
+	UpperSim<-c(apply(NegSim,MARGIN=1,FUN=function(X){quantile(X,0.975, na.rm = TRUE)}),apply(PosSim,MARGIN=1,FUN=function(X){quantile(X,0.975, na.rm = TRUE)}))
+	LowerSim<-c(apply(NegSim,MARGIN=1,FUN=function(X){quantile(X,0.025, na.rm = TRUE)}),apply(PosSim,MARGIN=1,FUN=function(X){quantile(X,0.025, na.rm = TRUE)}))
+	UpperObs<-c(apply(NegObs,MARGIN=1,FUN=function(X){quantile(X,0.975, na.rm = TRUE)}),apply(PosObs,MARGIN=1,FUN=function(X){quantile(X,0.975, na.rm = TRUE)}))
+	LowerObs<-c(apply(NegObs,MARGIN=1,FUN=function(X){quantile(X,0.025, na.rm = TRUE)}),apply(PosObs,MARGIN=1,FUN=function(X){quantile(X,0.025, na.rm = TRUE)}))
+		
   Data <- tibble(Simulated = NewSim, Observed = NewObs, LowerSim = LowerSim, UpperSim = UpperSim, LowerObs = LowerObs, UpperObs = UpperObs)
 
   return(Data)  
+}
+
+qq.plot.ci.nosplit <- function(R.sim, R.obs)
+{
+  # Number of observations
+  n <- ncol(R.obs)
+
+  # Set number of quantiles (default = number of observations)
+  if (is.null(n_quant)) n_quant <- n
+  n_quant <- min(n_quant, n)
+
+  # 1. Median observed residual per observation
+  MedObs <- apply(R.obs, 2, median, na.rm = TRUE)
+
+  # 2. Sort median observed residuals (determines Q–Q order)
+  ord <- order(MedObs)
+  MedObs_sorted <- MedObs[ord]
+
+  # 3. Quantile levels for Q–Q plot
+  q_levels <- ppoints(length(MedObs_sorted))
+
+  # Safe quantile helper
+  safe_quant <- function(x, q) {
+    if (length(x) < 1) return(rep(NA, length(q)))
+    quantile(x, probs = q, na.rm = TRUE, names = FALSE, type = 7)
+  }
+
+  # 4. Compute quantiles for each simulation replicate
+  SimQ <- apply(R.sim, 1, function(row) safe_quant(row, q_levels))
+  ObsQ <- apply(R.obs, 1, function(row) safe_quant(row, q_levels))
+
+  # ensure matrices with rows = quantiles
+  SimQ <- as.matrix(SimQ)
+  ObsQ <- as.matrix(ObsQ)
+
+  # 5. Aggregate across replicates (matching Option 2 style)
+  NewSim   <- apply(SimQ, 1, median,   na.rm = TRUE)
+  LowerSim <- apply(SimQ, 1, quantile, probs = 0.025, na.rm = TRUE)
+  UpperSim <- apply(SimQ, 1, quantile, probs = 0.975, na.rm = TRUE)
+
+  NewObs   <- apply(ObsQ, 1, median,   na.rm = TRUE)
+  LowerObs <- apply(ObsQ, 1, quantile, probs = 0.025, na.rm = TRUE)
+  UpperObs <- apply(ObsQ, 1, quantile, probs = 0.975, na.rm = TRUE)
+
+  # 6. Output in the same structure as Option 2
+  Data <- tibble(
+    Simulated = NewSim,
+    Observed  = NewObs,
+    LowerSim  = LowerSim,
+    UpperSim  = UpperSim,
+    LowerObs  = LowerObs,
+    UpperObs  = UpperObs
+  )
+
+  return(Data)
 }
 
 fcn_update_db <- function(db = "KoalaSurveyData2020_cur.accdb",
