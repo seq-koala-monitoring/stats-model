@@ -1360,11 +1360,11 @@ qq.plot.ci <- function(R.sim,R.obs)
 	MedObs<-apply(R.obs,MARGIN=2,FUN=median, na.rm = TRUE)
 	MedSim<-apply(R.sim,MARGIN=2,FUN=median, na.rm = TRUE)
 
-	NegSim<-apply(R.sim,MARGIN=1,FUN=function(X){quantile(sort(X[X<0], na.rm = TRUE),ppoints(MedObs[MedObs<0],a=1), na.rm = TRUE)})
-	PosSim<-apply(R.sim,MARGIN=1,FUN=function(X){quantile(sort(X[X>=0], na.rm = TRUE),ppoints(MedObs[MedObs>=0],a=1), na.rm = TRUE)})
+	NegSim<-apply(R.sim,MARGIN=1,FUN=function(X){quantile(sort(X[X<0]),ppoints(MedObs[MedObs<0],a=1), na.rm = TRUE)})
+	PosSim<-apply(R.sim,MARGIN=1,FUN=function(X){quantile(sort(X[X>=0]),ppoints(MedObs[MedObs>=0],a=1), na.rm = TRUE)})
 	
-	NegObs<-apply(R.obs,MARGIN=1,FUN=function(X){quantile(sort(X[X<0], na.rm = TRUE),ppoints(MedObs[MedObs<0],a=1), na.rm = TRUE)})
-	PosObs<-apply(R.obs,MARGIN=1,FUN=function(X){quantile(sort(X[X>=0], na.rm = TRUE),ppoints(MedObs[MedObs>=0],a=1), na.rm = TRUE)})
+	NegObs<-apply(R.obs,MARGIN=1,FUN=function(X){quantile(sort(X[X<0]),ppoints(MedObs[MedObs<0],a=1), na.rm = TRUE)})
+	PosObs<-apply(R.obs,MARGIN=1,FUN=function(X){quantile(sort(X[X>=0]),ppoints(MedObs[MedObs>=0],a=1), na.rm = TRUE)})
 	
 	NewSim<-c(apply(NegSim,MARGIN=1,FUN=median, na.rm = TRUE),apply(PosSim,MARGIN=1,FUN=median, na.rm = TRUE))	
 	NewObs<-c(apply(NegObs,MARGIN=1,FUN=median, na.rm = TRUE),apply(PosObs,MARGIN=1,FUN=median, na.rm = TRUE))
