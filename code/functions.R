@@ -690,7 +690,6 @@ get_fit_data <- function(Data, StaticVars, DynamicVars, ObsVars) {
     NObsGrps <- max(c(AoAObsGrp, LineObsGrp))
   }
   
-
   # get transect IDs for each perpendicular distance
   PDLineIDs <- match(Surveys$perp_distance$TransectID, LineJoinGroupFrac$TransectID.x)
 
@@ -925,7 +924,7 @@ impute_with_mice <- function(data, m) {
 }
 
 # function to get data for a particular year for a model to make predictions
-get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRUE) {
+get_prediction_data <- function(Year, NimbleData, PredData, FirstDate, LastDate, RainForestMask = TRUE) {
   
   if(gen_pop_agg){
     # reclassify genetic population IDs to three "populations"
@@ -944,18 +943,39 @@ get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRU
   }
 
   # get first and last date IDs
+  if (FirstDate > date(paste0(Year + 1, "-04-01"))){
+    error("First date of survey data is after the end of the first year for which predictions are being made. Please check the survey data and/or the specified year for predictions.")
+  }
+  else {
+    if (FirstDate < date(paste0(Year, "-10-01"))) {
+      FirstDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-04-01"))) %>% pull(TimePeriodID)
+    } else {
+      FirstDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-10-01"))) %>% pull(TimePeriodID)  
+    }
+  }
+  if (LastDate < date(paste0(Year, "-04-01"))){
+    error("Last date of survey data is before the start of the last year for which predictions are being made. Please check the survey data and/or the specified year for predictions.")
+  }
+  else {
+    if (LastDate < date(paste0(Year, "-10-01"))) {
+      LastDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-04-01"))) %>% pull(TimePeriodID)
+    } else {
+      LastDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-10-01"))) %>% pull(TimePeriodID)  
+    }
+  }
+  
   # check if the first date is in the data, use it, otherwise use the second date - to avoid issues at the start or end
-  if (date(paste0(Year, "-04-01")) %in% PredData$DateIntervals$start_date) {
-    FirstDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-04-01"))) %>% pull(TimePeriodID)
-  } else {
-    FirstDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-10-01"))) %>% pull(TimePeriodID)
-  }
+  #if (date(paste0(Year, "-04-01")) %in% PredData$DateIntervals$start_date) {
+  #  FirstDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-04-01"))) %>% pull(TimePeriodID)
+  #} else {
+  #  FirstDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-10-01"))) %>% pull(TimePeriodID)
+  #}
   # check if the second date is in the data, use it, otherwise use the first date - to avoid issues at the start or end
-  if (date(paste0(Year, "-10-01")) %in% PredData$DateIntervals$start_date) {
-    LastDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-10-01"))) %>% pull(TimePeriodID)
-  } else {
-    LastDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-04-01"))) %>% pull(TimePeriodID)
-  }
+  #if (date(paste0(Year, "-10-01")) %in% PredData$DateIntervals$start_date) {
+  #  LastDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-10-01"))) %>% pull(TimePeriodID)
+  #} else {
+  #  LastDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-04-01"))) %>% pull(TimePeriodID)
+  #}
 
   # add a season variable to the temporally variable covariates
   # 1 = breeding season (summer - October to March) and 0 = non-breeding season (winter - April to September)
@@ -1137,7 +1157,7 @@ get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRU
   FirstDateIDTrim <- NimbleData$Constants$Lag + 1
   LastDateIDTrim <- LastDateID - (FirstDateID - FirstDateIDTrim)
   
-  # get the difference between the actual and fitted IDs
+  # get the difference between the actual original IDs and fitted IDs (because the IDs for the fitted data are for data which is a subset of the full dataset)
   DiffIDActFitted <- NimbleData$FirstDateID_Orig - NimbleData$Constants$FirstDateID
   
   #FirstDateID - (NimbleData$FirstDateID_Orig - NimbleData$Constants$FirstDateID)
@@ -1154,7 +1174,7 @@ get_prediction_data <- function(Year, NimbleData, PredData, RainForestMask = TRU
 get_predictions <- function(MCMC, Data, grid_size = primary_grid_size) {
 
   # get the spatial random effects
-  Sre <- select(as_tibble(MCMC),contains("sd["))  
+  Sre <- select(as_tibble(MCMC),contains("sd["))
 
   # get the spatio-temporal random effects if needed
   if (Data$VarTrend == 1) {
@@ -1180,9 +1200,9 @@ get_predictions <- function(MCMC, Data, grid_size = primary_grid_size) {
   for (i in Data$FirstDateIDTrim:Data$LastDateIDTrim) {
     # get time variable linear predictors
     if (Data$VarTrend == 1) {
-      LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data$Y[, i - Data$Lag, 1:(dim(Data$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(STre[, (Data$NGPops * (floor((i + (Data$FirstDateID - Data$FirstDateIDTrim) - Data$DiffIDActFitted - 1) / 2) + 1 - 1) + x)])}))
+      LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data$Y[, i - Data$Lag, 1:(dim(Data$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(STre[, (Data$NGPops * (ceiling(((i - Data$Lag - 1) + Data$FirstDateID - Data$DiffIDActFitted - Data$Lag) / 2) - 1) + x)])}))
     } else {
-      LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data$Y[, i - Data$Lag, 1:(dim(Data$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i + (Data$FirstDateID - Data$FirstDateIDTrim) - Data$DiffIDActFitted - 1) / 2) + 1])}))
+      LPTime <- LPFixed + apply(Betas[,(dim(Data$X)[2] + 1):(dim(Data$X)[2] + dim(Data$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data$Y[, i - Data$Lag, 1:(dim(Data$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data$GenPopID), MARGIN = 1, function(x) {t(Tre[, ceiling(((i - Data$Lag - 1) + Data$FirstDateID - Data$DiffIDActFitted - Data$Lag) / 2)])}))
     }
 
     # multiply density estimates by the habitat availability to account for habitat masked out (last covariate in Y)
@@ -1281,9 +1301,9 @@ get_change <- function(MCMC, Data1, Data2) {
   for (i in Data1$FirstDateIDTrim:Data1$LastDateIDTrim) {
     # get time variable linear predictors
     if (Data1$VarTrend == 1) {
-      LPTime1 <- LPFixed1 + apply(Betas[,(dim(Data1$X)[2] + 1):(dim(Data1$X)[2] + dim(Data1$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data1$Y[, i - Data1$Lag, 1:(dim(Data1$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(STre[, (Data1$NGPops * (floor((i + (Data1$FirstDateID - Data1$FirstDateIDTrim) - Data1$DiffIDActFitted - 1) / 2) + 1 - 1) + x)])}))
+      LPTime1 <- LPFixed1 + apply(Betas[,(dim(Data1$X)[2] + 1):(dim(Data1$X)[2] + dim(Data1$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data1$Y[, i - Data1$Lag, 1:(dim(Data1$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(STre[, (Data1$NGPops * (ceiling(((i - Data1$Lag - 1) + Data1$FirstDateID - Data1$DiffIDActFitted - Data1$Lag) / 2) - 1) + x)])}))
     } else {
-      LPTime1 <- LPFixed1 + apply(Betas[,(dim(Data1$X)[2] + 1):(dim(Data1$X)[2] + dim(Data1$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data1$Y[, i - Data1$Lag, 1:(dim(Data1$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i + (Data1$FirstDateID - Data1$FirstDateIDTrim) - Data1$DiffIDActFitted - 1) / 2) + 1])}))
+      LPTime1 <- LPFixed1 + apply(Betas[,(dim(Data1$X)[2] + 1):(dim(Data1$X)[2] + dim(Data1$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data1$Y[, i - Data1$Lag, 1:(dim(Data1$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data1$GenPopID), MARGIN = 1, function(x) {t(Tre[, ceiling(((i - Data1$Lag - 1) + Data1$FirstDateID - Data1$DiffIDActFitted - Data1$Lag) / 2)])}))
     }
 
     # multiply density estimates by the habitat availability to account for habitat masked out (last covariate in Y)
@@ -1301,9 +1321,9 @@ get_change <- function(MCMC, Data1, Data2) {
   for (i in Data2$FirstDateIDTrim:Data2$LastDateIDTrim) {
     # get time variable linear predictors
     if (Data2$VarTrend == 1) {
-      LPTime2 <- LPFixed2 + apply(Betas[,(dim(Data2$X)[2] + 1):(dim(Data2$X)[2] + dim(Data2$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data2$Y[, i - Data2$Lag, 1:(dim(Data2$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(STre[, (Data2$NGPops * (floor((i + (Data2$FirstDateID - Data2$FirstDateIDTrim) - Data2$DiffIDActFitted - 1) / 2) + 1 - 1) + x)])}))
+      LPTime2 <- LPFixed2 + apply(Betas[,(dim(Data2$X)[2] + 1):(dim(Data2$X)[2] + dim(Data2$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data2$Y[, i - Data2$Lag, 1:(dim(Data2$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(STre[, (Data2$NGPops * (ceiling(((i - Data2$Lag - 1) + Data2$FirstDateID - Data2$DiffIDActFitted - Data2$Lag) / 2) - 1) + x)])}))
     } else {
-      LPTime2 <- LPFixed2 + apply(Betas[,(dim(Data2$X)[2] + 1):(dim(Data2$X)[2] + dim(Data2$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data2$Y[, i - Data2$Lag, 1:(dim(Data2$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(Tre[, floor((i + (Data2$FirstDateID - Data2$FirstDateIDTrim) - Data2$DiffIDActFitted - 1) / 2) + 1])}))
+      LPTime2 <- LPFixed2 + apply(Betas[,(dim(Data2$X)[2] + 1):(dim(Data2$X)[2] + dim(Data2$Y)[3] - 1)], MARGIN = 1, function(z) {as.matrix(Data2$Y[, i - Data2$Lag, 1:(dim(Data2$Y)[3] - 1)]) %*% as.matrix(z)}) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(Sre[, x])})) + t(apply(as.matrix(Data2$GenPopID), MARGIN = 1, function(x) {t(Tre[, ceiling(((i - Data2$Lag - 1) + Data2$FirstDateID - Data2$DiffIDActFitted - Data2$Lag) / 2)])}))
     }
 
     # multiply density estimates by the habitat availability to account for habitat masked out (last covariate in Y)
