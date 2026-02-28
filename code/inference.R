@@ -263,7 +263,7 @@ PredsList <- list()
 Predictions <- foreach(i = year(FirstDate):year(LastDate)) %do% {
 
   # format data for predictions
-  Data <- get_prediction_data(Year = i, BestModelSel$Data, PredData, RainForestMask = RainMask)
+  Data <- get_prediction_data(Year = i, BestModelSel$Data, PredData, FirstDate, LastDate, RainForestMask = RainMask)
 
   # generate predictions
   Preds <- get_predictions(MCMC, Data)
@@ -291,7 +291,7 @@ Predictions <- foreach(i = year(FirstDate):year(LastDate)) %do% {
 # save predictions
 saveRDS(PredsList, paste0("output/predictions/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
 
-# get the change between two dates
+# get the changes between two dates
 
 # set the seed
 set.seed(seed)
@@ -302,41 +302,16 @@ MCMC <- rbind(BestModelSel$MCMC[[1]], BestModelSel$MCMC[[2]], BestModelSel$MCMC[
 # sub sample MCMC chains if needed
 MCMC <- MCMC[sample(1:dim(MCMC)[1], 10000), ]
 
-# 1996 to end
+# start to end
 
 # specify dates
 
-Year1 <- 1996
+Year1 <- year(FirstDate)
 Year2 <- year(LastDate)
 
 # get prediction data for the two years
-Data1 <- get_prediction_data(Year = Year1, BestModelSel$Data, PredData, RainForestMask = RainMask)
-Data2 <- get_prediction_data(Year = Year2, BestModelSel$Data, PredData, RainForestMask = RainMask)
-
-# generate change estimates
-Change <- get_change(MCMC, Data1, Data2)
-
-# save change
-saveRDS(Change, paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", Year1, "_", Year2, ".rds")) 
-
-# save changes
-Change <- rbind(Change$Total, Change$NC, Change$WI, Change$SC) %>% mutate(Region = c("Total", "NC", "WI", "SC"))
-write_csv(Change, paste0("output/predictions/change_summary_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", Year1, "_", Year2, ".csv"))
-
-# free up memory
-rm(Change)
-gc()
-
-# 1996 to end
-
-# specify dates
-
-Year1 <- 1996
-Year2 <- year(LastDate)
-
-# get prediction data for the two years
-Data1 <- get_prediction_data(Year = Year1, BestModelSel$Data, PredData, RainForestMask = RainMask)
-Data2 <- get_prediction_data(Year = Year2, BestModelSel$Data, PredData, RainForestMask = RainMask)
+Data1 <- get_prediction_data(Year = Year1, BestModelSel$Data, PredData, FirstDate, LastDate, RainForestMask = RainMask)
+Data2 <- get_prediction_data(Year = Year2, BestModelSel$Data, PredData, FirstDate, LastDate, RainForestMask = RainMask)
 
 # generate change estimates
 Change <- get_change(MCMC, Data1, Data2)
@@ -360,8 +335,8 @@ Year1 <- 2015
 Year2 <- year(LastDate)
 
 # get prediction data for the two years
-Data1 <- get_prediction_data(Year = Year1, BestModelSel$Data, PredData, RainForestMask = RainMask)
-Data2 <- get_prediction_data(Year = Year2, BestModelSel$Data, PredData, RainForestMask = RainMask)
+Data1 <- get_prediction_data(Year = Year1, BestModelSel$Data, PredData, FirstDate, LastDate, RainForestMask = RainMask)
+Data2 <- get_prediction_data(Year = Year2, BestModelSel$Data, PredData, FirstDate, LastDate, RainForestMask = RainMask)
 
 # generate change estimates
 Change <- get_change(MCMC, Data1, Data2)
@@ -385,8 +360,8 @@ Year1 <- 2018
 Year2 <- year(LastDate)
 
 # get prediction data for the two years
-Data1 <- get_prediction_data(Year = Year1, BestModelSel$Data, PredData, RainForestMask = RainMask)
-Data2 <- get_prediction_data(Year = Year2, BestModelSel$Data, PredData, RainForestMask = RainMask)
+Data1 <- get_prediction_data(Year = Year1, BestModelSel$Data, PredData, FirstDate, LastDate, RainForestMask = RainMask)
+Data2 <- get_prediction_data(Year = Year2, BestModelSel$Data, PredData, FirstDate, LastDate, RainForestMask = RainMask)
 
 # generate change estimates
 Change <- get_change(MCMC, Data1, Data2)
@@ -410,33 +385,8 @@ Year1 <- 2020
 Year2 <- year(LastDate)
 
 # get prediction data for the two years
-Data1 <- get_prediction_data(Year = Year1, BestModelSel$Data, PredData, RainForestMask = RainMask)
-Data2 <- get_prediction_data(Year = Year2, BestModelSel$Data, PredData, RainForestMask = RainMask)
-
-# generate change estimates
-Change <- get_change(MCMC, Data1, Data2)
-
-# save change
-saveRDS(Change, paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", Year1, "_", Year2, ".rds")) 
-
-# save changes
-Change <- rbind(Change$Total, Change$NC, Change$WI, Change$SC) %>% mutate(Region = c("Total", "NC", "WI", "SC"))
-write_csv(Change, paste0("output/predictions/change_summary_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", Year1, "_", Year2, ".csv"))
-
-# free up memory
-rm(Change)
-gc()
-
-# 2021 to end
-
-# specify dates
-
-Year1 <- 2021
-Year2 <- year(LastDate)
-
-# get prediction data for the two years
-Data1 <- get_prediction_data(Year = Year1, BestModelSel$Data, PredData, RainForestMask = RainMask)
-Data2 <- get_prediction_data(Year = Year2, BestModelSel$Data, PredData, RainForestMask = RainMask)
+Data1 <- get_prediction_data(Year = Year1, BestModelSel$Data, PredData, FirstDate, LastDate, RainForestMask = RainMask)
+Data2 <- get_prediction_data(Year = Year2, BestModelSel$Data, PredData, FirstDate, LastDate, RainForestMask = RainMask)
 
 # generate change estimates
 Change <- get_change(MCMC, Data1, Data2)
@@ -453,6 +403,137 @@ rm(Change)
 gc()
 
 # create some plots
+
+# trend plots start to end
+
+# load outputs if necessary
+PredsList <- readRDS(paste0("output/predictions/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
+
+Years <- year(FirstDate):year(LastDate)
+Expected <- lapply(PredsList[1:length(PredsList)], FUN = function(x){return(x$Total$Mean)}) %>% unlist()
+Lower <- lapply(PredsList[1:length(PredsList)], FUN = function(x){return(x$Total$Lower)}) %>% unlist()
+Upper <- lapply(PredsList[1:length(PredsList)], FUN = function(x){return(x$Total$Upper)}) %>% unlist()
+Abundances <- tibble(Year = Years, Expected = Expected, Lower = Lower, Upper = Upper)
+
+# save population abundances
+write_csv(Abundances, paste0("output/predictions/abundanceT_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", year(FirstDate), "_", year(LastDate), ".csv"))
+
+PlotT <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Total") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18), legend.position = "bottom")
+
+PlotT_None <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Total") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18), legend.position = "bottom")
+
+ggsave(PlotT, file = paste0("output/inference/figures/trend_" year(FirstDate), "_", year(LastDate), ".jpg"), width = 40, height = 30, units = "cm", dpi = 300)
+ggsave(PlotT_None, file = paste0("output/inference/figures/trend_", year(FirstDate), "_", year(LastDate), "_none.jpg"), width = 40, height = 30, units = "cm", dpi = 300)
+
+# trend plots 2015 to end
+
+# load outputs if necessary
+PredsList <- readRDS(paste0("output/predictions/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
+
+Years <- 2015:year(LastDate)
+Expected <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2015)):length(PredsList)], FUN = function(x){return(x$Total$Mean)}) %>% unlist()
+Lower <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2015)):length(PredsList)], FUN = function(x){return(x$Total$Lower)}) %>% unlist()
+Upper <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2015)):length(PredsList)], FUN = function(x){return(x$Total$Upper)}) %>% unlist()
+Abundances <- tibble(Year = Years, Expected = Expected, Lower = Lower, Upper = Upper)
+
+ExpectedNC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2015)):length(PredsList)], FUN = function(x){return(x$NC$Mean)}) %>% unlist()
+LowerNC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2015)):length(PredsList)], FUN = function(x){return(x$NC$Lower)}) %>% unlist()
+UpperNC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2015)):length(PredsList)], FUN = function(x){return(x$NC$Upper)}) %>% unlist()
+AbundancesNC <- tibble(Year = Years, Expected = ExpectedNC, Lower = LowerNC, Upper = UpperNC)
+
+ExpectedWI <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2015)):length(PredsList)], FUN = function(x){return(x$WI$Mean)}) %>% unlist()
+LowerWI <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2015)):length(PredsList)], FUN = function(x){return(x$WI$Lower)}) %>% unlist()
+UpperWI <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2015)):length(PredsList)], FUN = function(x){return(x$WI$Upper)}) %>% unlist()
+AbundancesWI <- tibble(Year = Years, Expected = ExpectedWI, Lower = LowerWI, Upper = UpperWI)
+
+ExpectedSC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2015)):length(PredsList)], FUN = function(x){return(x$SC$Mean)}) %>% unlist()
+LowerSC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2015)):length(PredsList)], FUN = function(x){return(x$SC$Lower)}) %>% unlist()
+UpperSC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2015)):length(PredsList)], FUN = function(x){return(x$SC$Upper)}) %>% unlist()
+AbundancesSC <- tibble(Year = Years, Expected = ExpectedSC, Lower = LowerSC, Upper = UpperSC)
+
+# save population abundances
+write_csv(Abundances, paste0("output/predictions/abundanceT_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_2015_", year(LastDate), ".csv"))
+write_csv(AbundancesNC, paste0("output/predictions/abundanceNC_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_2015_", year(LastDate), ".csv"))
+write_csv(AbundancesWI, paste0("output/predictions/abundanceWI_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_2015_", year(LastDate), ".csv"))
+write_csv(AbundancesSC, paste0("output/predictions/abundanceSC_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_2015_", year(LastDate), ".csv"))
+
+# make plots
+PlotT <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Total") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotT_None <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Total") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotNC <- ggplot(AbundancesNC, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Northern Coast") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotNC_None <- ggplot(AbundancesNC, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Northern Coast") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotWI <- ggplot(AbundancesWI, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Western Inland") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotWI_None <- ggplot(AbundancesWI, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Western Inland") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotSC <- ggplot(AbundancesSC, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Southern Coast") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotSC_None <- ggplot(AbundancesSC, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Southern Coast") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+TrendPlot_2015_end <- PlotT + PlotNC + PlotWI + PlotSC + plot_layout(nrow = 2, ncol = 2, guides = "collect") & theme(legend.position = 'bottom')
+TrendPlot_2015_end_None <- PlotT_None + PlotNC_None + PlotWI_None + PlotSC_None + plot_layout(nrow = 2, ncol = 2, guides = "collect") & theme(legend.position = 'bottom')
+  
+ggsave(TrendPlot_2015_end, file = paste0("output/inference/figures/trend_2015_", year(LastDate), ".jpg"), width = 40, height = 30, units = "cm", dpi = 300)
+ggsave(TrendPlot_2015_end_None, file = paste0("output/inference/figures/trend_2015_", year(LastDate), "_none.jpg"), width = 40, height = 30, units = "cm", dpi = 300)
+
+# trend plots 2018 to end
+
+# load outputs if necessary
+PredsList <- readRDS(paste0("output/predictions/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
+
+Years <- 2018:year(LastDate)
+Expected <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2018)):length(PredsList)], FUN = function(x){return(x$Total$Mean)}) %>% unlist()
+Lower <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2018)):length(PredsList)], FUN = function(x){return(x$Total$Lower)}) %>% unlist()
+Upper <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2018)):length(PredsList)], FUN = function(x){return(x$Total$Upper)}) %>% unlist()
+Abundances <- tibble(Year = Years, Expected = Expected, Lower = Lower, Upper = Upper)
+
+ExpectedNC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2018)):length(PredsList)], FUN = function(x){return(x$NC$Mean)}) %>% unlist()
+LowerNC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2018)):length(PredsList)], FUN = function(x){return(x$NC$Lower)}) %>% unlist()
+UpperNC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2018)):length(PredsList)], FUN = function(x){return(x$NC$Upper)}) %>% unlist()
+AbundancesNC <- tibble(Year = Years, Expected = ExpectedNC, Lower = LowerNC, Upper = UpperNC)
+
+ExpectedWI <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2018)):length(PredsList)], FUN = function(x){return(x$WI$Mean)}) %>% unlist()
+LowerWI <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2018)):length(PredsList)], FUN = function(x){return(x$WI$Lower)}) %>% unlist()
+UpperWI <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2018)):length(PredsList)], FUN = function(x){return(x$WI$Upper)}) %>% unlist()
+AbundancesWI <- tibble(Year = Years, Expected = ExpectedWI, Lower = LowerWI, Upper = UpperWI)
+
+ExpectedSC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2018)):length(PredsList)], FUN = function(x){return(x$SC$Mean)}) %>% unlist()
+LowerSC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2018)):length(PredsList)], FUN = function(x){return(x$SC$Lower)}) %>% unlist()
+UpperSC <- lapply(PredsList[(length(PredsList) - (year(LastDate) - 2018)):length(PredsList)], FUN = function(x){return(x$SC$Upper)}) %>% unlist()
+AbundancesSC <- tibble(Year = Years, Expected = ExpectedSC, Lower = LowerSC, Upper = UpperSC)
+
+# save population abundances
+write_csv(Abundances, paste0("output/predictions/abundanceT_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_2018_", year(LastDate), ".csv"))
+write_csv(AbundancesNC, paste0("output/predictions/abundanceNC_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_2018_", year(LastDate), ".csv"))
+write_csv(AbundancesWI, paste0("output/predictions/abundanceWI_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_2018_", year(LastDate), ".csv"))
+write_csv(AbundancesSC, paste0("output/predictions/abundanceSC_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_2018_", year(LastDate), ".csv"))
+
+# make plots
+PlotT <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Total") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotT_None <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Total") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotNC <- ggplot(AbundancesNC, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Northern Coast") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotNC_None <- ggplot(AbundancesNC, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Northern Coast") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotWI <- ggplot(AbundancesWI, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Western Inland") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotWI_None <- ggplot(AbundancesWI, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Western Inland") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotSC <- ggplot(AbundancesSC, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Southern Coast") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+PlotSC_None <- ggplot(AbundancesSC, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Southern Coast") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18))
+
+TrendPlot_2018_end <- PlotT + PlotNC + PlotWI + PlotSC + plot_layout(nrow = 2, ncol = 2, guides = "collect") & theme(legend.position = 'bottom')
+TrendPlot_2018_end_None <- PlotT_None + PlotNC_None + PlotWI_None + PlotSC_None + plot_layout(nrow = 2, ncol = 2, guides = "collect") & theme(legend.position = 'bottom')
+  
+ggsave(TrendPlot_2018_end, file = paste0("output/inference/figures/trend_2018_", year(LastDate), ".jpg"), width = 40, height = 30, units = "cm", dpi = 300)
+ggsave(TrendPlot_2018_end_None, file = paste0("output/inference/figures/trend_2018_", year(LastDate), "_none.jpg"), width = 40, height = 30, units = "cm", dpi = 300)
 
 # trend plots 2020 to end
 
@@ -509,26 +590,41 @@ TrendPlot_2020_end_None <- PlotT_None + PlotNC_None + PlotWI_None + PlotSC_None 
 ggsave(TrendPlot_2020_end, file = paste0("output/inference/figures/trend_2020_", year(LastDate), ".jpg"), width = 40, height = 30, units = "cm", dpi = 300)
 ggsave(TrendPlot_2020_end_None, file = paste0("output/inference/figures/trend_2020_", year(LastDate), "_none.jpg"), width = 40, height = 30, units = "cm", dpi = 300)
 
-# trend plots 1996 to end
+# box plots of change since 2015
 
-# load outputs if necessary
-PredsList <- readRDS(paste0("output/predictions/sel_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_firstdate", FirstDate, ".rds"))
+# load outputs if needed
+Change_2015_end <- readRDS(paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2015, "_", year(LastDate), ".rds"))
 
-Years <- 1996:year(LastDate)
-Expected <- lapply(PredsList[1:length(PredsList)], FUN = function(x){return(x$Total$Mean)}) %>% unlist()
-Lower <- lapply(PredsList[1:length(PredsList)], FUN = function(x){return(x$Total$Lower)}) %>% unlist()
-Upper <- lapply(PredsList[1:length(PredsList)], FUN = function(x){return(x$Total$Upper)}) %>% unlist()
-Abundances <- tibble(Year = Years, Expected = Expected, Lower = Lower, Upper = Upper)
+# change 2015 - end
+ChTotal <- as_tibble(Change_2015_end$DistTot) %>% rename(Change = value) %>% mutate(Region = "Total", Change = (Change - 1) * 100)
+ChNC <- as_tibble(Change_2015_end$DistNC) %>% rename(Change = value) %>% mutate(Region = "Northern Coast", Change = (Change - 1) * 100)
+ChWI <- as_tibble(Change_2015_end$DistWI) %>% rename(Change = value) %>% mutate(Region = "Western Inland", Change = (Change - 1) * 100)
+ChSC <- as_tibble(Change_2015_end$DistSC) %>% rename(Change = value) %>% mutate(Region = "Southern Coast", Change = (Change - 1) * 100)
+ChAll <- bind_rows(ChTotal, ChNC, ChWI, ChSC) %>% mutate(Region = factor(Region, levels = c("Total", "Northern Coast", "Western Inland", "Southern Coast")))
 
-# save population abundances
-write_csv(Abundances, paste0("output/predictions/abundanceT_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_1996_", year(LastDate), ".csv"))
+# create plot
 
-PlotT <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + geom_line(aes(colour = "Expected")) + geom_point(shape=21, size=2, fill = "blue", colour = "blue") + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Total") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18), legend.position = "bottom")
+Plot <- ggplot(ChAll, aes(x = Region, y = Change, fill = Region)) + geom_boxplot(width = 0.2) + theme_minimal() + theme(legend.position = "none") + geom_hline(yintercept = 0) + labs(x = "Sub-region", y = "Percentage Change") + theme(axis.text = element_text(size = 18),  axis.title.y = element_text(size = 20), axis.title.x = element_text(size = 20, vjust = -1)) + theme(plot.margin = unit(c(1,1,1,1), "cm"))
 
-PlotT_None <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Total") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18), legend.position = "bottom")
+ggsave(Plot, file = "output/inference/figures/change_boxplot_2015_end.jpg", width = 40, height = 30, units = "cm", dpi = 300)
 
-ggsave(PlotT, file = paste0("output/inference/figures/trend_1996_", year(LastDate), ".jpg"), width = 40, height = 30, units = "cm", dpi = 300)
-ggsave(PlotT_None, file = paste0("output/inference/figures/trend_1996_", year(LastDate), "_none.jpg"), width = 40, height = 30, units = "cm", dpi = 300)
+# box plots of change since 2018
+
+# load outputs if needed
+Change_2018_end <- readRDS(paste0("output/predictions/change_order", ModelWAICs$Order[BestIndex], "_lag", ModelWAICs$Lag[BestIndex], "_vartrend", ModelWAICs$VarTrend[BestIndex], "_", 2018, "_", year(LastDate), ".rds"))
+
+# change 2018 - end
+ChTotal <- as_tibble(Change_2018_end$DistTot) %>% rename(Change = value) %>% mutate(Region = "Total", Change = (Change - 1) * 100)
+ChNC <- as_tibble(Change_2018_end$DistNC) %>% rename(Change = value) %>% mutate(Region = "Northern Coast", Change = (Change - 1) * 100)
+ChWI <- as_tibble(Change_2018_end$DistWI) %>% rename(Change = value) %>% mutate(Region = "Western Inland", Change = (Change - 1) * 100)
+ChSC <- as_tibble(Change_2018_end$DistSC) %>% rename(Change = value) %>% mutate(Region = "Southern Coast", Change = (Change - 1) * 100)
+ChAll <- bind_rows(ChTotal, ChNC, ChWI, ChSC) %>% mutate(Region = factor(Region, levels = c("Total", "Northern Coast", "Western Inland", "Southern Coast")))
+
+# create plot
+
+Plot <- ggplot(ChAll, aes(x = Region, y = Change, fill = Region)) + geom_boxplot(width = 0.2) + theme_minimal() + theme(legend.position = "none") + geom_hline(yintercept = 0) + labs(x = "Sub-region", y = "Percentage Change") + theme(axis.text = element_text(size = 18),  axis.title.y = element_text(size = 20), axis.title.x = element_text(size = 20, vjust = -1)) + theme(plot.margin = unit(c(1,1,1,1), "cm"))
+
+ggsave(Plot, file = "output/inference/figures/change_boxplot_2018_end.jpg", width = 40, height = 30, units = "cm", dpi = 300)
 
 # box plots of change since 2020
 
@@ -555,4 +651,3 @@ print("inference complete")
 sink(type = "message")
 sink()
 close(log_con)
-
