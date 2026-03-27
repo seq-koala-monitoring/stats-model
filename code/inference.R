@@ -422,7 +422,7 @@ PlotT <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upp
 
 PlotT_None <- ggplot(Abundances, aes(x = Year, y = Expected, ymin = Lower, ymax = Upper)) + geom_ribbon(alpha = 0.2, aes(fill = "95% Credible Interval")) + theme_minimal() + labs(x = "Year", y = "Number of Koalas") + theme(axis.text = element_text(size = 16),  axis.title.y = element_text(size = 18), axis.title.x = element_text(size = 18, vjust = -1)) + scale_y_continuous(labels = scales::comma) + ggtitle("Total") + theme(plot.title = element_text(size=22)) + theme(plot.margin = unit(c(1,1,1,1), "cm")) + scale_colour_manual("", values = "black") + scale_fill_manual("", values = "grey12") + theme(legend.text=element_text(size=18), legend.position = "bottom")
 
-ggsave(PlotT, file = paste0("output/inference/figures/trend_" year(FirstDate), "_", year(LastDate), ".jpg"), width = 40, height = 30, units = "cm", dpi = 300)
+ggsave(PlotT, file = paste0("output/inference/figures/trend_", year(FirstDate), "_", year(LastDate), ".jpg"), width = 40, height = 30, units = "cm", dpi = 300)
 ggsave(PlotT_None, file = paste0("output/inference/figures/trend_", year(FirstDate), "_", year(LastDate), "_none.jpg"), width = 40, height = 30, units = "cm", dpi = 300)
 
 # trend plots 2015 to end
