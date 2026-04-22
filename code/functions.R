@@ -944,9 +944,8 @@ get_prediction_data <- function(Year, NimbleData, PredData, FirstDate, LastDate,
 
   # get first and last date IDs
   if (FirstDate > date(paste0(Year + 1, "-04-01"))){
-    error("First date of survey data is after the end of the first year for which predictions are being made. Please check the survey data and/or the specified year for predictions.")
-  }
-  else {
+    stop("First date of survey data is after the end of the first year for which predictions are being made. Please check the survey data and/or the specified year for predictions.")
+  } else {
     if (FirstDate < date(paste0(Year, "-10-01"))) {
       FirstDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-04-01"))) %>% pull(TimePeriodID)
     } else {
@@ -954,9 +953,8 @@ get_prediction_data <- function(Year, NimbleData, PredData, FirstDate, LastDate,
     }
   }
   if (LastDate < date(paste0(Year, "-04-01"))){
-    error("Last date of survey data is before the start of the last year for which predictions are being made. Please check the survey data and/or the specified year for predictions.")
-  }
-  else {
+    stop("Last date of survey data is before the start of the last year for which predictions are being made. Please check the survey data and/or the specified year for predictions.")
+  } else {
     if (LastDate < date(paste0(Year, "-10-01"))) {
       LastDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-04-01"))) %>% pull(TimePeriodID)
     } else {
@@ -964,19 +962,6 @@ get_prediction_data <- function(Year, NimbleData, PredData, FirstDate, LastDate,
     }
   }
   
-  # check if the first date is in the data, use it, otherwise use the second date - to avoid issues at the start or end
-  #if (date(paste0(Year, "-04-01")) %in% PredData$DateIntervals$start_date) {
-  #  FirstDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-04-01"))) %>% pull(TimePeriodID)
-  #} else {
-  #  FirstDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-10-01"))) %>% pull(TimePeriodID)
-  #}
-  # check if the second date is in the data, use it, otherwise use the first date - to avoid issues at the start or end
-  #if (date(paste0(Year, "-10-01")) %in% PredData$DateIntervals$start_date) {
-  #  LastDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-10-01"))) %>% pull(TimePeriodID)
-  #} else {
-  #  LastDateID <- filter(PredData$DateIntervals, start_date == date(paste0(Year, "-04-01"))) %>% pull(TimePeriodID)
-  #}
-
   # add a season variable to the temporally variable covariates
   # 1 = breeding season (summer - October to March) and 0 = non-breeding season (winter - April to September)
   Seas <- ifelse(month(PredData$DateIntervals$start_date) == 10, 1, 0)
@@ -991,10 +976,10 @@ get_prediction_data <- function(Year, NimbleData, PredData, FirstDate, LastDate,
   dimnames(PredData$CovTemp)[[2]][(dim(PredData$CovTemp)[[2]])] <- "htime"
 
   # Subset temporally variable data for the specified year
-  PredData$CovTemp <- PredData$CovTemp[ , , (FirstDateID - NimbleData$Constants$Lag):LastDateID]
+  PredData$CovTemp <- PredData$CovTemp[ , , (FirstDateID - NimbleData$Constants$Lag):LastDateID, drop = FALSE]
 
   # Subset mask data for the specified year
-  PredData$Mask <- PredData$Mask[, (FirstDateID - NimbleData$Constants$Lag):LastDateID]
+  PredData$Mask <- PredData$Mask[, (FirstDateID - NimbleData$Constants$Lag):LastDateID, drop = FALSE]
 
   # set up small grid IDs
   SGridID = PredData$CovCons[,"GridID"]
@@ -1189,7 +1174,7 @@ get_predictions <- function(MCMC, Data, grid_size = primary_grid_size) {
 
   # remove grids with no genetic population ID
   Data$X <- Data$X %>% filter(!is.na(Data$GenPopID))
-  Data$Y <- Data$Y[which(!is.na(Data$GenPopID)), , ]
+  Data$Y <- Data$Y[which(!is.na(Data$GenPopID)), , , drop = FALSE]
   Data$SGridID <- Data$SGridID[which(!is.na(Data$GenPopID))]
   Data$GenPopID <- Data$GenPopID[which(!is.na(Data$GenPopID))]
 
@@ -1284,12 +1269,12 @@ get_change <- function(MCMC, Data1, Data2) {
   # remove grids with no genetic population ID
   # first year
   Data1$X <- Data1$X %>% filter(!is.na(Data1$GenPopID))
-  Data1$Y <- Data1$Y[which(!is.na(Data1$GenPopID)), , ]
+  Data1$Y <- Data1$Y[which(!is.na(Data1$GenPopID)), ,, drop = FALSE]
   Data1$SGridID <- Data1$SGridID[which(!is.na(Data1$GenPopID))]
   Data1$GenPopID <- Data1$GenPopID[which(!is.na(Data1$GenPopID))]
   # second year
   Data2$X <- Data2$X %>% filter(!is.na(Data2$GenPopID))
-  Data2$Y <- Data2$Y[which(!is.na(Data2$GenPopID)), , ]
+  Data2$Y <- Data2$Y[which(!is.na(Data2$GenPopID)), , , drop = FALSE]
   Data2$SGridID <- Data2$SGridID[which(!is.na(Data2$GenPopID))]
   Data2$GenPopID <- Data2$GenPopID[which(!is.na(Data2$GenPopID))]
 
