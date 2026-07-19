@@ -1,28 +1,4 @@
-# -------------------------------------------------------------------
-#                 UPDATE AND PROCESS COVARIATES
-# -------------------------------------------------------------------
-
-# This R code updates and processes covariates required for the Bayesian state-space model 
-# used to estimate koala densities across Southeast Queensland.
-#
-# The basic workflow involves checking if the input folder already has the latest covariate file. 
-# If it doesn't, the code will automatically download, process, and save the most recent file
-# the correct location.
-#
-# Before anything, start fresh by clicking Session > Restart R... > Yes in the pop-up (do not save anything if asked)
-#
-# To get started, please, select all lines by pressing Ctrl + A on a Windows PC or Command + A on a MAc. 
-# Then, run these lines by pressing Ctrl + Enter on a Windows PC or Command + Return on a Mac.
-# Alternatively, click on the Source button near the top right corner of this script
-#
-# When you see "THIS CODE HAS FINISHED" in the Console panel (usually at the bottom left),
-# you're ready to the modelling stage. Go to File > Open file... > locate the file named data_processing.R > Open.
-# This file prepares all the data for the Bayesian state-space model
-#
-# PS: 1) Disregard any warnings on the task bar about packages that are not installed 
-#     2) This code may take anywhere from a few minutes to days to run, 
-#        depending on how many files need updating and your computer's specifications.
-# -------------------------------------------------------------------
+# THIS SCRIPT DOWNLOADS AND DOES SOME INITIAL PROCESSING OF THE RAW DATA FOR THE PREDICTOR VARIABLES (NOTE SOME MANUAL UPDATNG IS REQUIRED HERE) 
 
 # clean global environment
 rm(list=ls())

@@ -1,28 +1,4 @@
-# -------------------------------------------------------------------
-#           DATA PRE-PROCESSING REQUIRED FOR THE MODEL
-# -------------------------------------------------------------------
-
-# This R code process all data to the format required for the Bayesian state-space model 
-# used to estimate koala densities across Southeast Queensland.
-#
-# The basic workflow involves three main steps:
-# 1) Updating the koala survey database
-# 2) Extracting covariate values for the transects in the koala survey database
-# 3) Preparing the data for the modelling phase
-#
-# Before anything, start fresh by clicking Session > Terminate R... > Yes in the pop-up (do not save anything if asked)
-#
-# To get started, please, select all lines by pressing Ctrl + A on a Windows PC or Command + A on a MAc. 
-# Then, run these lines by pressing Ctrl + Enter on a Windows PC or Command + Return on a Mac.
-#
-# When you see "THIS CODE HAS FINISHED" in the Console panel (usually at the bottom left),
-# you're ready to the modelling runs. Go to File > Open file... > locate the file named model_runs.R > Open.
-# This file will run the Bayesian state-space models.
-#
-# PS: 1) Disregard any warnings on the task bar about packages that are not installed 
-#     2) This code may take anywhere from a few minutes to days to run, 
-#        depending on how many files need updating and your computer's specifications.
-# -------------------------------------------------------------------
+# THIS SCRIPT PROCESSSES THE DATA INTO THE FORMAT REQUIRED FOR THE MODEL
 
 # clean global environment
 rm(list=ls())
