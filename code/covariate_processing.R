@@ -539,7 +539,7 @@ for (i in 1:length(FeatureClasses$name)) {
 # koala habitat
 
 # get preclaring koala habitat and habitat category lookup table
-PreClearHabitat <- vect("input/covariates/raw_data/preclear_koala_habitat/KoalaSurveyStrata_v3_ful.shp") %>% project(Bounding)
+PreClearHabitat <- vect("input/covariates/raw_data/preclear_koala_habitat/KoalaPreClear.shp") %>% project(Bounding)
 
 # get habitat class lookup table
 LookUp <- read_csv("input/covariates/raw_data/preclear_koala_habitat/koala_habitat_matrix_rules_LUT.csv")
