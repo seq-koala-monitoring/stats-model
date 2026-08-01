@@ -39,6 +39,7 @@ NOTE NEEDS UPDATING
 
 ### Koala survey data updates
 
+STILL TO UPDATE
 
 ### Predictor variable updates
 
@@ -46,12 +47,11 @@ Most spatio-temporal predictor variables are either static and do not need updat
 
 #### Land-use
 
-
-
+Given there is unlikely to be any new land-use data available for South East Queensland in the very near future no updates are required for land-use currently. An update process for land-use when new data becomes available will be developed. 
 
 #### Lot size
 
-The cadastre data that is used to calculate the lot soze variable needs to be updaqted once per year and prior to running the analysis via the following process  
+The cadastre data that is used to calculate the lot soze variable needs to be updaqted once per year and prior to running the analysis via the following process:  
 
 1. Locate the folder `/input/covariates/raw_data/dcdb`
 2. Find the `cadastre_superimposed.gdb` geodatabase and open it in a GIS
@@ -59,21 +59,30 @@ The cadastre data that is used to calculate the lot soze variable needs to be up
 3. Obtain cadastre layers for the study area for October of each missing year and make sure all layers are in `GDA 1994 MGA Zone 56` projected coordinate system
 4. Ensure that each new cadastre layer contains a field called `LOTPLAN` which contains the LOT number and PLAN number concanated together with a space delimeter
 5. Name each new cadastre layer using the format `hlpsz_yyyy10` (note all cadaste layers are for October in each year)
-6. Add the new cadastre layers to the `cadastre_superimposed.gdb` geodatabase located in the folder `/input/covariates/raw_data/dcdb`        
+6. Add the new cadastre layers to the `cadastre_superimposed.gdb` geodatabase located in the folder `/input/covariates/raw_data/dcdb`.        
 
-Note: currently the October 2022 cadastre is missing and needs to be be added 
+Note: currently the October 2022 cadastre is missing and needs to be be added when the next update is conducted.
 
 #### Koala habitat
 
+Updating koala habitat requires updating a pre-clearing koala habitat layer and updating historical remnant cover layers via the following process:
 
+1. Obtain a shapefile of the new koala habitat preclearing layer (see `/input/covariates/raw_data/preclear_koala_habitat/KoalaPreClear.shp` for format required) and make sure this layer is in `GDA 1994 MGA Zone 56` projected coordinate system
+2. The fields contained in this shapefile are not critical apart from the field `HSM_RULE` which must contain the habitat code taken from Figure 6 in "Spatial modelling for koalas in South East Queensland - Report Version 4.0" with the letter "R" in front of the habitat code number)
+3. Ensure the preclearing koala habitat layer has complete coverage across the study region
+4. Delete the existing `KoalaPreClear.shp` files in the folder `/input/covariates/raw_data/preclear_koala_habitat` and replace with the new `KoalaPreClear.shp` files
+5. Obtain shapefiles of the new historical remnant cover layers since 1997 (see files in the folder `/input/covariates/raw_data/remnant_cover` for format required) and make sure all layers are in `GDA 1994 MGA Zone 56` projected coordinate system
+6. Ensure filenames of these shapefiles have the format  `QLD_REMVEGCOV_yyyy`
+7. There are no specific requirements for fields in these shapefiles
+8. Delete the existing remnant cover shapefile files in the folder `/input/covariates/raw_data/remnant_cover` and replace with the new remnant cover shapefile files
 
 #### Forest and sparse woody cover
 
-
+Since an update of the forest and sparse woody cover data requires software modification email Jonathan Rhodes at <jon.rhodes@qut.edu.au> to request an update.
 
 #### Groundwater dependent ecosystems
 
-
+The groundwater dependent ecosystems data is a bespoke product provided by the Queensland Department of Environment, Tourism, Science and Innovation. if this ever requires updating email Jonathan Rhodes at <jon.rhodes@qut.edu.au> to discuss. 
 
 #### Canopy height
 
