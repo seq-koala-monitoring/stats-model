@@ -1,23 +1,111 @@
-# --------------------------------------------------------------------------------
-#                          GETTING STARTED  
-# --------------------------------------------------------------------------------
+# Prepare R to model koala population densities across South East Queensland
+# This initialisation script will download the latest code from GitHub (https://github.com/seq-koala-monitoring/stats-model/tree/main)
+# and configures the working directory to ensure that the analyses run smoothly.
 
-# The initial function will download the latest code from GitHub (https://github.com/seq-koala-monitoring/stats-model/tree/main) 
-# and configure the working directory to ensure that the analyses run properly. 
-#
-# You also need to provide APIs - code that allows different software programs to communicate - to download
-# a few soil variables from TERN. Please, follow the steps below:
-#   1) Navigate to https://geonetwork.tern.org.au/geonetwork/srv/eng/new.account
-#   2) Create an account
-#
-# After downloading the code, open the next script to continue with the analysis. Go to File > Open file... > locate the file named covariate_processing.R. > Open.
-# This next script will gather and prepare all the information needed for the Bayesian state-space model 
-# that estimates densities of koalas across South East Queensland. 
-#
-# To get started, run the line below by pressing Ctrl + Enter on a Windows PC or Command + Return on a Mac.
-source("code/download_code_github.R")
+  # install required packages if not already installed
+required.packages <- c(
+  "ghapps",
+  "gh",
+  "httr2"
+)
+new.packages <- required.packages[!(required.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages, quiet = T)
 
-# You can now close this script by clicking the X next to its name in the script tab.
+  # load packages
+  library(ghapps)
+  library(gh)
+  library(httr2) 
+  
+# list stats-model contents
+owner <- "seq-koala-monitoring"
+repo <- "stats-model"
+branch <- "main"
 
+repo_contents_stats <- gh(
+  "GET /repos/:owner/:repo/git/trees/:branch?recursive=1",
+  owner = owner,
+  repo = repo,
+  branch = branch
+)
 
+# check if "code" director exists - if it does not then create a code directory
+if (!dir.exists("code")) {
+  dir.create("code")
+}
 
+# delete all files from the "code" directory except for initial_setup.R
+file.path <- list.files(path = "code",
+                        include.dirs = T,
+                        full.names = T)
+file.remove(file.path[!file.path %in% c("code/download_code_github.R")])
+  
+# extract R script paths
+r.files <- repo_contents_stats$tree %>%
+  purrr::keep( ~ .x$type == "blob" && grepl("\\.R$", .x$path)) %>%
+  purrr::map_chr( ~ .x$path)
+    
+# download r scripts
+for (file in r.files) {
+  cat("Downloading:", file, "\n")
+  raw_url <- sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s",
+                     owner,
+                     repo,
+                     branch,
+                     file)
+  download.file(
+    url = raw_url,
+    destfile = file.path(file),
+    mode = "wb"  # Binary mode to ensure proper file handling
+  )
+}
+
+# extract parameter's path
+cat("Downloading: parameters_init.txt")
+par.file <- repo_contents_stats$tree %>%
+  purrr::keep( ~ .x$type == "blob" && grepl("parameters_init.txt$", .x$path)) %>%
+  purrr::map_chr( ~ .x$path)
+
+raw_url <- sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s",
+                   owner,
+                   repo,
+                   branch, par.file)
+
+download.file(
+  url = raw_url,
+  destfile = par.file,
+  mode = "wb"  # Binary mode to ensure proper file handling
+)
+
+# extract correct paths for folder structure
+cat("Downloading: required_dir_structure.txt\n")
+par.file <- repo_contents_stats$tree %>%
+  purrr::keep( ~ .x$type == "blob" && grepl("required_dir_structure.txt$", .x$path)) %>%
+  purrr::map_chr( ~ .x$path)
+
+raw_url <- sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s",
+                   owner,
+                   repo,
+                   branch, par.file)
+
+download.file(
+  url = raw_url,
+  destfile = par.file,
+  mode = "wb"  # Binary mode to ensure proper file handling
+)
+
+rm(list = ls())
+gc()
+
+# Configure directory structure
+source("required_dir_structure.txt")
+
+if(any(!dir.exists(folders))){
+  cat("Configuring working directory...\n\n")
+}
+
+for(i in 1:length(folders)){
+  if(!dir.exists(folders[i])){
+    cat(paste0("Creating folder ", folders[i], sep = "\n"))
+    dir.create(folders[i])
+  }
+}

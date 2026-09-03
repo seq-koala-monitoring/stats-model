@@ -1,6 +1,6 @@
 # INTRODUCTION
 
-This code fits spatio-temporal models to the South East Queensland Koala Monitoring Data. 
+This code fits spatio-temporal models to the South East Queensland Koala Monitoring Data.
 
 What follows are Step-by-step instructions on how to set-up and run the analysis.
 
@@ -16,8 +16,6 @@ The analysis approach consist of the following ordered steps:
 8. Model checks
 9. Model outputs and inference
 
-# ANALYSIS INSTRUCTIONS
-
 ## 1. Software and folder set-up
 
 ### Download and Install Software
@@ -27,6 +25,14 @@ Ensure that you have R version 4.4.1 or higher, RStudio, and Rtools installed on
 * R: https://cran.r-project.org/
 * RStudio: https://posit.co/downloads/
 * Rtools: https://cran.r-project.org/bin/windows/Rtools/rtools44/rtools.html
+
+### Code and folder set-up
+
+The steps to create the correct folder structure and download the code are as follows:
+
+1. Create a new folder where you intend to run your analysis
+2. Download 
+
 
 ### Open R project
 
