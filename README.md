@@ -8,7 +8,7 @@ The analysis approach consist of the following ordered steps:
 
 1. Software and folder set-up
 2. Data set-up and updates
-3. Initialisation settings
+3. Model set-up and initialisation
 4. Predictor variable processing
 5. Data processing for analysis
 6. Co-linearity checks and predictor variable selection
@@ -45,14 +45,13 @@ STILL TO UPDATE
 
 If this is the first time you have set up the analysis then follow the steps below (otherwise these steps can be ignored and you can go to the `Predictor variables updates` section):
 
-1. Contact Jonathan Rhodes <jon.rhodes@qut.edu.au> to request the initialisation data for the predictor variables (this is data that is not automatically downloaded)
+1. Contact Jonathan Rhodes at <jon.rhodes@qut.edu.au> to request the initialisation data for the predictor variables (this is data that is not automatically downloaded)
 2. Copy `dcdb` initialisation files into the folder `/input/covariates/raw_data/dcdb`
 3. Copy `dem` initialisation files into the folder `/input/covariates/raw_data/dem`
 4. Copy `gde` initialisation files into the folder `/input/covariates/raw_data/gde` 
 5. Copy `land_use` initialisation files into the folder `/input/covariates/raw_data/land_use`
 6. Copy `preclear_koala_habitat` initialisation files into the folder `/input/covariates/raw_data/preclear_koala_habitat`
 7. Copy `remnant_cover` initialisation files into the folder `/input/covariates/raw_data/remnant_cover`
-8. Copy `study_area` initialisation files into the folder `/input/covariates/raw_data/study_area`
 8. Copy `study_area` initialisation files into the folder `/input/covariates/raw_data/study_area`
 
 ### Predictor variables updates
