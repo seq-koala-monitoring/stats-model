@@ -229,15 +229,15 @@ if (!file.exists("input/covariates/output/htlus201706.tif") | !file.exists("inpu
 
 # land use mask
 
-if (!file.exists("input/covariates/output/mask/lu2017_mask.tif") | !file.exists("input/covariates/output/mask/lu1999_mask.tif")) {
+if (!file.exists("input/mask/lu2017_mask.tif") | !file.exists("input/mask/lu1999_mask.tif")) {
 
   # load land-use for 1999 and 2017 - this uses the tertiary ALUM land-use category, reclassifies to 2 categories, and then converts to raster at a 30m resolution
   # note that the original land-use data was provided in a .gdb but was corrupted in some way so was first exported to a .shp file using ArcGIS Pro
   LandUse2017_mask <- vect("input/covariates/raw_data/land_use/QLD_LANDUSE_June_2019/QLD_LANDUSE_CURRENT_X.shp") %>% project(Bounding) %>% crop(Bounding) %>% rasterize(rast(Bounding, resolution = 30), field = "Tertiary")
   LandUse1999_mask <- vect("input/covariates/raw_data/land_use/QLD_LANDUSE_June_2019/QLD_LANDUSE_1999_X.shp") %>% project(Bounding) %>% crop(Bounding) %>% rasterize(rast(Bounding, resolution = 30), field = "Tertiary")
   # save rasters
-  writeRaster(LandUse2017_mask, "input/covariates/output/mask/lu2017_mask.tif")
-  writeRaster(LandUse1999_mask, "input/covariates/output/mask/lu1999_mask.tif")
+  writeRaster(LandUse2017_mask, "input/mask/lu2017_mask.tif")
+  writeRaster(LandUse1999_mask, "input/mask/lu1999_mask.tif")
 }
 
 # climate

@@ -41,18 +41,25 @@ To create the correct folder structure and download the code follow these steps 
 
 STILL TO UPDATE
 
-### Predictor variables initialisation
+### Data initialisation
 
-If this is the first time you have set up the analysis then follow the steps below (otherwise these steps can be ignored and you can go to the `Predictor variables updates` section):
+If this is the first time you have set up the analysis then follow the steps below to obtain ansd set up the initialisation data (if you have already previously set up the analysis these steps can be ignored and you can go to the `Predictor variables updates` section):
 
-1. Contact Jonathan Rhodes at <jon.rhodes@qut.edu.au> to request the initialisation data for the predictor variables (this is data that is not automatically downloaded)
-2. Copy `dcdb` initialisation files into the folder `/input/covariates/raw_data/dcdb`
-3. Copy `dem` initialisation files into the folder `/input/covariates/raw_data/dem`
-4. Copy `gde` initialisation files into the folder `/input/covariates/raw_data/gde` 
-5. Copy `land_use` initialisation files into the folder `/input/covariates/raw_data/land_use`
-6. Copy `preclear_koala_habitat` initialisation files into the folder `/input/covariates/raw_data/preclear_koala_habitat`
-7. Copy `remnant_cover` initialisation files into the folder `/input/covariates/raw_data/remnant_cover`
-8. Copy `study_area` initialisation files into the folder `/input/covariates/raw_data/study_area`
+1. Contact Jonathan Rhodes at <jon.rhodes@qut.edu.au> to request the initialisation data
+2. Copy files in the `dcdb` folder into the folder `/input/covariates/raw_data/dcdb`
+3. Copy files in the `dem` folder into the folder `/input/covariates/raw_data/dem`
+4. Copy files in the `gde` folder into the folder `/input/covariates/raw_data/gde` 
+5. Copy files in the `land_use` folder into the folder `/input/covariates/raw_data/land_use`
+6. Copy files in the `preclear_koala_habitat` into the folder `/input/covariates/raw_data/preclear_koala_habitat`
+7. Copy files in the `remnant_cover` folder into the folder `/input/covariates/raw_data/remnant_cover`
+8. Copy files in the `study_area` folder into the folder `/input/covariates/raw_data/study_area`
+9. Copy `basedata.gdb` into the folder `/input`
+10. Copy files in the `databases` folder into the folder `/input/databses`
+11. Copy files in the `group_observers` folder into the folder `/input/group_observers`
+12. Copy `KoalaSurveyData.gdb` into the folder `/input`
+13. Copy files in the `line_transects_2018` folder into the folder `/input/line_transects_2018`
+14. Copy files in the `mask` folder into the folder `/input/mask`
+
 
 ### Predictor variables updates
 
@@ -115,12 +122,9 @@ You will need to provide an API code that allows R to download some datasets fro
 4. Once logged in, click you name and TERN account
 5. Click API Keys > Create API Keys > Type a name > Request API key
 6. Open a text editor, create a new text document, and add to the first line of that docuement the text `TERN_API <- "YOUR API CODE"` (where YOUR API CODE is the API key you just generated from the TERN website - it will be a series of letters and numbers)
-7. Save the text document to the folder `/keys` and nam the file `apis.R`
+7. Save the text document to the folder `/keys` and name the file `apis.R`
 
-## 3. Model set-up and initialisation
-
-
-
+## 3. Model set-up
 
 We designed this project to give users flexibility to adjust parameters while still achieving reliable results. If you need to modify any spatial parameter from the default, adjust the arguments in the _parameters_init.txt_ file.
 The parameters are:
